@@ -6,7 +6,6 @@
 
 using PieceArray = array<array<Piece, BOARD_SIZE + 2>, BOARD_SIZE + 2>;
 using CellArray = array<array<Cell, BOARD_SIZE + 2>, BOARD_SIZE + 2>;
-using Lines = array<Line, DIRECTION_SIZE>;
 
 class Line {
 
@@ -21,9 +20,11 @@ public:
 
 };
 
+using Lines = array<Line, DIRECTION_SIZE>;
+
 class Board {
 
-private:
+public:
     CellArray cells;
     unsigned int moveCnt;
     Lines getLines(int x, int y);
@@ -31,7 +32,7 @@ private:
     Line shiftLine(Line &line, int n);
     Pattern setPattern(Line &line); 
 
-public:
+// public:
     Board();
     PieceArray getBoardStatus();
     bool move(int x, int y);
@@ -60,11 +61,17 @@ bool Board::move(int x, int y) {
     if (cells[x][y].piece != EMPTY)
         return false;
 
+    cout << "1" << endl;
+
     cells[x][y].piece = (moveCnt % 2 == 1) ? BLACK : WHITE;
 
     Lines lines = getLines(x, y);
+
+    cout << "2" << endl;
     for(int i = 0; i < DIRECTION_SIZE; i++) {
+        cout << "3" << endl;
         setPattern(lines[i]);
+        cout << "4" << endl;
     }
     return true;
 }
@@ -83,48 +90,68 @@ Lines Board::getLines(int x, int y) {
     for (int i = 0; i < LINE_LENGTH; i++) {
         if (startY + i < 1 || startY + i > 15) {
             lines[HORIZONTAL][i] = STATIC_WALL;
+            cout << lines[HORIZONTAL][i] << "\t";
             continue; 
         }
         lines[HORIZONTAL][i] = &cells[x][startY + i];
+        cout << lines[HORIZONTAL][i] << "\t";
     }
+
+    cout << endl;
 
     lines[VERTICAL].dir = VERTICAL;
     for (int i = 0; i < LINE_LENGTH; i++) {
         if (startX + i < 1 || startX + i > 15) {
             lines[VERTICAL][i] = STATIC_WALL;
+            cout << lines[VERTICAL][i] << "\t";
             continue;
         }
-        lines[VERTICAL][i] = &cells[startX + i][y];        
+        lines[VERTICAL][i] = &cells[startX + i][y];   
+        cout << lines[VERTICAL][i] << "\t";     
     }
+
+    cout << endl;
 
     lines[UPWARD].dir = UPWARD;
     for (int i = 0; i < LINE_LENGTH; i++) {
         if (startX + i < 1 || startX + i > 15) {
             lines[UPWARD][i] = STATIC_WALL;
+            cout << lines[UPWARD][i] << "\t";   
+            continue;
         }
         if (startY + i < 1 || startY + i > 15) {
             lines[UPWARD][i] = STATIC_WALL;
+            cout << lines[UPWARD][i] << "\t";   
+            continue;
         }
         lines[UPWARD][i] = &cells[startX + i][startY + i];
+        cout << lines[UPWARD][i] << "\t";   
     }
+
+    cout << endl;
     
     lines[DOWNWARD].dir = DOWNWARD;
     for (int i = 0; i < LINE_LENGTH; i++) {
         if (startX + i < 1 || startX + i > 15) {
             lines[DOWNWARD][i] = STATIC_WALL;
+            cout << lines[DOWNWARD][i] << "\t";   
             continue;
         }
         if (endY - i < 1 || endY - i > 15) {
             lines[DOWNWARD][i] = STATIC_WALL;
+            cout << lines[DOWNWARD][i] << "\t";   
             continue;
         }
         lines[DOWNWARD][i] = &cells[startX + i][endY - i];
+        cout << lines[DOWNWARD][i] << "\t";   
     }
+
+    cout << endl;
 
     return lines;
 }
 
-tuple<int, int, int, int> countLine(Line &line) {
+tuple<int, int, int, int> Board::countLine(Line &line) {
     constexpr auto mid = LINE_LENGTH / 2;
     
     /*
@@ -187,6 +214,8 @@ Pattern Board::setPattern(Line &line) {
     int realLen, fullLen, start, end;
     tie(realLen, fullLen, start, end) = countLine(line);
 
+    cout << "3.1" << endl;
+
     if(isBlack && realLen >= 6) 
         return OVERLINE;
     else if(realLen >= 5)
@@ -197,12 +226,19 @@ Pattern Board::setPattern(Line &line) {
     int patternCnt[PATTERN_SIZE] = {0};
     Pattern p = DEAD;
 
+    cout << "3.2" << endl;
+    cout << "line.dir" << line.dir << endl;
     for(int i = start; i <= end; i++) {
         if(line[i]->piece == EMPTY) {
             Line sl = shiftLine(line, i);
             sl.dir = DIRECTION_SIZE;
 
+            cout << "3.2.1" << endl;
+            cout << "i: " << i << endl;
+
             Pattern slp = setPattern(sl);
+
+            cout << "3.2.2" << endl;
             if(line.dir != DIRECTION_SIZE) {
                 Piece self = isBlack ? BLACK : WHITE;
                 line[i]->patterns[self][line.dir] = slp;
@@ -211,6 +247,7 @@ Pattern Board::setPattern(Line &line) {
         }
     }
 
+    cout << "3.3" << endl;
     if (patternCnt[FIVE] >= 2) {
         p = FREE_4;
     }

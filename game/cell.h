@@ -16,7 +16,11 @@ public:
 };
 
 Cell::Cell() {
-    Cell(EMPTY); 
+    this->piece = EMPTY;
+    for(int i = 0; i < DIRECTION_SIZE; i++) {
+        patterns[BLACK][i] = PATTERN_SIZE; 
+        patterns[WHITE][i] = PATTERN_SIZE;
+    }
 }
 
 Cell::Cell(Piece piece) {

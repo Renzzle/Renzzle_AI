@@ -1,7 +1,7 @@
 #include <iostream>
 #include <stdlib.h>
 #include <string>
-#include "board.h"
+#include "game/board.h"
 
 string pieceToString(Piece piece) {
     if (piece == BLACK) {
@@ -49,10 +49,68 @@ void putBoardStatus(Cell(&cells)[BOARD_SIZE + 2][BOARD_SIZE + 2], string str)
 
 int main(void)
 {
-    Cell cells[BOARD_SIZE + 2][BOARD_SIZE + 2];
+    // Cell cells[BOARD_SIZE + 2][BOARD_SIZE + 2];
 
-    string test = "h8i9i8h9j8m7g14j14l14l13m12m11l9";
-    putBoardStatus(cells, test);
+    // string test = "h8i9i8h9j8m7g14j14l14l13m12m11l9";
+    // putBoardStatus(cells, test);
+
+    Board board;
+
+    // board init test
+    bool passed = true;
+    for (int i = 0; i < BOARD_SIZE + 2; i++) {
+        for (int j = 0; j < BOARD_SIZE + 2; j++) {
+            cout << board.cells[i][j].piece << "\t";
+            if ((i == 0 || i == BOARD_SIZE + 1 || j == 0 || j == BOARD_SIZE + 1) && board.cells[i][j].piece != WALL) {
+                passed = false;
+            } else if (i != 0 && i != BOARD_SIZE + 1 && j != 0 && j != BOARD_SIZE + 1 && board.cells[i][j].piece != EMPTY) {
+                passed = false;
+            }
+        }
+        cout << endl;
+    }
+    std::cout << "board init test: " << (passed ? "Passed" : "Failed") << std::endl;
+
+    // move test
+    /*
+    passed = true;
+    cout << "0" << endl;
+    board.move(1, 1);
+    board.cells[1][1].piece = BLACK;
+    board.move(2, 2);
+    board.cells[2][2].piece = WHITE;
+
+    for (int i = 0; i < BOARD_SIZE + 2; i++) {
+        for (int j = 0; j < BOARD_SIZE + 2; j++) {
+            cout << board.cells[i][j].piece << "\t";
+        }
+        cout << endl;
+    }
+    std::cout << "testMove: Passed" << std::endl;
+    */
+
+    // getLines test
+    passed = true;
+    int x = 9, y = 15;
+    Lines lines = board.getLines(x, y);
+
+    // coutLine test
+    // Line line;
+    // for (int i = 0; i < LINE_LENGTH; i++) {
+    //     line[i] = &board.cells[1][i + 1];
+    // }
+
+    // board.cells[1][3].piece = BLACK;
+    // board.cells[1][4].piece = BLACK;
+    // board.cells[1][5].piece = BLACK;
+
+    // auto result = board.countLine(line);
+    // int realLen, fullLen, start, end;
+    // std::tie(realLen, fullLen, start, end) = result;
+
+    // bool passed = (realLen == 3 && fullLen == 3 && start == 2 && end == 4);
+    // std::cout << "testCountLine: " << (passed ? "Passed" : "Failed") << std::endl;
+
 
     return 0;
 }
