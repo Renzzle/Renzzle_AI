@@ -20,17 +20,15 @@ public:
 
 };
 
-using Lines = array<Line, DIRECTION_SIZE>;
-
 class Board {
 
 public:
     CellArray cells;
     unsigned int moveCnt;
-    Lines getLines(int x, int y);
+    Line getLine(int x, int y, Direction d);
     tuple<int, int, int, int> countLine(Line& line);
     Line shiftLine(Line& line, int n);
-    Pattern setPattern(Line& line); 
+    Pattern getPattern(Line& line, bool isBlack); 
     void clearPattern(Cell& cell);
 
 // public:
@@ -73,90 +71,64 @@ bool Board::move(int x, int y) {
     cells[x][y].piece = (moveCnt % 2 == 1) ? BLACK : WHITE;
     clearPattern(cells[x][y]);
 
-    Lines lines = getLines(x, y);
+    const int startX = x - LINE_LENGTH / 2;
+    const int startY = y - LINE_LENGTH / 2;
+    const int endY = y + LINE_LENGTH / 2;
 
-    for(int i = 0; i < DIRECTION_SIZE; i++) {
-        setPattern(lines[i]);
+    const int starts[4][2] = {{x, startY},{startX, y},{startX, startY},{startX, endY}};
+    const int inc[4][2] = {{0,1},{1,0},{1,1},{1,-1}};
+
+    for(int j = 0; j < DIRECTION_SIZE; j++) {
+        for (int i = 0; i < LINE_LENGTH; i++) {
+            int cx = starts[j][0] + inc[j][0] * i;
+            int cy = starts[j][1] + inc[j][1] * i;
+            if (cx < 1 || cx > 15 || cy < 1 || cy > 15) {
+                continue;
+            }
+
+            if(cells[cx][cy].piece == EMPTY) {
+                Line line = getLine(cx, cy, static_cast<Direction>(j));
+                cells[cx][cy].piece = BLACK;
+                cells[cx][cy].patterns[BLACK][j] = getPattern(line, true);
+                cells[cx][cy].piece = WHITE;
+                cells[cx][cy].patterns[WHITE][j] = getPattern(line, false);
+                cells[cx][cy].piece = EMPTY;
+            }
+        }
     }
+
     return true;
 }
 
-Lines Board::getLines(int x, int y) {
+Line Board::getLine(int x, int y, Direction d) {
     assert(1 <= x && x <= 15);
     assert(1 <= y && y <= 15);
     
-    Lines lines;
+    Line line;
 
     const int startX = x - LINE_LENGTH / 2;
     const int startY = y - LINE_LENGTH / 2;
     const int endY = y + LINE_LENGTH / 2;
 
-    lines[HORIZONTAL].dir = HORIZONTAL;
+    const int starts[4][2] = {{x, startY},{startX, y},{startX, startY},{startX, endY}};
+    const int inc[4][2] = {{0,1},{1,0},{1,1},{1,-1}};
+
+    line.dir = d;
+
     for (int i = 0; i < LINE_LENGTH; i++) {
-        if (startY + i < 1 || startY + i > 15) {
-            lines[HORIZONTAL][i] = STATIC_WALL;
-            cout << lines[HORIZONTAL][i] << "\t";
+        int cx = starts[d][0] + inc[d][0] * i;
+        int cy = starts[d][1] + inc[d][1] * i;
+        if (cx < 1 || cx > 15 || cy < 1 || cy > 15) {
+            line[i] = STATIC_WALL;
             continue; 
         }
-        lines[HORIZONTAL][i] = &cells[x][startY + i];
-        cout << lines[HORIZONTAL][i] << "\t";
+        line[i] = &cells[cx][cy];
     }
 
-    cout << endl;
-
-    lines[VERTICAL].dir = VERTICAL;
-    for (int i = 0; i < LINE_LENGTH; i++) {
-        if (startX + i < 1 || startX + i > 15) {
-            lines[VERTICAL][i] = STATIC_WALL;
-            cout << lines[VERTICAL][i] << "\t";
-            continue;
-        }
-        lines[VERTICAL][i] = &cells[startX + i][y];   
-        cout << lines[VERTICAL][i] << "\t";     
-    }
-
-    cout << endl;
-
-    lines[UPWARD].dir = UPWARD;
-    for (int i = 0; i < LINE_LENGTH; i++) {
-        if (startX + i < 1 || startX + i > 15) {
-            lines[UPWARD][i] = STATIC_WALL;
-            cout << lines[UPWARD][i] << "\t";   
-            continue;
-        }
-        if (startY + i < 1 || startY + i > 15) {
-            lines[UPWARD][i] = STATIC_WALL;
-            cout << lines[UPWARD][i] << "\t";   
-            continue;
-        }
-        lines[UPWARD][i] = &cells[startX + i][startY + i];
-        cout << lines[UPWARD][i] << "\t";   
-    }
-
-    cout << endl;
-    
-    lines[DOWNWARD].dir = DOWNWARD;
-    for (int i = 0; i < LINE_LENGTH; i++) {
-        if (startX + i < 1 || startX + i > 15) {
-            lines[DOWNWARD][i] = STATIC_WALL;
-            cout << lines[DOWNWARD][i] << "\t";   
-            continue;
-        }
-        if (endY - i < 1 || endY - i > 15) {
-            lines[DOWNWARD][i] = STATIC_WALL;
-            cout << lines[DOWNWARD][i] << "\t";   
-            continue;
-        }
-        lines[DOWNWARD][i] = &cells[startX + i][endY - i];
-        cout << lines[DOWNWARD][i] << "\t";   
-    }
-
-    cout << endl;
-
-    return lines;
+    return line;
 }
 
-tuple<int, int, int, int> Board::countLine(Line &line) {
+tuple<int, int, int, int> Board::countLine(Line& line) {
     constexpr auto mid = LINE_LENGTH / 2;
     
     /*
@@ -170,7 +142,7 @@ tuple<int, int, int, int> Board::countLine(Line &line) {
     int start = mid, end = mid;
 
     int self = (line[mid]->piece % 2 == 0) ? BLACK : WHITE;
-    int oppo = (line[mid]->piece % 2 == 0) ? WHITE : BLACK;
+    int oppo = !self;
 
     for (int i = mid - 1; i >=0; i--) {
         if (line[i]->piece == self)
@@ -201,7 +173,7 @@ tuple<int, int, int, int> Board::countLine(Line &line) {
     return make_tuple(realLen, fullLen, start, end);
 }
 
-Line Board::shiftLine(Line &line, int n) {
+Line Board::shiftLine(Line& line, int n) {
     constexpr auto len = LINE_LENGTH;
 
     Line shiftedLine;
@@ -212,9 +184,8 @@ Line Board::shiftLine(Line &line, int n) {
     return shiftedLine;
 }
 
-Pattern Board::setPattern(Line& line) {
+Pattern Board::getPattern(Line& line, bool isBlack) {
     constexpr auto mid = LINE_LENGTH / 2;
-    bool isBlack = this->moveCnt % 2 == 1;
     Piece self = isBlack ? BLACK : WHITE;
 
     int realLen, fullLen, start, end;
@@ -235,17 +206,12 @@ Pattern Board::setPattern(Line& line) {
         if(line[i]->piece == EMPTY) {
             Line sl = shiftLine(line, i);
             sl[mid]->piece = self;
-            sl.dir = DIRECTION_SIZE;
 
-            Pattern slp = setPattern(sl);
+            Pattern slp = getPattern(sl, isBlack);
             sl[mid]->piece = EMPTY;
         
             if(slp == FIVE && patternCnt[FIVE] < 2) {
                 fiveIdx[patternCnt[FIVE]] = i;
-            }
-
-            if(line.dir != DIRECTION_SIZE) {
-                line[i]->patterns[self][line.dir] = slp;
             }
             patternCnt[slp]++;
         }
