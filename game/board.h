@@ -28,9 +28,10 @@ public:
     CellArray cells;
     unsigned int moveCnt;
     Lines getLines(int x, int y);
-    tuple<int, int, int, int> countLine(Line &line);
-    Line shiftLine(Line &line, int n);
-    Pattern setPattern(Line &line); 
+    tuple<int, int, int, int> countLine(Line& line);
+    Line shiftLine(Line& line, int n);
+    Pattern setPattern(Line& line); 
+    void clearPattern(Cell& cell);
 
 // public:
     Board();
@@ -52,26 +53,30 @@ Board::Board() {
     }
 }
 
+void Board::clearPattern(Cell& cell) {
+    for(int i = 0; i < 2; i++) {
+        for(int j = 0; j < DIRECTION_SIZE; j++) {
+            cell.patterns[i][j] = PATTERN_SIZE;
+        }
+    }
+}
+
 bool Board::move(int x, int y) {
     assert(1 <= x && x <= 15);
     assert(1 <= y && y <= 15);
 
-    moveCnt++;
-
     if (cells[x][y].piece != EMPTY)
         return false;
 
-    cout << "1" << endl;
+    moveCnt++;
 
     cells[x][y].piece = (moveCnt % 2 == 1) ? BLACK : WHITE;
+    clearPattern(cells[x][y]);
 
     Lines lines = getLines(x, y);
 
-    cout << "2" << endl;
     for(int i = 0; i < DIRECTION_SIZE; i++) {
-        cout << "3" << endl;
         setPattern(lines[i]);
-        cout << "4" << endl;
     }
     return true;
 }
@@ -164,13 +169,13 @@ tuple<int, int, int, int> Board::countLine(Line &line) {
     int realLenInc = 1;
     int start = mid, end = mid;
 
-    int self = (line[mid]->piece % 2 == 1) ? BLACK : WHITE;
-    int oppo = (line[mid]->piece % 2 == 1) ? WHITE : BLACK;
+    int self = (line[mid]->piece % 2 == 0) ? BLACK : WHITE;
+    int oppo = (line[mid]->piece % 2 == 0) ? WHITE : BLACK;
 
     for (int i = mid - 1; i >=0; i--) {
         if (line[i]->piece == self)
             realLen += realLenInc;
-        else if (line[i]->piece == oppo)
+        else if (line[i]->piece == oppo || line[i]->piece == WALL)
             break;
         else
             realLenInc = 0;
@@ -184,7 +189,7 @@ tuple<int, int, int, int> Board::countLine(Line &line) {
     for (int i = mid + 1; i < LINE_LENGTH; i++) {
         if (line[i]->piece == self)
             realLen += realLenInc;
-        else if (line[i]->piece == oppo)
+        else if (line[i]->piece == oppo || line[i]->piece == WALL)
             break;
         else
             realLenInc = 0;
@@ -207,14 +212,13 @@ Line Board::shiftLine(Line &line, int n) {
     return shiftedLine;
 }
 
-Pattern Board::setPattern(Line &line) {
+Pattern Board::setPattern(Line& line) {
     constexpr auto mid = LINE_LENGTH / 2;
     bool isBlack = this->moveCnt % 2 == 1;
+    Piece self = isBlack ? BLACK : WHITE;
 
     int realLen, fullLen, start, end;
     tie(realLen, fullLen, start, end) = countLine(line);
-
-    cout << "3.1" << endl;
 
     if(isBlack && realLen >= 6) 
         return OVERLINE;
@@ -224,32 +228,34 @@ Pattern Board::setPattern(Line &line) {
         return DEAD;
 
     int patternCnt[PATTERN_SIZE] = {0};
+    int fiveIdx[2] = {0};
     Pattern p = DEAD;
 
-    cout << "3.2" << endl;
-    cout << "line.dir" << line.dir << endl;
     for(int i = start; i <= end; i++) {
         if(line[i]->piece == EMPTY) {
             Line sl = shiftLine(line, i);
+            sl[mid]->piece = self;
             sl.dir = DIRECTION_SIZE;
 
-            cout << "3.2.1" << endl;
-            cout << "i: " << i << endl;
-
             Pattern slp = setPattern(sl);
+            sl[mid]->piece = EMPTY;
+        
+            if(slp == FIVE && patternCnt[FIVE] < 2) {
+                fiveIdx[patternCnt[FIVE]] = i;
+            }
 
-            cout << "3.2.2" << endl;
             if(line.dir != DIRECTION_SIZE) {
-                Piece self = isBlack ? BLACK : WHITE;
                 line[i]->patterns[self][line.dir] = slp;
             }
             patternCnt[slp]++;
         }
     }
 
-    cout << "3.3" << endl;
     if (patternCnt[FIVE] >= 2) {
         p = FREE_4;
+        if(isBlack && fiveIdx[1] - fiveIdx[0] < 5) {
+            p = OVERLINE;
+        }
     }
     else if (patternCnt[FIVE])
         p = BLOCKED_4;

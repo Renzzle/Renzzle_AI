@@ -47,6 +47,59 @@ void putBoardStatus(Cell(&cells)[BOARD_SIZE + 2][BOARD_SIZE + 2], string str)
     }
 };
 
+void printBoard(Board& board) {
+    for (int i = 0; i < BOARD_SIZE + 2; i++) {
+        for (int j = 0; j < BOARD_SIZE + 2; j++) {
+            cout << board.cells[i][j].piece << "\t";
+        }
+        cout << endl;
+    }
+    return;
+}
+
+void printBoardPattern(Board& board, Piece p) {
+    for (int i = 0; i < BOARD_SIZE + 2; i++) {
+        for (int j = 0; j < BOARD_SIZE + 2; j++) {
+            if(board.cells[i][j].patterns[p][0] != PATTERN_SIZE)
+                cout << pattenrNames[board.cells[i][j].patterns[p][0]] << "\t";
+            else
+                cout << board.cells[i][j].piece << "\t";
+        }
+        cout << endl;
+    }
+    cout << "---------------------------------------------------------------------" << endl;
+    for (int i = 0; i < BOARD_SIZE + 2; i++) {
+        for (int j = 0; j < BOARD_SIZE + 2; j++) {
+            if(board.cells[i][j].patterns[p][1] != PATTERN_SIZE)
+                cout << pattenrNames[board.cells[i][j].patterns[p][1]] << "\t";
+            else
+                cout << board.cells[i][j].piece << "\t";
+        }
+        cout << endl;
+    }
+    cout << "---------------------------------------------------------------------" << endl;
+    for (int i = 0; i < BOARD_SIZE + 2; i++) {
+        for (int j = 0; j < BOARD_SIZE + 2; j++) {
+            if(board.cells[i][j].patterns[p][2] != PATTERN_SIZE)
+                cout << pattenrNames[board.cells[i][j].patterns[p][2]] << "\t";
+            else
+                cout << board.cells[i][j].piece << "\t";
+        }
+        cout << endl;
+    }
+    cout << "---------------------------------------------------------------------" << endl;
+    for (int i = 0; i < BOARD_SIZE + 2; i++) {
+        for (int j = 0; j < BOARD_SIZE + 2; j++) {
+            if(board.cells[i][j].patterns[p][3] != PATTERN_SIZE)
+                cout << pattenrNames[board.cells[i][j].patterns[p][3]] << "\t";
+            else
+                cout << board.cells[i][j].piece << "\t";
+        }
+        cout << endl;
+    }
+    return;
+}
+
 int main(void)
 {
     // Cell cells[BOARD_SIZE + 2][BOARD_SIZE + 2];
@@ -58,27 +111,36 @@ int main(void)
 
     // board init test
     bool passed = true;
-    for (int i = 0; i < BOARD_SIZE + 2; i++) {
-        for (int j = 0; j < BOARD_SIZE + 2; j++) {
-            cout << board.cells[i][j].piece << "\t";
-            if ((i == 0 || i == BOARD_SIZE + 1 || j == 0 || j == BOARD_SIZE + 1) && board.cells[i][j].piece != WALL) {
-                passed = false;
-            } else if (i != 0 && i != BOARD_SIZE + 1 && j != 0 && j != BOARD_SIZE + 1 && board.cells[i][j].piece != EMPTY) {
-                passed = false;
-            }
-        }
-        cout << endl;
-    }
-    std::cout << "board init test: " << (passed ? "Passed" : "Failed") << std::endl;
+    // for (int i = 0; i < BOARD_SIZE + 2; i++) {
+    //     for (int j = 0; j < BOARD_SIZE + 2; j++) {
+    //         cout << board.cells[i][j].piece << "\t";
+    //         if ((i == 0 || i == BOARD_SIZE + 1 || j == 0 || j == BOARD_SIZE + 1) && board.cells[i][j].piece != WALL) {
+    //             passed = false;
+    //         } else if (i != 0 && i != BOARD_SIZE + 1 && j != 0 && j != BOARD_SIZE + 1 && board.cells[i][j].piece != EMPTY) {
+    //             passed = false;
+    //         }
+    //     }
+    //     cout << endl;
+    // }
+    // std::cout << "board init test: " << (passed ? "Passed" : "Failed") << std::endl;
 
     // move test
-    /*
+
     passed = true;
-    cout << "0" << endl;
+    auto start = chrono::high_resolution_clock::now();
+    board.move(7, 12);
     board.move(1, 1);
-    board.cells[1][1].piece = BLACK;
-    board.move(2, 2);
-    board.cells[2][2].piece = WHITE;
+    board.move(14, 12);
+    board.move(1, 2);
+    board.move(8, 12);
+    board.move(1, 3);
+    board.move(13, 12);
+    board.move(1, 4);
+    board.move(10, 12);
+    auto end = chrono::high_resolution_clock::now();
+    chrono::duration<double> duration = end - start;
+    cout << "Time taken: " << duration.count() << " seconds" << endl;
+    printBoardPattern(board, BLACK);
 
     for (int i = 0; i < BOARD_SIZE + 2; i++) {
         for (int j = 0; j < BOARD_SIZE + 2; j++) {
@@ -87,7 +149,7 @@ int main(void)
         cout << endl;
     }
     std::cout << "testMove: Passed" << std::endl;
-    */
+
 
     // getLines test
     passed = true;
