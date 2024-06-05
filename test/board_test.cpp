@@ -1,4 +1,5 @@
 #include "../game/board.h"
+
 #include <cassert>
 #include <iostream>
 #include <chrono>
@@ -73,15 +74,15 @@ int main(void)
     bool passed = true;
 
     auto start = chrono::high_resolution_clock::now();
-    board.move(7, 12);
-    board.move(1, 1);
-    board.move(14, 12);
-    board.move(1, 2);
-    board.move(8, 12);
-    board.move(1, 3);
-    board.move(13, 12);
-    board.move(1, 4);
-    board.move(10, 12);
+    board.move(Pos(7, 12));
+    board.move(Pos(1, 1));
+    board.move(Pos(14, 12));
+    board.move(Pos(1, 2));
+    board.move(Pos(8, 12));
+    board.move(Pos(1, 3));
+    board.move(Pos(13, 12));
+    board.move(Pos(1, 4));
+    board.move(Pos(10, 12));
     auto end = chrono::high_resolution_clock::now();
     chrono::duration<double> duration = end - start;
     printBoardPattern(board, BLACK);

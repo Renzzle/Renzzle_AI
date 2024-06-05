@@ -1,3 +1,4 @@
+#include "game/board.h"
 #include <iostream>
 
 using namespace std;
