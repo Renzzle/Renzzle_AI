@@ -1,35 +1,44 @@
 #include "types.h"
-#include <array>
 #include <cassert>
-#include <tuple>
-#include <conio.h>
-#include <iostream>
-#include <chrono>
-
 using namespace std;
 
 class Cell {
 
-public:
-    Cell();
-    Cell(Piece piece);
+private:
     Piece piece;
     Pattern patterns[2][DIRECTION_SIZE];
+
+public:
+    Cell();
+    Piece getPiece();
+    void setPiece(const Piece& piece);
+    Pattern getPattern(Piece piece, Direction dir);
+    void setPattern(Piece piece, Direction dir, Pattern pattern);
     
 };
 
 Cell::Cell() {
     this->piece = EMPTY;
-    for(int i = 0; i < DIRECTION_SIZE; i++) {
-        patterns[BLACK][i] = PATTERN_SIZE; 
-        patterns[WHITE][i] = PATTERN_SIZE;
+    for(Direction dir = DIRECTION_START; dir < DIRECTION_SIZE; dir++) {
+        setPattern(BLACK, dir, PATTERN_SIZE);
+        setPattern(WHITE, dir, PATTERN_SIZE);
     }
 }
 
-Cell::Cell(Piece piece) {
+Piece Cell::getPiece() {
+    return piece;
+}
+
+void Cell::setPiece(const Piece& piece) {
     this->piece = piece;
-    for(int i = 0; i < DIRECTION_SIZE; i++) {
-        patterns[BLACK][i] = PATTERN_SIZE; 
-        patterns[WHITE][i] = PATTERN_SIZE;
-    }
+}
+
+Pattern Cell::getPattern(Piece piece, Direction dir) {
+    assert(piece == BLACK || piece == WHITE);
+    return patterns[piece][dir];
+}
+
+void Cell::setPattern(Piece piece, Direction dir, Pattern pattern) {
+    assert(piece == BLACK || piece == WHITE);
+    this->patterns[piece][dir] = pattern;
 }

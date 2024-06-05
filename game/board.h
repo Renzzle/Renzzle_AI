@@ -1,10 +1,11 @@
 #include "cell.h"
+#include <array>
+#include <tuple>
 
 #define BOARD_SIZE 15
 #define LINE_LENGTH 11
 #define STATIC_WALL &cells[0][0];
 
-using PieceArray = array<array<Piece, BOARD_SIZE + 2>, BOARD_SIZE + 2>;
 using CellArray = array<array<Cell, BOARD_SIZE + 2>, BOARD_SIZE + 2>;
 
 class Line {
@@ -13,7 +14,6 @@ private:
     array<Cell*, LINE_LENGTH> cells;
 
 public:
-    Direction dir;
     Cell*& operator[](size_t idx) {
         return this->cells[idx];
     }
@@ -22,20 +22,20 @@ public:
 
 class Board {
 
-public:
+private:
     CellArray cells;
     unsigned int moveCnt;
+
     Line getLine(int x, int y, Direction d);
     tuple<int, int, int, int> countLine(Line& line);
     Line shiftLine(Line& line, int n);
     Pattern getPattern(Line& line, bool isBlack); 
     void clearPattern(Cell& cell);
 
-// public:
+public:
     Board();
-    PieceArray getBoardStatus();
+    CellArray getBoardStatus();
     bool move(int x, int y);
-    // TODO: undo 함수
 };
 
 Board::Board() {
@@ -44,18 +44,21 @@ Board::Board() {
     for (int i = 0; i < BOARD_SIZE + 2; i++) {
         for (int j = 0; j < BOARD_SIZE + 2; j++) {
             if (i == 0 || i == BOARD_SIZE + 1 || j == 0 || j == BOARD_SIZE + 1)
-                cells[i][j].piece = WALL;
+                cells[i][j].setPiece(WALL);
             else
-                cells[i][j].piece = EMPTY;
+                cells[i][j].setPiece(EMPTY);
         }
     }
 }
 
+CellArray Board::getBoardStatus() {
+    return cells;
+}
+
 void Board::clearPattern(Cell& cell) {
-    for(int i = 0; i < 2; i++) {
-        for(int j = 0; j < DIRECTION_SIZE; j++) {
-            cell.patterns[i][j] = PATTERN_SIZE;
-        }
+    for(Direction dir = DIRECTION_START; dir < DIRECTION_SIZE; dir++) {
+        cell.setPattern(BLACK, dir, PATTERN_SIZE);
+        cell.setPattern(WHITE, dir, PATTERN_SIZE);
     }
 }
 
@@ -63,12 +66,12 @@ bool Board::move(int x, int y) {
     assert(1 <= x && x <= 15);
     assert(1 <= y && y <= 15);
 
-    if (cells[x][y].piece != EMPTY)
+    if (cells[x][y].getPiece() != EMPTY)
         return false;
 
     moveCnt++;
 
-    cells[x][y].piece = (moveCnt % 2 == 1) ? BLACK : WHITE;
+    cells[x][y].setPiece((moveCnt % 2 == 1) ? BLACK : WHITE);
     clearPattern(cells[x][y]);
 
     const int startX = x - LINE_LENGTH / 2;
@@ -78,21 +81,21 @@ bool Board::move(int x, int y) {
     const int starts[4][2] = {{x, startY},{startX, y},{startX, startY},{startX, endY}};
     const int inc[4][2] = {{0,1},{1,0},{1,1},{1,-1}};
 
-    for(int j = 0; j < DIRECTION_SIZE; j++) {
+    for(Direction dir = DIRECTION_START; dir < DIRECTION_SIZE; dir++) {
         for (int i = 0; i < LINE_LENGTH; i++) {
-            int cx = starts[j][0] + inc[j][0] * i;
-            int cy = starts[j][1] + inc[j][1] * i;
+            int cx = starts[dir][0] + inc[dir][0] * i;
+            int cy = starts[dir][1] + inc[dir][1] * i;
             if (cx < 1 || cx > 15 || cy < 1 || cy > 15) {
                 continue;
             }
 
-            if(cells[cx][cy].piece == EMPTY) {
-                Line line = getLine(cx, cy, static_cast<Direction>(j));
-                cells[cx][cy].piece = BLACK;
-                cells[cx][cy].patterns[BLACK][j] = getPattern(line, true);
-                cells[cx][cy].piece = WHITE;
-                cells[cx][cy].patterns[WHITE][j] = getPattern(line, false);
-                cells[cx][cy].piece = EMPTY;
+            if(cells[cx][cy].getPiece() == EMPTY) {
+                Line line = getLine(cx, cy, dir);
+                cells[cx][cy].setPiece(BLACK);
+                cells[cx][cy].setPattern(BLACK, dir, getPattern(line, true));
+                cells[cx][cy].setPiece(WHITE);
+                cells[cx][cy].setPattern(WHITE, dir, getPattern(line, false));
+                cells[cx][cy].setPiece(EMPTY);
             }
         }
     }
@@ -112,8 +115,6 @@ Line Board::getLine(int x, int y, Direction d) {
 
     const int starts[4][2] = {{x, startY},{startX, y},{startX, startY},{startX, endY}};
     const int inc[4][2] = {{0,1},{1,0},{1,1},{1,-1}};
-
-    line.dir = d;
 
     for (int i = 0; i < LINE_LENGTH; i++) {
         int cx = starts[d][0] + inc[d][0] * i;
@@ -141,13 +142,15 @@ tuple<int, int, int, int> Board::countLine(Line& line) {
     int realLenInc = 1;
     int start = mid, end = mid;
 
-    int self = (line[mid]->piece % 2 == 0) ? BLACK : WHITE;
+    int self = line[mid]->getPiece();
     int oppo = !self;
+    Piece piece;
 
     for (int i = mid - 1; i >=0; i--) {
-        if (line[i]->piece == self)
+        piece = line[i]->getPiece();
+        if (piece == self)
             realLen += realLenInc;
-        else if (line[i]->piece == oppo || line[i]->piece == WALL)
+        else if (piece == oppo || piece == WALL)
             break;
         else
             realLenInc = 0;
@@ -159,9 +162,10 @@ tuple<int, int, int, int> Board::countLine(Line& line) {
     realLenInc = 1;
 
     for (int i = mid + 1; i < LINE_LENGTH; i++) {
-        if (line[i]->piece == self)
+        piece = line[i]->getPiece();
+        if (piece == self)
             realLen += realLenInc;
-        else if (line[i]->piece == oppo || line[i]->piece == WALL)
+        else if (piece == oppo || piece == WALL)
             break;
         else
             realLenInc = 0;
@@ -203,12 +207,13 @@ Pattern Board::getPattern(Line& line, bool isBlack) {
     Pattern p = DEAD;
 
     for(int i = start; i <= end; i++) {
-        if(line[i]->piece == EMPTY) {
+        Piece piece = line[i]->getPiece();
+        if(piece == EMPTY) {
             Line sl = shiftLine(line, i);
-            sl[mid]->piece = self;
+            sl[mid]->setPiece(self);
 
             Pattern slp = getPattern(sl, isBlack);
-            sl[mid]->piece = EMPTY;
+            sl[mid]->setPiece(EMPTY);
         
             if(slp == FIVE && patternCnt[FIVE] < 2) {
                 fiveIdx[patternCnt[FIVE]] = i;
@@ -246,5 +251,3 @@ Pattern Board::getPattern(Line& line, bool isBlack) {
 
     return p;
 }
-
-

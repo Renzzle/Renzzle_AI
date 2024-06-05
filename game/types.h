@@ -23,6 +23,8 @@ enum Pattern {
     PATTERN_SIZE
 };
 
+#define DIRECTION_START HORIZONTAL
+
 enum Direction {
     HORIZONTAL,
     VERTICAL,
@@ -31,20 +33,26 @@ enum Direction {
     DIRECTION_SIZE
 };
 
-const char* pattenrNames[] = {
-    "D",   
-    "B1", 
-    "F1",
-    "B2",
-    "F2",
-    "F2A",
-    "F2B",
-    "B3",
-    "F3",
-    "F3A",
-    "B4",
-    "F4",
-    "F5",
-    "OL",   
-    "P"
-};
+Direction operator++(Direction& dir, int) {
+    int d = static_cast<int>(dir);
+    d++;
+    if (d > 4) d = 4;
+    dir = static_cast<Direction>(d);
+    return static_cast<Direction>(d);
+}
+
+Direction operator--(Direction& dir, int) {
+    int d = static_cast<int>(dir);
+    d--;
+    if (d < 0) d = 0;
+    dir = static_cast<Direction>(d);
+    return static_cast<Direction>(d);
+}
+
+bool operator<(Direction dir1, Direction dir2) {
+    return static_cast<int>(dir1) < static_cast<int>(dir2);
+}
+
+bool operator>(Direction dir1, Direction dir2) {
+    return static_cast<int>(dir1) > static_cast<int>(dir2);
+}

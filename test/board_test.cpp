@@ -1,13 +1,33 @@
-#include <assert.h>
-#include <iostream>
 #include "../game/board.h"
+#include <cassert>
+#include <iostream>
+#include <chrono>
 
 using namespace std;
 
+const char* patternNames[] = {
+    "D",   
+    "B1", 
+    "F1",
+    "B2",
+    "F2",
+    "F2A",
+    "F2B",
+    "B3",
+    "F3",
+    "F3A",
+    "B4",
+    "F4",
+    "F5",
+    "OL",   
+    "P"
+};
+
 void printBoard(Board& board) {
+    CellArray cells = board.getBoardStatus();
     for (int i = 0; i < BOARD_SIZE + 2; i++) {
         for (int j = 0; j < BOARD_SIZE + 2; j++) {
-            Piece p = board.cells[i][j].piece;
+            Piece p = cells[i][j].getPiece();
             const char* c;
             if(p == WALL) c = "|";
             if(p == BLACK) c = "o";
@@ -21,20 +41,21 @@ void printBoard(Board& board) {
 }
 
 void printBoardPattern(Board& board, Piece p) {
+    CellArray cells = board.getBoardStatus();
     for (int k = 0; k < 4; k++) {
         for (int i = 0; i < BOARD_SIZE + 2; i++) {
             for (int j = 0; j < BOARD_SIZE + 2; j++) {
-                if (board.cells[i][j].piece != EMPTY) {
+                if (cells[i][j].getPiece() != EMPTY) {
                     char c;
-                    if(board.cells[i][j].piece == WALL) c = '|';
-                    else if(board.cells[i][j].piece == BLACK) c = 'o';
-                    else if(board.cells[i][j].piece == WHITE) c = 'x';
+                    if(cells[i][j].getPiece() == WALL) c = '|';
+                    else if(cells[i][j].getPiece() == BLACK) c = 'o';
+                    else if(cells[i][j].getPiece() == WHITE) c = 'x';
                     std::cout << c << "\t"; 
                 } else {
-                    if (board.cells[i][j].patterns[p][k] == PATTERN_SIZE) {
+                    if (cells[i][j].getPattern(p, static_cast<Direction>(k)) == PATTERN_SIZE) {
                         std::cout << "-\t";
                     } else {
-                        std::cout << pattenrNames[board.cells[i][j].patterns[p][k]] << "\t";
+                        std::cout << patternNames[cells[i][j].getPattern(p, static_cast<Direction>(k))] << "\t";
                     }
                 }
             }
