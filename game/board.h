@@ -1,3 +1,5 @@
+#pragma once
+
 #include "line.h"
 #include "pos.h"
 #include <array>
@@ -174,5 +176,5 @@ Pattern Board::getPattern(Line& line, bool isBlack) {
 }
 
 void Board::undo() {
-    
+
 }
