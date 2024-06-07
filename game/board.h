@@ -1,73 +1,11 @@
-#include "cell.h"
+#include "line.h"
+#include "pos.h"
 #include <array>
-#include <tuple>
 
 #define BOARD_SIZE 15
-#define LINE_LENGTH 11
 #define STATIC_WALL &cells[0][0];
 
 using CellArray = array<array<Cell, BOARD_SIZE + 2>, BOARD_SIZE + 2>;
-
-class Line {
-
-private:
-    array<Cell*, LINE_LENGTH> cells;
-
-public:
-    Cell*& operator[](size_t idx) {
-        return this->cells[idx];
-    }
-
-};
-
-class Pos {
-
-    friend class Board;
-
-private:
-    int x, y;
-    Direction dir; 
-    const int inc[DIRECTION_SIZE][2] = {{0,1},{1,0},{1,1},{1,-1}};
-    bool isValid() {
-        return x >= 1 && x <= BOARD_SIZE && y >= 1 && y <= BOARD_SIZE;
-    }
-
-public:
-    Pos() = delete;
-
-    Pos(int x, int y) {
-        this->x = x;
-        this->y = y;
-        dir = HORIZONTAL;
-    }
-
-    Pos(int x, int y, Direction dir) {
-        this->x = x;
-        this->y = y;
-        this->dir = dir;
-    }
-    
-    bool operator+(const int n) {
-        this->x += inc[dir][0] * n;
-        this->y += inc[dir][1] * n;
-        if (!isValid()) {
-            this->x -= inc[dir][0] * n;
-            this->y -= inc[dir][1] * n;
-            return false;
-        } else return true;
-    }
-    
-    bool operator-(const int n) {
-        this->x -= inc[dir][0] * n;
-        this->y -= inc[dir][1] * n;
-        if (!isValid()) {
-            this->x += inc[dir][0] * n;
-            this->y += inc[dir][1] * n;
-            return false;
-        } else return true;
-    }
-
-};
 
 class Board {
 
@@ -76,17 +14,18 @@ private:
     unsigned int moveCnt;
 
     Line getLine(Pos& p);
-    tuple<int, int, int, int> countLine(Line& line);
-    Line shiftLine(Line& line, int n);
     Pattern getPattern(Line& line, bool isBlack);
     void setPatterns(Pos& p);
     void clearPattern(Cell& cell);
 
 public:
     Board();
+    bool isBlackTurn();
     CellArray& getBoardStatus();
     Cell& getCell(const Pos p);
     bool move(Pos p);
+    void undo();
+    
 };
 
 Board::Board() {
@@ -100,6 +39,10 @@ Board::Board() {
                 cells[i][j].setPiece(EMPTY);
         }
     }
+}
+
+bool Board::isBlackTurn() {
+    return moveCnt % 2 == 1;
 }
 
 CellArray& Board::getBoardStatus() {
@@ -166,71 +109,12 @@ Line Board::getLine(Pos& p) {
     return line;
 }
 
-tuple<int, int, int, int> Board::countLine(Line& line) {
-    constexpr auto mid = LINE_LENGTH / 2;
-    
-    /*
-    realLen: length of the continuous stone including the starting stone
-    fullLen: between the other side
-    start: start index of fullLen
-    end: end index of fullLen
-    */
-    int realLen = 1, fullLen = 1; 
-    int realLenInc = 1;
-    int start = mid, end = mid;
-
-    int self = line[mid]->getPiece();
-    int oppo = !self;
-    Piece piece;
-
-    for (int i = mid - 1; i >=0; i--) {
-        piece = line[i]->getPiece();
-        if (piece == self)
-            realLen += realLenInc;
-        else if (piece == oppo || piece == WALL)
-            break;
-        else
-            realLenInc = 0;
-
-        fullLen++;
-        start = i;        
-    }
-
-    realLenInc = 1;
-
-    for (int i = mid + 1; i < LINE_LENGTH; i++) {
-        piece = line[i]->getPiece();
-        if (piece == self)
-            realLen += realLenInc;
-        else if (piece == oppo || piece == WALL)
-            break;
-        else
-            realLenInc = 0;
-
-        fullLen++;
-        end = i;    
-    }
-
-    return make_tuple(realLen, fullLen, start, end);
-}
-
-Line Board::shiftLine(Line& line, int n) {
-    constexpr auto len = LINE_LENGTH;
-
-    Line shiftedLine;
-    for (int i = 0; i < len; i++) {
-        int idx = i + n - len / 2;
-        shiftedLine[i] = idx >= 0 && idx < len ? line[idx] : STATIC_WALL;
-    }
-    return shiftedLine;
-}
-
 Pattern Board::getPattern(Line& line, bool isBlack) {
     constexpr auto mid = LINE_LENGTH / 2;
     Piece self = isBlack ? BLACK : WHITE;
 
     int realLen, fullLen, start, end;
-    tie(realLen, fullLen, start, end) = countLine(line);
+    tie(realLen, fullLen, start, end) = line.countLine();
 
     if(isBlack && realLen >= 6) 
         return OVERLINE;
@@ -246,7 +130,7 @@ Pattern Board::getPattern(Line& line, bool isBlack) {
     for(int i = start; i <= end; i++) {
         Piece piece = line[i]->getPiece();
         if(piece == EMPTY) {
-            Line sl = shiftLine(line, i);
+            Line sl = line.shiftLine(line, i);
             sl[mid]->setPiece(self);
 
             Pattern slp = getPattern(sl, isBlack);
@@ -287,4 +171,8 @@ Pattern Board::getPattern(Line& line, bool isBlack) {
         p = BLOCKED_1;
 
     return p;
+}
+
+void Board::undo() {
+    
 }
