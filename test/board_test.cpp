@@ -73,6 +73,7 @@ int main(void)
 
     bool passed = true;
 
+    cout << "start!" << endl;
     auto start = chrono::high_resolution_clock::now();
     board.move(Pos(7, 12));
     board.move(Pos(1, 1));

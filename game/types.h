@@ -1,5 +1,11 @@
 #pragma once
 
+enum Result {
+    BLACK_WIN,
+    WHITE_WIN,
+    DRAW
+};
+
 enum Piece {
     BLACK,
     WHITE,

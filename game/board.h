@@ -14,11 +14,14 @@ class Board {
 private:
     CellArray cells;
     unsigned int moveCnt;
+    Result result;
 
     Line getLine(Pos& p);
     Pattern getPattern(Line& line, bool isBlack);
     void setPatterns(Pos& p);
     void clearPattern(Cell& cell);
+    bool isForbidden(Pos& p);
+    void setResult(Pos& p);
 
 public:
     Board();
@@ -27,6 +30,7 @@ public:
     Cell& getCell(const Pos p);
     bool move(Pos p);
     void undo();
+    Result getResult();
     
 };
 
@@ -68,7 +72,7 @@ bool Board::move(Pos p) {
 
     moveCnt++;
 
-    getCell(p).setPiece((moveCnt % 2 == 1) ? BLACK : WHITE);
+    getCell(p).setPiece(isBlackTurn() ? BLACK : WHITE);
     clearPattern(getCell(p));
     setPatterns(p);
 
@@ -76,14 +80,14 @@ bool Board::move(Pos p) {
 }
 
 void Board::setPatterns(Pos& p) {
-    for(Direction dir = DIRECTION_START; dir < DIRECTION_SIZE; dir++) {
+    for (Direction dir = DIRECTION_START; dir < DIRECTION_SIZE; dir++) {
         p.dir = dir;
         for (int i = 0; i < LINE_LENGTH; i++) {
             if (!(p + (i - (LINE_LENGTH / 2)))) {
                 continue;
             }
 
-            if(getCell(p).getPiece() == EMPTY) {
+            if (getCell(p).getPiece() == EMPTY) {
                 Line line = getLine(p);
                 getCell(p).setPiece(BLACK);
                 getCell(p).setPattern(BLACK, dir, getPattern(line, true));
@@ -118,27 +122,27 @@ Pattern Board::getPattern(Line& line, bool isBlack) {
     int realLen, fullLen, start, end;
     tie(realLen, fullLen, start, end) = line.countLine();
 
-    if(isBlack && realLen >= 6) 
+    if (isBlack && realLen >= 6) 
         return OVERLINE;
-    else if(realLen >= 5)
+    else if (realLen >= 5)
         return FIVE;
-    else if(fullLen < 5)
+    else if (fullLen < 5)
         return DEAD;
 
     int patternCnt[PATTERN_SIZE] = {0};
     int fiveIdx[2] = {0};
     Pattern p = DEAD;
 
-    for(int i = start; i <= end; i++) {
+    for (int i = start; i <= end; i++) {
         Piece piece = line[i]->getPiece();
-        if(piece == EMPTY) {
+        if (piece == EMPTY) {
             Line sl = line.shiftLine(line, i);
             sl[mid]->setPiece(self);
 
             Pattern slp = getPattern(sl, isBlack);
             sl[mid]->setPiece(EMPTY);
         
-            if(slp == FIVE && patternCnt[FIVE] < 2) {
+            if (slp == FIVE && patternCnt[FIVE] < 2) {
                 fiveIdx[patternCnt[FIVE]] = i;
             }
             patternCnt[slp]++;
@@ -147,7 +151,7 @@ Pattern Board::getPattern(Line& line, bool isBlack) {
 
     if (patternCnt[FIVE] >= 2) {
         p = FREE_4;
-        if(isBlack && fiveIdx[1] - fiveIdx[0] < 5) {
+        if (isBlack && fiveIdx[1] - fiveIdx[0] < 5) {
             p = OVERLINE;
         }
     }
@@ -177,4 +181,25 @@ Pattern Board::getPattern(Line& line, bool isBlack) {
 
 void Board::undo() {
 
+}
+
+void Board::setResult(Pos& p) {
+    bool isBlackTurn = this->isBlackTurn();
+    if (isBlackTurn && isForbidden(p)) {
+        result = WHITE_WIN;
+        return;
+    }
+    Line line = getLine(p);
+    Pattern pat = getPattern(line, isBlackTurn);
+    if (pat == FIVE) {
+        if (isBlackTurn)
+            result = BLACK_WIN;
+        else
+            result = WHITE_WIN;
+    } else
+        result = DRAW;
+}
+
+Result Board::getResult() {
+    return result;
 }
