@@ -3,6 +3,7 @@
 #include "line.h"
 #include "pos.h"
 #include <array>
+#include <iostream>
 
 #define BOARD_SIZE 15
 #define STATIC_WALL &cells[0][0];
@@ -36,6 +37,7 @@ public:
 
 Board::Board() {
     moveCnt = 0;
+    result = DRAW;
 
     for (int i = 0; i < BOARD_SIZE + 2; i++) {
         for (int j = 0; j < BOARD_SIZE + 2; j++) {
@@ -67,14 +69,16 @@ void Board::clearPattern(Cell& cell) {
 }
 
 bool Board::move(Pos p) {
-    if (getCell(p).getPiece() != EMPTY)
-        return false;
+    if (getCell(p).getPiece() != EMPTY) return false;
+    if (result != DRAW) return false;
+    if (moveCnt == BOARD_SIZE * BOARD_SIZE) return false;
 
     moveCnt++;
 
     getCell(p).setPiece(isBlackTurn() ? BLACK : WHITE);
     clearPattern(getCell(p));
     setPatterns(p);
+    setResult(p);
 
     return true;
 }
@@ -183,21 +187,30 @@ void Board::undo() {
 
 }
 
+bool Board::isForbidden(Pos& p) {
+    return false;
+}
+
 void Board::setResult(Pos& p) {
     bool isBlackTurn = this->isBlackTurn();
     if (isBlackTurn && isForbidden(p)) {
         result = WHITE_WIN;
         return;
     }
-    Line line = getLine(p);
-    Pattern pat = getPattern(line, isBlackTurn);
-    if (pat == FIVE) {
-        if (isBlackTurn)
-            result = BLACK_WIN;
-        else
+    for (Direction dir = DIRECTION_START; dir < DIRECTION_SIZE; dir++) {
+        p.dir = dir;
+        Line line = getLine(p);
+        int realLen, fullLen, start, end;
+        tie(realLen, fullLen, start, end) = line.countLine();
+        if (realLen >= 5 && !isBlackTurn) {
             result = WHITE_WIN;
-    } else
-        result = DRAW;
+            return;
+        } else if (realLen == 5 && isBlackTurn) {
+            result = BLACK_WIN;
+            return;
+        }
+    }
+    result = DRAW;
 }
 
 Result Board::getResult() {

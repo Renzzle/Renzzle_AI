@@ -88,9 +88,22 @@ int main(void)
     chrono::duration<double> duration = end - start;
     printBoardPattern(board, BLACK);
     printBoardPattern(board, WHITE);
-    printBoard(board);
     std::cout << "testMove: Passed" << std::endl;
     cout << "Time taken: " << duration.count() << " seconds" << endl;
+
+    // board.move(Pos(1, 5));
+    // printBoard(board);
+    // cout << board.getResult() << endl;
+    // if(!board.move(Pos(4, 4)));
+    //     cout << "game is finished" << endl;
+
+    board.move(Pos(2, 1));
+    board.move(Pos(11, 12));
+    board.move(Pos(3, 1));
+    board.move(Pos(12, 12));
+    printBoard(board);
+    cout << board.getResult() << endl;
+    if(!board.move(Pos(4, 4)));
 
     return 0;
 }
