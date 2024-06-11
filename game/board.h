@@ -183,6 +183,73 @@ void Board::undo() {
 
 }
 
+bool Board::isForbidden(Pos& p) {
+    /*
+    // only black stone
+    bool isBlackTurn = this->isBlackTurn();
+    assert(isBlackTurn == true);
+
+    Cell c = getCell(p);
+
+    int winByFour = 0;
+    int winByThree = 0;
+
+    // FIVE, OVERLINE, 4-4
+    for (Direction dir = DIRECTION_START; dir < DIRECTION_SIZE; dir++) {
+        p.dir = dir;
+        Pattern pattern = c.getPattern(BLACK, p.dir);
+        if (pattern == FIVE)
+            return false;
+        else if (pattern == OVERLINE)
+            return true;
+        else if (pattern == BLOCKED_4 || pattern == FREE_4) {
+            if (++winByFour >= 2)
+                return true;
+        }
+    }
+
+    // recursive 3-3
+    move(p);
+
+    for (Direction dir = DIRECTION_START; dir < DIRECTION_SIZE; dir++) {
+        p.dir = dir;
+        Pattern pattern = c.getPattern(BLACK, p.dir);
+
+        // double three forbidden type
+        if (pattern != FREE_3 && pattern != FREE_3A)
+            continue;
+        
+        Pos posi = p;
+        for (int i = 0; i < LINE_LENGTH; i++) {
+            if (!(p + (i - (LINE_LENGTH / 2))))
+                continue;
+
+            Cell &c = getCell(posi);
+            if (c.getPiece() == EMPTY) {
+                // TODO: 확인 필요 (열린 4를 만드는 자리인지??)
+                if (c.getPattern(BLACK, dir) == FIVE || (c.getPattern(BLACK, dir) == FREE_4 && !isForbidden(posi))) {
+                    winByThree++;
+                    break;
+                }
+                break;
+            } else if (c.getPiece() != BLACK) {
+                break;
+            }
+            p - (i - (LINE_LENGTH / 2));
+        }
+
+        if (winByThree >= 2) {
+            break;
+        }
+    }
+
+    undo();
+
+    return winByThree >= 2;
+    */
+    return false;
+}
+
 void Board::setResult(Pos& p) {
     bool isBlackTurn = this->isBlackTurn();
     if (isBlackTurn && isForbidden(p)) {
