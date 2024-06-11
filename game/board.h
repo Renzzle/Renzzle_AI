@@ -3,22 +3,25 @@
 #include "line.h"
 #include "pos.h"
 #include <array>
+#include <stack>
 #include <iostream>
 
 #define BOARD_SIZE 15
 #define STATIC_WALL &cells[0][0];
 
 using CellArray = array<array<Cell, BOARD_SIZE + 2>, BOARD_SIZE + 2>;
+using MoveList = stack<Pos>;
 
 class Board {
 
 private:
     CellArray cells;
+    MoveList moves;
     unsigned int moveCnt;
     Result result;
 
     Line getLine(Pos& p);
-    Pattern getPattern(Line& line, bool isBlack);
+    Pattern getPattern(Line& line, Color color);
     void setPatterns(Pos& p);
     void clearPattern(Cell& cell);
     bool isForbidden(Pos& p);
@@ -74,6 +77,7 @@ bool Board::move(Pos p) {
     if (moveCnt == BOARD_SIZE * BOARD_SIZE) return false;
 
     moveCnt++;
+    moves.push(p);
 
     getCell(p).setPiece(isBlackTurn() ? BLACK : WHITE);
     clearPattern(getCell(p));
@@ -94,9 +98,9 @@ void Board::setPatterns(Pos& p) {
             if (getCell(p).getPiece() == EMPTY) {
                 Line line = getLine(p);
                 getCell(p).setPiece(BLACK);
-                getCell(p).setPattern(BLACK, dir, getPattern(line, true));
+                getCell(p).setPattern(BLACK, dir, getPattern(line, COLOR_BLACK));
                 getCell(p).setPiece(WHITE);
-                getCell(p).setPattern(WHITE, dir, getPattern(line, false));
+                getCell(p).setPattern(WHITE, dir, getPattern(line, COLOR_WHITE));
                 getCell(p).setPiece(EMPTY);
             }
             p - (i - (LINE_LENGTH / 2));
@@ -119,8 +123,9 @@ Line Board::getLine(Pos& p) {
     return line;
 }
 
-Pattern Board::getPattern(Line& line, bool isBlack) {
+Pattern Board::getPattern(Line& line, Color color) {
     constexpr auto mid = LINE_LENGTH / 2;
+    bool isBlack = color == COLOR_BLACK;
     Piece self = isBlack ? BLACK : WHITE;
 
     int realLen, fullLen, start, end;
@@ -143,7 +148,7 @@ Pattern Board::getPattern(Line& line, bool isBlack) {
             Line sl = line.shiftLine(line, i);
             sl[mid]->setPiece(self);
 
-            Pattern slp = getPattern(sl, isBlack);
+            Pattern slp = getPattern(sl, color);
             sl[mid]->setPiece(EMPTY);
         
             if (slp == FIVE && patternCnt[FIVE] < 2) {
@@ -184,7 +189,14 @@ Pattern Board::getPattern(Line& line, bool isBlack) {
 }
 
 void Board::undo() {
+    Pos p = moves.top();
 
+    moveCnt--;
+    getCell(p).setPiece(EMPTY);
+    setPatterns(p);
+    result = DRAW;
+
+    moves.pop();
 }
 
 bool Board::isForbidden(Pos& p) {

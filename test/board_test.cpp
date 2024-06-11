@@ -8,6 +8,7 @@ using namespace std;
 
 const char* patternNames[] = {
     "D",   
+    "OL",
     "B1", 
     "F1",
     "B2",
@@ -19,8 +20,7 @@ const char* patternNames[] = {
     "F3A",
     "B4",
     "F4",
-    "F5",
-    "OL",   
+    "F5",   
     "P"
 };
 
@@ -103,7 +103,8 @@ int main(void)
     board.move(Pos(12, 12));
     printBoard(board);
     cout << board.getResult() << endl;
-    if(!board.move(Pos(4, 4)));
+    board.undo();
+    printBoard(board);
 
     return 0;
 }
