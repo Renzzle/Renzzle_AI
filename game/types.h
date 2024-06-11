@@ -1,5 +1,16 @@
 #pragma once
 
+enum Result {
+    BLACK_WIN,
+    WHITE_WIN,
+    DRAW
+};
+
+enum Color {
+    COLOR_BLACK,
+    COLOR_WHITE
+};
+
 enum Piece {
     BLACK,
     WHITE,
@@ -9,6 +20,7 @@ enum Piece {
 
 enum Pattern {
     DEAD,        // can never make a five
+    OVERLINE,    // overline
     BLOCKED_1,   // one step before BLOCKED_2
     FREE_1,      // one step before FREE_2
     BLOCKED_2,   // one step before BLOCKED_3
@@ -21,7 +33,6 @@ enum Pattern {
     BLOCKED_4,   // one step before FREE_5
     FREE_4,      // one step before two FREE_5
     FIVE,        // five
-    OVERLINE,    // overline
     PATTERN_SIZE
 };
 

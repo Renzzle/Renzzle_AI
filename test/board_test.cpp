@@ -8,6 +8,7 @@ using namespace std;
 
 const char* patternNames[] = {
     "D",   
+    "OL",
     "B1", 
     "F1",
     "B2",
@@ -19,8 +20,7 @@ const char* patternNames[] = {
     "F3A",
     "B4",
     "F4",
-    "F5",
-    "OL",   
+    "F5",   
     "P"
 };
 
@@ -73,6 +73,7 @@ int main(void)
 
     bool passed = true;
 
+    cout << "start!" << endl;
     auto start = chrono::high_resolution_clock::now();
     board.move(Pos(7, 12));
     board.move(Pos(1, 1));
@@ -87,9 +88,23 @@ int main(void)
     chrono::duration<double> duration = end - start;
     printBoardPattern(board, BLACK);
     printBoardPattern(board, WHITE);
-    printBoard(board);
     std::cout << "testMove: Passed" << std::endl;
     cout << "Time taken: " << duration.count() << " seconds" << endl;
+
+    // board.move(Pos(1, 5));
+    // printBoard(board);
+    // cout << board.getResult() << endl;
+    // if(!board.move(Pos(4, 4)));
+    //     cout << "game is finished" << endl;
+
+    board.move(Pos(2, 1));
+    board.move(Pos(11, 12));
+    board.move(Pos(3, 1));
+    board.move(Pos(12, 12));
+    printBoard(board);
+    cout << board.getResult() << endl;
+    board.undo();
+    printBoard(board);
 
     return 0;
 }

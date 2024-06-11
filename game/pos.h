@@ -11,13 +11,15 @@ class Pos {
 private:
     int x, y;
     Direction dir; 
-    const int inc[DIRECTION_SIZE][2] = {{0,1},{1,0},{1,1},{1,-1}};
+    int inc[DIRECTION_SIZE][2] = {{0,1},{1,0},{1,1},{1,-1}};
     bool isValid() {
         return x >= 1 && x <= BOARD_SIZE && y >= 1 && y <= BOARD_SIZE;
     }
 
 public:
-    Pos() = delete;
+    Pos() {
+        x = 0; y = 0; dir = HORIZONTAL;
+    };
 
     Pos(int x, int y) {
         this->x = x;
@@ -29,6 +31,14 @@ public:
         this->x = x;
         this->y = y;
         this->dir = dir;
+    }
+    
+    int getX() {
+        return x;
+    }
+
+    int getY() {
+        return y;
     }
     
     bool operator+(const int n) {

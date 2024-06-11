@@ -1,22 +1,31 @@
+#pragma once
+
 #include "line.h"
 #include "pos.h"
 #include <array>
+#include <stack>
+#include <iostream>
 
 #define BOARD_SIZE 15
 #define STATIC_WALL &cells[0][0];
 
 using CellArray = array<array<Cell, BOARD_SIZE + 2>, BOARD_SIZE + 2>;
+using MoveList = stack<Pos>;
 
 class Board {
 
 private:
     CellArray cells;
+    MoveList moves;
     unsigned int moveCnt;
+    Result result;
 
     Line getLine(Pos& p);
-    Pattern getPattern(Line& line, bool isBlack);
+    Pattern getPattern(Line& line, Color color);
     void setPatterns(Pos& p);
     void clearPattern(Cell& cell);
+    bool isForbidden(Pos& p);
+    void setResult(Pos& p);
 
 public:
     Board();
@@ -25,11 +34,13 @@ public:
     Cell& getCell(const Pos p);
     bool move(Pos p);
     void undo();
+    Result getResult();
     
 };
 
 Board::Board() {
     moveCnt = 0;
+    result = DRAW;
 
     for (int i = 0; i < BOARD_SIZE + 2; i++) {
         for (int j = 0; j < BOARD_SIZE + 2; j++) {
@@ -61,32 +72,35 @@ void Board::clearPattern(Cell& cell) {
 }
 
 bool Board::move(Pos p) {
-    if (getCell(p).getPiece() != EMPTY)
-        return false;
+    if (getCell(p).getPiece() != EMPTY) return false;
+    if (result != DRAW) return false;
+    if (moveCnt == BOARD_SIZE * BOARD_SIZE) return false;
 
     moveCnt++;
+    moves.push(p);
 
-    getCell(p).setPiece((moveCnt % 2 == 1) ? BLACK : WHITE);
+    getCell(p).setPiece(isBlackTurn() ? BLACK : WHITE);
     clearPattern(getCell(p));
     setPatterns(p);
+    setResult(p);
 
     return true;
 }
 
 void Board::setPatterns(Pos& p) {
-    for(Direction dir = DIRECTION_START; dir < DIRECTION_SIZE; dir++) {
+    for (Direction dir = DIRECTION_START; dir < DIRECTION_SIZE; dir++) {
         p.dir = dir;
         for (int i = 0; i < LINE_LENGTH; i++) {
             if (!(p + (i - (LINE_LENGTH / 2)))) {
                 continue;
             }
 
-            if(getCell(p).getPiece() == EMPTY) {
+            if (getCell(p).getPiece() == EMPTY) {
                 Line line = getLine(p);
                 getCell(p).setPiece(BLACK);
-                getCell(p).setPattern(BLACK, dir, getPattern(line, true));
+                getCell(p).setPattern(BLACK, dir, getPattern(line, COLOR_BLACK));
                 getCell(p).setPiece(WHITE);
-                getCell(p).setPattern(WHITE, dir, getPattern(line, false));
+                getCell(p).setPattern(WHITE, dir, getPattern(line, COLOR_WHITE));
                 getCell(p).setPiece(EMPTY);
             }
             p - (i - (LINE_LENGTH / 2));
@@ -109,34 +123,35 @@ Line Board::getLine(Pos& p) {
     return line;
 }
 
-Pattern Board::getPattern(Line& line, bool isBlack) {
+Pattern Board::getPattern(Line& line, Color color) {
     constexpr auto mid = LINE_LENGTH / 2;
+    bool isBlack = color == COLOR_BLACK;
     Piece self = isBlack ? BLACK : WHITE;
 
     int realLen, fullLen, start, end;
     tie(realLen, fullLen, start, end) = line.countLine();
 
-    if(isBlack && realLen >= 6) 
+    if (isBlack && realLen >= 6) 
         return OVERLINE;
-    else if(realLen >= 5)
+    else if (realLen >= 5)
         return FIVE;
-    else if(fullLen < 5)
+    else if (fullLen < 5)
         return DEAD;
 
     int patternCnt[PATTERN_SIZE] = {0};
     int fiveIdx[2] = {0};
     Pattern p = DEAD;
 
-    for(int i = start; i <= end; i++) {
+    for (int i = start; i <= end; i++) {
         Piece piece = line[i]->getPiece();
-        if(piece == EMPTY) {
+        if (piece == EMPTY) {
             Line sl = line.shiftLine(line, i);
             sl[mid]->setPiece(self);
 
-            Pattern slp = getPattern(sl, isBlack);
+            Pattern slp = getPattern(sl, color);
             sl[mid]->setPiece(EMPTY);
         
-            if(slp == FIVE && patternCnt[FIVE] < 2) {
+            if (slp == FIVE && patternCnt[FIVE] < 2) {
                 fiveIdx[patternCnt[FIVE]] = i;
             }
             patternCnt[slp]++;
@@ -145,7 +160,7 @@ Pattern Board::getPattern(Line& line, bool isBlack) {
 
     if (patternCnt[FIVE] >= 2) {
         p = FREE_4;
-        if(isBlack && fiveIdx[1] - fiveIdx[0] < 5) {
+        if (isBlack && fiveIdx[1] - fiveIdx[0] < 5) {
             p = OVERLINE;
         }
     }
@@ -174,5 +189,109 @@ Pattern Board::getPattern(Line& line, bool isBlack) {
 }
 
 void Board::undo() {
-    
+    Pos p = moves.top();
+
+    moveCnt--;
+    getCell(p).setPiece(EMPTY);
+    setPatterns(p);
+    result = DRAW;
+
+    moves.pop();
+}
+
+bool Board::isForbidden(Pos& p) {
+    return false;
+}
+
+bool Board::isForbidden(Pos& p) {
+    /*
+    // only black stone
+    bool isBlackTurn = this->isBlackTurn();
+    assert(isBlackTurn == true);
+
+    Cell c = getCell(p);
+
+    int winByFour = 0;
+    int winByThree = 0;
+
+    // FIVE, OVERLINE, 4-4
+    for (Direction dir = DIRECTION_START; dir < DIRECTION_SIZE; dir++) {
+        p.dir = dir;
+        Pattern pattern = c.getPattern(BLACK, p.dir);
+        if (pattern == FIVE)
+            return false;
+        else if (pattern == OVERLINE)
+            return true;
+        else if (pattern == BLOCKED_4 || pattern == FREE_4) {
+            if (++winByFour >= 2)
+                return true;
+        }
+    }
+
+    // recursive 3-3
+    move(p);
+
+    for (Direction dir = DIRECTION_START; dir < DIRECTION_SIZE; dir++) {
+        p.dir = dir;
+        Pattern pattern = c.getPattern(BLACK, p.dir);
+
+        // double three forbidden type
+        if (pattern != FREE_3 && pattern != FREE_3A)
+            continue;
+        
+        Pos posi = p;
+        for (int i = 0; i < LINE_LENGTH; i++) {
+            if (!(p + (i - (LINE_LENGTH / 2))))
+                continue;
+
+            Cell &c = getCell(posi);
+            if (c.getPiece() == EMPTY) {
+                // TODO: 확인 필요 (열린 4를 만드는 자리인지??)
+                if (c.getPattern(BLACK, dir) == FIVE || (c.getPattern(BLACK, dir) == FREE_4 && !isForbidden(posi))) {
+                    winByThree++;
+                    break;
+                }
+                break;
+            } else if (c.getPiece() != BLACK) {
+                break;
+            }
+            p - (i - (LINE_LENGTH / 2));
+        }
+
+        if (winByThree >= 2) {
+            break;
+        }
+    }
+
+    undo();
+
+    return winByThree >= 2;
+    */
+    return false;
+}
+
+void Board::setResult(Pos& p) {
+    bool isBlackTurn = this->isBlackTurn();
+    if (isBlackTurn && isForbidden(p)) {
+        result = WHITE_WIN;
+        return;
+    }
+    for (Direction dir = DIRECTION_START; dir < DIRECTION_SIZE; dir++) {
+        p.dir = dir;
+        Line line = getLine(p);
+        int realLen, fullLen, start, end;
+        tie(realLen, fullLen, start, end) = line.countLine();
+        if (realLen >= 5 && !isBlackTurn) {
+            result = WHITE_WIN;
+            return;
+        } else if (realLen == 5 && isBlackTurn) {
+            result = BLACK_WIN;
+            return;
+        }
+    }
+    result = DRAW;
+}
+
+Result Board::getResult() {
+    return result;
 }
