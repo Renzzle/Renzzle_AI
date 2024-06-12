@@ -200,10 +200,6 @@ void Board::undo() {
 }
 
 bool Board::isForbidden(Pos& p) {
-    return false;
-}
-
-bool Board::isForbidden(Pos& p) {
     /*
     // only black stone
     bool isBlackTurn = this->isBlackTurn();

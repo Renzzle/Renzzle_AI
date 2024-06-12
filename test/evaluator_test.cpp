@@ -90,6 +90,9 @@ int main() {
     board.move(Pos(4, 10));
     board.move(Pos(6, 9));
     board.move(Pos(7, 9));
+    // board.move(Pos(6, 11));
+    // board.move(Pos(1, 1));
+    // board.move(Pos(7, 10));
     printBoard(board);
 
     Evaluator evaluator;
@@ -98,6 +101,7 @@ int main() {
     for(auto move : moves) {
         cout << move.getX() << ", " << move.getY() << endl;
     }
+    //cout << evaluator.evaluate(COLOR_BLACK) << " / " << evaluator.evaluate(COLOR_WHITE) << endl;
 
     return 0;
 }

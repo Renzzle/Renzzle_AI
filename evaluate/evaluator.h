@@ -34,7 +34,8 @@ list<Pos> Evaluator::getCandidates() {
     list<Pos> moves;
     list<tuple<Pos, int>> tmp;
 
-    Piece piece = board.isBlackTurn() ? WHITE : BLACK;
+    Piece self = board.isBlackTurn() ? WHITE : BLACK;
+    Piece oppo = !board.isBlackTurn() ? WHITE : BLACK;
 
     for (int i = 1; i <= BOARD_SIZE; i++) {
         for (int j = 1; j <= BOARD_SIZE; j++) {
@@ -42,17 +43,21 @@ list<Pos> Evaluator::getCandidates() {
             if (cell.getPiece() != EMPTY) continue;
             int val = 0;
             for (Direction dir = DIRECTION_START; dir < DIRECTION_SIZE; dir++) {
-                Pattern p = cell.getPattern(piece, dir);
-                if(p != PATTERN_SIZE) {
-                    if(p == FIVE) val += 100000;
-                    else if(p == FREE_4) val += 10000;
-                    else if(p == BLOCKED_4) val += 5000;
-                    else if(p == FREE_3A) val += 100;
-                    else if(p == FREE_3) val += 100;
+                Pattern p = cell.getPattern(self, dir);
+                if (p != PATTERN_SIZE) {
+                    if (p == FIVE) val += 1000000;
+                    else if (p == FREE_4) val += 10000;
+                    else if (p == BLOCKED_4) val += 5000;
+                    else if (p == FREE_3A) val += 100;
+                    else if (p == FREE_3) val += 100;
                     else val += (int)p * (int)p;
                 }
+                p = cell.getPattern(oppo, dir);
+                if (p != PATTERN_SIZE) {
+                    if (p == FIVE) val += 100000;
+                }
             }
-            if (val != 0)
+            if (val >= 5000)
                 tmp.push_back(make_tuple(Pos(i, j), val));
         }
     }
