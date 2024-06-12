@@ -24,6 +24,40 @@ const char* patternNames[] = {
     "P"
 };
 
+void print_board(int put[15][15])
+{
+	for (int i = 0; i < 15; i++) {
+		printf("");
+		for (int j = 0; j < 15; j++) {
+			if (put[i][j] == 0 && i == 0 && j == 0)
+				printf("�� ");
+			else if (put[i][j] == 0 && i == 0 && j == 14)
+				printf("�� ");
+			else if (put[i][j] == 0 && i == 0)
+				printf("�� ");
+			else if (put[i][j] == 0 && i == 14 && j == 0)
+				printf("�� ");
+			else if (put[i][j] == 0 && i == 14 && j == 14)
+				printf("�� ");
+			else if (put[i][j] == 0 && i == 14)
+				printf("�� ");
+			else if (put[i][j] == 0 && j == 0)
+				printf("�� ");
+			else if (put[i][j] == 0 && j == 14)
+				printf("�� ");
+			else if (put[i][j] == 0)
+				printf("�� ");
+			else if (put[i][j] == 1) // black
+				printf("��"); 
+			else if (put[i][j] == -1) // white
+				printf("��");
+		}
+		printf("%02d\n", 15 - i);
+	}
+
+	printf("A B C D E F G H I J K L M N O\n");
+}
+
 void printBoard(Board& board) {
     CellArray cells = board.getBoardStatus();
     for (int i = 0; i < BOARD_SIZE + 2; i++) {
@@ -105,6 +139,11 @@ int main(void)
     cout << board.getResult() << endl;
     board.undo();
     printBoard(board);
+
+    int b[15][15];
+    b[7][7] = 1;
+    b[7][8] = -1;
+    print_board(b);
 
     return 0;
 }

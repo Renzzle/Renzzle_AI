@@ -1,5 +1,6 @@
 #include "../evaluate/evaluator.h"
 #include <iostream>
+#include <windows.h>
 
 using namespace std;
 
@@ -26,18 +27,16 @@ void printBoard(Board& board) {
     for (int i = 0; i < BOARD_SIZE + 2; i++) {
         for (int j = 0; j < BOARD_SIZE + 2; j++) {
             Piece p = cells[i][j].getPiece();
-            const char* c;
             if(p == WALL) {
-                if(i == 0 || i == BOARD_SIZE + 1) cout << j << "\t";
-                else cout << i << "\t";
+                if (i == 0 && j < BOARD_SIZE) printf("%2c", j + 65);
+                else if (i != 0 && i != BOARD_SIZE + 1 && j != 0) printf("%02d", i);
                 continue;
             }
-            if(p == BLACK) c = "O";
-            if(p == WHITE) c = "X";
-            if(p == EMPTY) c = "-";
-            cout << c << "\t";
+            if(p == BLACK) cout << "⚫";
+            if(p == WHITE) cout << "⚪";
+            if(p == EMPTY) cout << "─┼";
         }
-        cout << endl << endl;
+        cout << endl;
     }
     return;
 }
@@ -72,6 +71,7 @@ void printBoardPattern(Board& board, Piece p) {
 }
 
 int main() {
+    SetConsoleOutputCP(CP_UTF8);
     Board board;
 
     board.move(Pos(7, 7));
@@ -99,7 +99,7 @@ int main() {
     evaluator.setBoard(board);
     list<Pos> moves = evaluator.getCandidates();
     for(auto move : moves) {
-        cout << move.getX() << ", " << move.getY() << endl;
+        cout << move.getX() << ", " << (char)(move.getY() + 64) << endl;
     }
     //cout << evaluator.evaluate(COLOR_BLACK) << " / " << evaluator.evaluate(COLOR_WHITE) << endl;
 
