@@ -5,21 +5,21 @@
 using namespace std;
 
 const char* patternNames[] = {
-    "D",   
+    " D",   
     "OL",  
     "B1", 
-    "F1",
+    " 1",
     "B2",
-    "F2",
-    "F2A",
-    "F2B",
+    " 2",
+    "2A",
+    "2B",
     "B3",
-    "F3",
-    "F3A",
+    " 3",
+    "3A",
     "B4",
-    "F4",
-    "F5", 
-    "P"
+    " 4",
+    " 5", 
+    " P"
 };
 
 void printBoard(Board& board) {
@@ -28,7 +28,7 @@ void printBoard(Board& board) {
         for (int j = 0; j < BOARD_SIZE + 2; j++) {
             Piece p = cells[i][j].getPiece();
             if(p == WALL) {
-                if (i == 0 && j < BOARD_SIZE) printf("%2c", j + 65);
+                if (i == BOARD_SIZE + 1 && j < BOARD_SIZE) printf("%2c", j + 65);
                 else if (i != 0 && i != BOARD_SIZE + 1 && j != 0) printf("%02d", i);
                 continue;
             }
@@ -43,30 +43,33 @@ void printBoard(Board& board) {
 
 void printBoardPattern(Board& board, Piece p) {
     CellArray cells = board.getBoardStatus();
+    const char* directionName[] = {"Horizontal", "Vertical", "Upward", "Downward"};
+    const char* pieceName[] = {"Black", "White"};
     for (int k = 0; k < 4; k++) {
+        cout << pieceName[p] << ": " << directionName[k];
         for (int i = 0; i < BOARD_SIZE + 2; i++) {
             for (int j = 0; j < BOARD_SIZE + 2; j++) {
                 if (cells[i][j].getPiece() != EMPTY) {
                     if(cells[i][j].getPiece() == BLACK)  {
-                        cout << "O\t"; 
+                        cout << "⚫"; 
                     } else if(cells[i][j].getPiece() == WHITE) {
-                        cout << "X\t"; 
+                        cout << "⚪"; 
                     } else {
-                        if(i == 0 || i == BOARD_SIZE + 1) cout << j << "\t";
-                        else cout << i << "\t";
+                        if (i == BOARD_SIZE + 1 && j < BOARD_SIZE) printf("%2c", j + 65);
+                        else if (i != 0 && i != BOARD_SIZE + 1 && j != 0) printf("%02d", i);
+                        continue;
                     }
                 } else {
                     if (cells[i][j].getPattern(p, static_cast<Direction>(k)) == PATTERN_SIZE) {
-                        std::cout << "-\t";
+                        cout << "─┼";
                     } else {
-                        std::cout << patternNames[cells[i][j].getPattern(p, static_cast<Direction>(k))] << "\t";
+                        cout << patternNames[cells[i][j].getPattern(p, static_cast<Direction>(k))];
                     }
                 }
             }
-            std::cout << std::endl << endl;
+            cout << endl;
         }
-        std::cout << "---------------------------------------------------------------------";
-        std::cout << "------------------------------------------------------------" << std::endl;
+        cout << "------------------------------------------------------------" << endl;
     }
 }
 
@@ -98,10 +101,12 @@ int main() {
     Evaluator evaluator;
     evaluator.setBoard(board);
     list<Pos> moves = evaluator.getCandidates();
+    cout << "<Candidates>" << endl;
     for(auto move : moves) {
         cout << move.getX() << ", " << (char)(move.getY() + 64) << endl;
     }
     //cout << evaluator.evaluate(COLOR_BLACK) << " / " << evaluator.evaluate(COLOR_WHITE) << endl;
+    //printBoardPattern(board, BLACK);
 
     return 0;
 }
