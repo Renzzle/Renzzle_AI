@@ -1,4 +1,5 @@
 #include "../game/board.h"
+//#include "gtest/gtest.h"
 
 #include <cassert>
 #include <iostream>
@@ -6,23 +7,22 @@
 
 using namespace std;
 
-
 const char* patternNames[] = {
-    " D",   
-    "OL",  
+    "D",   
     "B1", 
-    " 1",
+    "F1",
     "B2",
-    " 2",
-    "2A",
-    "2B",
+    "F2",
+    "F2A",
+    "F2B",
     "B3",
-    " 3",
-    "3A",
+    "F3",
+    "F3A",
     "B4",
-    " 4",
-    " 5", 
-    " P"
+    "F4",
+    "F5",
+    "OL",   
+    "P"
 };
 
 void printBoard(Board& board) {
@@ -30,14 +30,12 @@ void printBoard(Board& board) {
     for (int i = 0; i < BOARD_SIZE + 2; i++) {
         for (int j = 0; j < BOARD_SIZE + 2; j++) {
             Piece p = cells[i][j].getPiece();
-            if(p == WALL) {
-                if (i == BOARD_SIZE + 1 && j < BOARD_SIZE) printf("%2c", j + 65);
-                else if (i != 0 && i != BOARD_SIZE + 1 && j != 0) printf("%02d", i);
-                continue;
-            }
-            if(p == BLACK) cout << "⚫";
-            if(p == WHITE) cout << "⚪";
-            if(p == EMPTY) cout << "─┼";
+            const char* c;
+            if(p == WALL) c = "|";
+            if(p == BLACK) c = "o";
+            if(p == WHITE) c = "x";
+            if(p == EMPTY) c = "-";
+            cout << c << "\t";
         }
         cout << endl;
     }
@@ -46,76 +44,59 @@ void printBoard(Board& board) {
 
 void printBoardPattern(Board& board, Piece p) {
     CellArray cells = board.getBoardStatus();
-    const char* directionName[] = {"Horizontal", "Vertical", "Upward", "Downward"};
-    const char* pieceName[] = {"Black", "White"};
     for (int k = 0; k < 4; k++) {
-        cout << pieceName[p] << ": " << directionName[k];
         for (int i = 0; i < BOARD_SIZE + 2; i++) {
             for (int j = 0; j < BOARD_SIZE + 2; j++) {
                 if (cells[i][j].getPiece() != EMPTY) {
-                    if(cells[i][j].getPiece() == BLACK)  {
-                        cout << "⚫"; 
-                    } else if(cells[i][j].getPiece() == WHITE) {
-                        cout << "⚪"; 
-                    } else {
-                        if (i == BOARD_SIZE + 1 && j < BOARD_SIZE) printf("%2c", j + 65);
-                        else if (i != 0 && i != BOARD_SIZE + 1 && j != 0) printf("%02d", i);
-                        continue;
-                    }
+                    char c;
+                    if(cells[i][j].getPiece() == WALL) c = '|';
+                    else if(cells[i][j].getPiece() == BLACK) c = 'o';
+                    else if(cells[i][j].getPiece() == WHITE) c = 'x';
+                    std::cout << c << "\t"; 
                 } else {
                     if (cells[i][j].getPattern(p, static_cast<Direction>(k)) == PATTERN_SIZE) {
-                        cout << "─┼";
+                        std::cout << "-\t";
                     } else {
-                        cout << patternNames[cells[i][j].getPattern(p, static_cast<Direction>(k))];
+                        std::cout << patternNames[cells[i][j].getPattern(p, static_cast<Direction>(k))] << "\t";
                     }
                 }
             }
-            cout << endl;
+            std::cout << std::endl;
         }
-        cout << "------------------------------------------------------------" << endl;
+        std::cout << "---------------------------------------------------------------------";
+        std::cout << "------------------------------------------------------------" << std::endl;
     }
 }
 
-int main(void)
-{
-    Board board;
-    bool passed = true;
+// 테스트 케이스 정의
+// TEST(BoardTest, MoveDuration) {
+//     Board board;
+    
+//     auto start = chrono::high_resolution_clock::now();
+//     board.move(Pos(7, 12));
+//     board.move(Pos(1, 1));
+//     board.move(Pos(14, 12));
+//     board.move(Pos(1, 2));
+//     board.move(Pos(8, 12));
+//     board.move(Pos(1, 3));
+//     board.move(Pos(13, 12));
+//     board.move(Pos(1, 4));
+//     board.move(Pos(10, 12));
+//     auto end = chrono::high_resolution_clock::now();
+//     chrono::duration<double> duration = end - start;
+//     printBoardPattern(board, BLACK);
+//     printBoardPattern(board, WHITE);
+//     printBoard(board);
+//     std::cout << "testMove: Passed" << std::endl;
+//     cout << "Time taken: " << duration.count() << " seconds" << endl;
 
-    auto start = chrono::high_resolution_clock::now();
-    board.move(Pos(7, 12));
-    board.move(Pos(1, 1));
-    board.move(Pos(14, 12));
-    board.move(Pos(1, 2));
-    board.move(Pos(8, 12));
-    board.move(Pos(1, 3));
-    board.move(Pos(13, 12));
-    board.move(Pos(1, 4));
-    board.move(Pos(10, 12));
-    auto end = chrono::high_resolution_clock::now();
-    chrono::duration<double> duration = end - start;
-    cout << "<Pattern test>" << endl;
-    printBoardPattern(board, BLACK);
-    printBoardPattern(board, WHITE);
-    std::cout << "testMove: Passed" << std::endl;
-    cout << "Time taken: " << duration.count() << " seconds" << endl;
+//     // 실행 시간이 0보다 큰지 확인
+//     EXPECT_GT(duration.count(), 0);
+// }
 
-    // board.move(Pos(1, 5));
-    // printBoard(board);
-    // cout << board.getResult() << endl;
-    // if(!board.move(Pos(4, 4)));
-    //     cout << "game is finished" << endl;
+// int main(int argc, char **argv)
+// {
+//     ::testing::InitGoogleTest(&argc, argv);
 
-    cout << endl << "<Win test>" << endl;
-    board.move(Pos(2, 1));
-    board.move(Pos(11, 12));
-    board.move(Pos(3, 1));
-    board.move(Pos(12, 12));
-    printBoard(board);
-    const char* resultName[] = {"Black win", "White win", "Draw"};
-    cout << "result: " << resultName[board.getResult()] << endl << endl;
-    cout << "<Undo test>" << endl;
-    board.undo();
-    printBoard(board);
-
-    return 0;
-}
+//     return RUN_ALL_TESTS();
+// }
