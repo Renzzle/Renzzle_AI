@@ -34,8 +34,8 @@ list<Pos> Evaluator::getCandidates() {
     list<Pos> moves;
     list<tuple<Pos, int>> tmp;
 
-    Piece self = board.isBlackTurn() ? WHITE : BLACK;
-    Piece oppo = !board.isBlackTurn() ? WHITE : BLACK;
+    Piece self = board.isBlackTurn() ? BLACK : WHITE;
+    Piece oppo = !board.isBlackTurn() ? BLACK : WHITE;
 
     for (int i = 1; i <= BOARD_SIZE; i++) {
         for (int j = 1; j <= BOARD_SIZE; j++) {
