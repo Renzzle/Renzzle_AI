@@ -33,11 +33,11 @@ public:
         this->dir = dir;
     }
     
-    int getX() {
+    int getX() const {
         return x;
     }
 
-    int getY() {
+    int getY() const {
         return y;
     }
     
@@ -59,6 +59,11 @@ public:
             this->y += inc[dir][1] * n;
             return false;
         } else return true;
+    }
+
+    bool operator<(const Pos& other) const {
+        if (x == other.x) return y < other.y;
+        return x < other.x;
     }
 
 };

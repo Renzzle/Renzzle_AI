@@ -40,7 +40,7 @@ public:
 
 Board::Board() {
     moveCnt = 0;
-    result = DRAW;
+    result = ONGOING;
 
     for (int i = 0; i < BOARD_SIZE + 2; i++) {
         for (int j = 0; j < BOARD_SIZE + 2; j++) {
@@ -73,7 +73,7 @@ void Board::clearPattern(Cell& cell) {
 
 bool Board::move(Pos p) {
     if (getCell(p).getPiece() != EMPTY) return false;
-    if (result != DRAW) return false;
+    if (result != ONGOING) return false;
     if (moveCnt == BOARD_SIZE * BOARD_SIZE) return false;
 
     moveCnt++;
@@ -194,7 +194,7 @@ void Board::undo() {
     moveCnt--;
     getCell(p).setPiece(EMPTY);
     setPatterns(p);
-    result = DRAW;
+    result = ONGOING;
 
     moves.pop();
 }
@@ -285,7 +285,7 @@ void Board::setResult(Pos& p) {
             return;
         }
     }
-    result = DRAW;
+    result = ONGOING;
 }
 
 Result Board::getResult() {

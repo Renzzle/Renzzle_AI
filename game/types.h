@@ -1,6 +1,7 @@
 #pragma once
 
 enum Result {
+    ONGOING,
     BLACK_WIN,
     WHITE_WIN,
     DRAW

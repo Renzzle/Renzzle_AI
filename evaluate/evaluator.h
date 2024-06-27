@@ -74,7 +74,7 @@ list<Pos> Evaluator::getCandidates() {
 
 Value Evaluator::evaluate(Color color) {
     Result result = board.getResult();
-    if (result == DRAW) return 0;
+    if (result == ONGOING) return 0;
     else if (result == BLACK_WIN) {
         if (color == COLOR_BLACK)
             return 20000;
