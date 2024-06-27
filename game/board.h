@@ -53,7 +53,7 @@ Board::Board() {
 }
 
 bool Board::isBlackTurn() {
-    return moveCnt % 2 == 1;
+    return moveCnt % 2 == 0;
 }
 
 CellArray& Board::getBoardStatus() {
@@ -76,10 +76,10 @@ bool Board::move(Pos p) {
     if (result != ONGOING) return false;
     if (moveCnt == BOARD_SIZE * BOARD_SIZE) return false;
 
+    getCell(p).setPiece(isBlackTurn() ? BLACK : WHITE);
     moveCnt++;
     moves.push(p);
 
-    getCell(p).setPiece(isBlackTurn() ? BLACK : WHITE);
     clearPattern(getCell(p));
     setPatterns(p);
     setResult(p);
@@ -268,7 +268,7 @@ bool Board::isForbidden(Pos& p) {
 
 void Board::setResult(Pos& p) {
     bool isBlackTurn = this->isBlackTurn();
-    if (isBlackTurn && isForbidden(p)) {
+    if (!isBlackTurn && isForbidden(p)) {
         result = WHITE_WIN;
         return;
     }
@@ -277,10 +277,10 @@ void Board::setResult(Pos& p) {
         Line line = getLine(p);
         int realLen, fullLen, start, end;
         tie(realLen, fullLen, start, end) = line.countLine();
-        if (realLen >= 5 && !isBlackTurn) {
+        if (realLen >= 5 && isBlackTurn) {
             result = WHITE_WIN;
             return;
-        } else if (realLen == 5 && isBlackTurn) {
+        } else if (realLen == 5 && !isBlackTurn) {
             result = BLACK_WIN;
             return;
         }
