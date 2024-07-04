@@ -11,22 +11,27 @@ private:
 
 public:
     void setEvaluator(Evaluator eval);
-    Pos findBestMove(Depth depth);
+    Pos findBestMove(Depth depth, bool maximizingPlayer);
 };
 
 void Search::setEvaluator(Evaluator eval) {
     this->evaluator = eval;
 }
 
-Pos Search::findBestMove(Depth depth) {
+Pos Search::findBestMove(Depth depth, bool maximizingPlayer) {
     Value bestValue = -INF;
     Pos bestMove;
+
+    //cout << "findBestMove ";
     auto candidates = evaluator.getCandidates();
+    cout << endl;
     
     for (const auto& move : candidates) {
         evaluator.next(move);
-        Value moveValue = alphaBeta(depth - 1, -INF, INF, false);
-        cout << "move: [" << move.getX() << ", " << (char)(move.getY() + 64) << "],\tmoveValue: " << moveValue << endl;
+        //cout << "-------------- move: [" << move.getX() << ", " << (char)(move.getY() + 64) << "] --------------" << endl;
+        cout << "move: [" << move.getX() << ", " << (char)(move.getY() + 64) << "] ";
+        Value moveValue = alphaBeta(depth - 1, -INF, INF, !maximizingPlayer);
+        cout << ">> moveValue: " << moveValue << endl;
         evaluator.prev();
 
         if (moveValue > bestValue) {
@@ -38,47 +43,37 @@ Pos Search::findBestMove(Depth depth) {
 }
 
 Value Search::alphaBeta(Depth depth, Value alpha, Value beta, bool maximizingPlayer) {
+    Value currentEval = evaluator.evaluate();
+
     if (depth == 0) {
-        return evaluator.evaluate(maximizingPlayer ? COLOR_BLACK : COLOR_WHITE, depth);
+        return currentEval;
     }
 
     auto candidates = evaluator.getCandidates();
     if (candidates.empty()) {
-        return evaluator.evaluate(maximizingPlayer ? COLOR_BLACK : COLOR_WHITE, depth);
+        return currentEval;
     }
 
     if (maximizingPlayer) {
         Value maxEval = -INF;
         for (const auto& move : candidates) {
             evaluator.next(move);
-            cout << ">> Maximizing Depth: " << depth;
-            cout << " / Alpha: " << (alpha == -INF ? "-INF" : to_string(alpha));
-            cout << " / Beta: " << (beta == INF ? "INF" : to_string(beta)) << endl;
-            Value eval = alphaBeta(depth - 1, alpha, beta, false);
+            Value eval = alphaBeta(depth - 1, alpha, beta, !maximizingPlayer);
             evaluator.prev();
             maxEval = std::max(maxEval, eval);
             alpha = std::max(alpha, eval);
-            if (beta <= alpha) {
-                cout << "** Pruning at move [" << move.getX() << ", " << (char)(move.getY() + 64) << "] with beta: " << beta << " **" << endl;
-                break;  
-            }
+            if (beta <= alpha)    break;
         }
         return maxEval;
     } else {
         Value minEval = INF;
         for (const auto& move : candidates) {
             evaluator.next(move);
-            cout << ">> Minimizing Depth: " << depth;
-            cout << " / Alpha: " << (alpha == -INF ? "-INF" : to_string(alpha));
-            cout << " / Beta: " << (beta == INF ? "INF" : to_string(beta)) << endl;
-            Value eval = alphaBeta(depth - 1, alpha, beta, true);
+            Value eval = alphaBeta(depth - 1, alpha, beta, !maximizingPlayer);
             evaluator.prev();
             minEval = std::min(minEval, eval);
             beta = std::min(beta, eval);
-            if (beta <= alpha) {
-                cout << "** Pruning at move [" << move.getX() << ", " << (char)(move.getY() + 64) << "] with alpha: " << alpha << " **" << endl;
-                break;  
-            }
+            if (beta <= alpha)    break;
         }
         return minEval;
     }

@@ -14,7 +14,6 @@ void printCell(CellArray& cells);
 void printBoardPattern(Board& board, Piece p);
 void printBoard(Board& board);
 void printPatternCells(CellArray& cells, Piece p, Direction k);
-void printBoardWithMove(Board& board, Pos move);
 void abpDemo();
 
 int main() {
@@ -23,7 +22,6 @@ int main() {
     #endif
 
     //patternDemo();
-    //cout << endl << endl;
     //getCandidatesDemo();
     abpDemo();
 
@@ -37,15 +35,22 @@ void patternDemo() {
     bool passed = true;
 
     TEST_TIME_START();
-    board.move(Pos(7, 12));
-    board.move(Pos(1, 1));
-    board.move(Pos(14, 12));
-    board.move(Pos(1, 2));
-    board.move(Pos(8, 12));
-    board.move(Pos(1, 3));
-    board.move(Pos(13, 12));
-    board.move(Pos(1, 4));
-    board.move(Pos(10, 12));
+    board.move(Pos(7, 7));
+    board.move(Pos(7, 8));
+    board.move(Pos(8, 7));
+    board.move(Pos(6, 7));
+    board.move(Pos(8, 9));
+    board.move(Pos(8, 8));
+    board.move(Pos(9, 8));
+    board.move(Pos(10, 9));
+    board.move(Pos(10, 7));
+    board.move(Pos(11, 6));
+    board.move(Pos(6, 8));
+    board.move(Pos(5, 7));
+    board.move(Pos(5, 9));
+    board.move(Pos(4, 10));
+    board.move(Pos(6, 9));
+    board.move(Pos(7, 9));
     TEST_TIME_END("Pattern test");
     
     printBoardPattern(board, BLACK);
@@ -163,6 +168,7 @@ void abpDemo() {
     Evaluator eval;
     Search searcher;
 
+    // #0: [9, E] (depth=4)
     board.move(Pos(7, 7));
     board.move(Pos(7, 8));
     board.move(Pos(8, 7));
@@ -180,14 +186,50 @@ void abpDemo() {
     board.move(Pos(6, 9));
     board.move(Pos(7, 9));
 
-    eval.setBoard(board);
-    searcher.setEvaluator(eval);
+    // #1: [8, F] (depth=6)
+    // board.move(Pos(BOARD_SIZE + 1 - 8, 8));
+    // board.move(Pos(BOARD_SIZE + 1 - 9, 8));
+    // board.move(Pos(BOARD_SIZE + 1 - 8, 9));
+    // board.move(Pos(BOARD_SIZE + 1 - 9, 9));
+    // board.move(Pos(BOARD_SIZE + 1 - 9, 7));
+    // board.move(Pos(BOARD_SIZE + 1 - 10, 7));
+    // board.move(Pos(BOARD_SIZE + 1 - 10, 8));
+    // board.move(Pos(BOARD_SIZE + 1 - 10, 9));
+    // board.move(Pos(BOARD_SIZE + 1 - 11, 9));
+    // board.move(Pos(BOARD_SIZE + 1 - 12, 10));
+    // board.move(Pos(BOARD_SIZE + 1 - 7, 8));
+    // board.move(Pos(BOARD_SIZE + 1 - 8, 10));
+    // board.move(Pos(BOARD_SIZE + 1 - 7, 7));
+    // board.move(Pos(BOARD_SIZE + 1 - 7, 6));
+
+    // #2: [5, I] (depth=4)
+    // board.move(Pos(BOARD_SIZE + 1 - 8, 8));
+    // board.move(Pos(BOARD_SIZE + 1 - 9, 8));
+    // board.move(Pos(BOARD_SIZE + 1 - 8, 9));
+    // board.move(Pos(BOARD_SIZE + 1 - 8, 7));
+    // board.move(Pos(BOARD_SIZE + 1 - 10, 9));
+    // board.move(Pos(BOARD_SIZE + 1 - 9, 10));
+    // board.move(Pos(BOARD_SIZE + 1 - 9, 9));
+    // board.move(Pos(BOARD_SIZE + 1 - 7, 9));
+    // board.move(Pos(BOARD_SIZE + 1 - 10, 10));
+    // board.move(Pos(BOARD_SIZE + 1 - 11, 11));
+    // board.move(Pos(BOARD_SIZE + 1 - 10, 8));
+    // board.move(Pos(BOARD_SIZE + 1 - 10, 11));
+    // board.move(Pos(BOARD_SIZE + 1 - 8, 10));
+    // board.move(Pos(BOARD_SIZE + 1 - 7, 11));
 
     printBoard(board);
+    cout << endl;
 
-    Depth searchDepth = 9;
-    Pos bestMove = searcher.findBestMove(searchDepth);
+    Depth searchDepth;
+    for (searchDepth = 1; searchDepth <= 10; searchDepth++) {
+        eval.setBoard(board);
+        searcher.setEvaluator(eval);
 
-    cout << "<Best Move>" << endl;
-    cout << "[" << bestMove.getX() << ", " << (char)(bestMove.getY() + 64) << "]" << endl;
+        cout << "----- searchDepth = " << searchDepth << " -----";
+        Pos bestMove = searcher.findBestMove(searchDepth, board.isBlackTurn());
+        
+        cout << "\n<Best Move> ";
+        cout << "[" << bestMove.getX() << ", " << (char)(bestMove.getY() + 64) << "] (for " << (board.isBlackTurn() ? "BLACK" : "WHITE") << ")" << endl << endl;
+    }
 }
