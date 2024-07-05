@@ -22,6 +22,7 @@ public:
         registerTestMethod([this]() { moveTest(); });
         registerTestMethod([this]() { resultTest(); });
         registerTestMethod([this]() { patternTest(); });
+        registerTestMethod([this]() { forbiddenTest(); });
     }
 
     void getTurnTest() {
@@ -124,6 +125,40 @@ public:
         assert(board.getCell(Pos(6, 11)).getPattern(BLACK, HORIZONTAL) == FREE_1);
         // blocked 2: xo?....
         assert(board.getCell(Pos(12, 13)).getPattern(BLACK, VERTICAL) == BLOCKED_2);
+        // free 2: .o..?.
+        assert(board.getCell(Pos(8, 10)).getPattern(BLACK, UPWARD) == FREE_2);
+        // free 2a: .o.?..
+        assert(board.getCell(Pos(9, 11)).getPattern(BLACK, UPWARD) == FREE_2A);
+        // free 2b: .o?...
+        assert(board.getCell(Pos(12, 8)).getPattern(BLACK, HORIZONTAL) == FREE_2B);
+        // blocked 3: ooxx?..
+        assert(board.getCell(Pos(14, 5)).getPattern(WHITE, HORIZONTAL) == BLOCKED_3);
+        // free 3: .x?.x.
+        assert(board.getCell(Pos(4, 13)).getPattern(WHITE, VERTICAL) == FREE_3);
+        // free 3a: ..xx?..
+        assert(board.getCell(Pos(8, 11)).getPattern(BLACK, HORIZONTAL) == FREE_3A);
+        // blocked 4: |?xxx..
+        assert(board.getCell(Pos(3, 1)).getPattern(WHITE, HORIZONTAL) == BLOCKED_4);
+        // free 4: .xxx?.
+        assert(board.getCell(Pos(3, 5)).getPattern(WHITE, HORIZONTAL) == FREE_4);
+        // five: ?xxxx
+        assert(board.getCell(Pos(3, 7)).getPattern(WHITE, HORIZONTAL) == FIVE);
+        // white overline five: xxxx?x
+        assert(board.getCell(Pos(3, 12)).getPattern(WHITE, HORIZONTAL) == FIVE);
+    }
+
+    void forbiddenTest() {
+        Board board;
+
+        /* black: o
+         * white: x
+         * empty: .
+         * check: ?
+         * wall : |
+         */
+        // 3-3: ..oo?.. & ..oo?..
+        board = getBoard("h8h9i9h10i10g9g8g10i8");
+        assert(board.getResult() == WHITE_WIN);
     }
 
 };
