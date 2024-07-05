@@ -201,9 +201,9 @@ void Board::undo() {
 }
 
 bool Board::isForbidden(Pos& p) {
-    /*
+    
     // only black stone
-    bool isBlackTurn = this->isBlackTurn();
+    bool isBlackTurn = !this->isBlackTurn();
     assert(isBlackTurn == true);
 
     Cell c = getCell(p);
@@ -226,7 +226,9 @@ bool Board::isForbidden(Pos& p) {
     }
 
     // recursive 3-3
-    move(p);
+    // move
+    getCell(p).setPiece(BLACK);
+    setPatterns(p);
 
     for (Direction dir = DIRECTION_START; dir < DIRECTION_SIZE; dir++) {
         p.dir = dir;
@@ -243,14 +245,19 @@ bool Board::isForbidden(Pos& p) {
 
             Cell &c = getCell(posi);
             if (c.getPiece() == EMPTY) {
-                // TODO: 확인 필요 (열린 4를 만드는 자리인지??)
-                if (c.getPattern(BLACK, dir) == FIVE || (c.getPattern(BLACK, dir) == FREE_4 && !isForbidden(posi))) {
-                    winByThree++;
-                    break;
+                bool isFive = false;
+                if (c.getPattern(BLACK, dir) == FREE_4 && !isForbidden(posi)) {
+                    for (Direction eDir = DIRECTION_START; eDir < DIRECTION_SIZE; eDir++) {
+                        Pattern pattern = c.getPattern(BLACK, eDir);
+                        if (pattern == FIVE)
+                            isFive = true;
+                    }
+                    // made 5 with an empty space -> not a forbidden position
+                    if (!isFive) {
+                        winByThree++;
+                        break;
+                    }
                 }
-                break;
-            } else if (c.getPiece() != BLACK) {
-                break;
             }
             p - (i - (LINE_LENGTH / 2));
         }
@@ -260,11 +267,12 @@ bool Board::isForbidden(Pos& p) {
         }
     }
 
-    undo();
+    // undo
+    getCell(p).setPiece(EMPTY);
+    setPatterns(p);
+    clearPattern(getCell(p));
 
     return winByThree >= 2;
-    */
-    return false;
 }
 
 void Board::setResult(Pos& p) {
