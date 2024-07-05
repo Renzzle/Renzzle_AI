@@ -25,7 +25,7 @@ private:
     Pattern getPattern(Line& line, Color color);
     void setPatterns(Pos& p);
     void clearPattern(Cell& cell);
-    bool isForbidden(Pos& p);
+    bool isForbidden(Pos p);
     void setResult(Pos& p);
 
 public:
@@ -200,8 +200,7 @@ void Board::undo() {
     moves.pop();
 }
 
-bool Board::isForbidden(Pos& p) {
-    
+bool Board::isForbidden(Pos p) {
     // only black stone
     bool isBlackTurn = !this->isBlackTurn();
     assert(isBlackTurn == true);
@@ -211,7 +210,7 @@ bool Board::isForbidden(Pos& p) {
     int winByFour = 0;
     int winByThree = 0;
 
-    // FIVE, OVERLINE, 4-4
+    // five, overline, 4-4
     for (Direction dir = DIRECTION_START; dir < DIRECTION_SIZE; dir++) {
         p.dir = dir;
         Pattern pattern = c.getPattern(BLACK, p.dir);
@@ -240,7 +239,7 @@ bool Board::isForbidden(Pos& p) {
         
         Pos posi = p;
         for (int i = 0; i < LINE_LENGTH; i++) {
-            if (!(p + (i - (LINE_LENGTH / 2))))
+            if (!(posi + (i - (LINE_LENGTH / 2))))
                 continue;
 
             Cell &c = getCell(posi);
@@ -259,7 +258,7 @@ bool Board::isForbidden(Pos& p) {
                     }
                 }
             }
-            p - (i - (LINE_LENGTH / 2));
+            posi - (i - (LINE_LENGTH / 2));
         }
 
         if (winByThree >= 2) {
@@ -270,7 +269,6 @@ bool Board::isForbidden(Pos& p) {
     // undo
     getCell(p).setPiece(EMPTY);
     setPatterns(p);
-    clearPattern(getCell(p));
 
     return winByThree >= 2;
 }

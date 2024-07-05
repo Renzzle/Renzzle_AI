@@ -156,9 +156,42 @@ public:
          * check: ?
          * wall : |
          */
-        // 3-3: ..oo?.. & ..oo?..
-        board = getBoard("h8h9i9h10i10g9g8g10i8");
+        // overline: .ooo?oo.
+        board = getBoard("h8h9i8i9j8j9l8l9m8m9k8");
         assert(board.getResult() == WHITE_WIN);
+        // 4-4: .ooo?. & .ooo?.
+        board = getBoard("h8h9i9h10i10g9g8g10i11h11f8f9i8");
+        assert(board.getResult() == WHITE_WIN);
+        // 4-4: .ooo?. & .o.oo?.
+        board = getBoard("h8h9i8i9g8g9i7h7h6i6f4e3j8");
+        assert(board.getResult() == WHITE_WIN);
+        // 4-4: .oo.o?.oo.
+        board = getBoard("h8h9i8i9k8k9n8l9o8n9l8");
+        assert(board.getResult() == WHITE_WIN);
+        // five > 4-4
+        board = getBoard("h8h9i8i9g8g9i7h7h6i6f4e3j9i10j10k9j7k6j6j5j8");
+        assert(board.getResult() == BLACK_WIN);
+        // 3-3: ..oo?.. & ..oo?..
+        board = getBoard("g8g9h9g10h10f9f8f10h8");
+        assert(board.getResult() == WHITE_WIN);
+        // 3-3: .oo.?. & .oo.?.
+        board = getBoard("g8g9h9g10h11h10g11f10j11");
+        assert(board.getResult() == WHITE_WIN);
+        // fake 3-3 (1)
+        board = getBoard("h7g7j11i12l9j12m8l8k7l6k6l5m7l4l7");
+        assert(board.getResult() != WHITE_WIN);
+        // fake 3-3 (2)
+        board = getBoard("g10h11f11f9i9k11j9m9l10m6l5k4m4h4k8f6k7a1g5a2f4b1h7b2h8c1i6a3j6d1m11c2h9");
+        assert(board.getResult() != WHITE_WIN);
+        // looks like fake 3-3 but real 3-3 (3)
+        board = getBoard("h8h11h10j10g10f10f9e9i9k9j9j8j7j6i6h5h6f6g6g7h7");
+        assert(board.getResult() == WHITE_WIN);
+        // fake 3-3 (4)
+        board = getBoard("c14c15d14b14e14f15d13c13c12b11e13g14f13g13f12h10h13o1i14n1d12");
+        assert(board.getResult() != WHITE_WIN);
+        // fake 3-3 (5)
+        board = getBoard("d14e14c13c12d12a9c11e11f12g12f13o15h12o14i11e12d13");
+        assert(board.getResult() != WHITE_WIN);
     }
 
 };
