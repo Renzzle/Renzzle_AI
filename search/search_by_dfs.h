@@ -1,17 +1,15 @@
 #include "../evaluate/evaluator.h"
 #include <vector>
 #include <limits>
-#include <algorithm>
 
-constexpr Value INF = std::numeric_limits<Value>::max();
+// constexpr Value INF = std::numeric_limits<Value>::max();
 
-class Search {
-private:
+class Search_by_dfs {
     Evaluator evaluator;
     stack<Pos> path;
     vector<Pos> winningPath;
 
-    Value alphaBeta(Depth depth, Value alpha, Value beta, bool maximizingPlayer);
+    Value alphaBeta(Value alpha, Value beta, bool maximizingPlayer);
 
 public:
     void setEvaluator(Evaluator eval);
@@ -19,19 +17,20 @@ public:
     void printWinningPath();
 };
 
-void Search::setEvaluator(Evaluator eval) {
+void Search_by_dfs::setEvaluator(Evaluator eval) {
     this->evaluator = eval;
 }
 
-Pos Search::findBestMove(Depth depth, bool maximizingPlayer) {
+Pos Search_by_dfs::findBestMove(Depth depth, bool maximizingPlayer) {
     Value bestValue = -INF;
     Pos bestMove;
 
     auto candidates = evaluator.getCandidates();
+    
     for (const auto& move : candidates) {
         evaluator.next(move);
         path.push(move);
-        Value moveValue = alphaBeta(depth - 1, -INF, INF, !maximizingPlayer);
+        Value moveValue = alphaBeta(-INF, INF, !maximizingPlayer);
         path.pop();
         evaluator.prev();
 
@@ -47,26 +46,26 @@ Pos Search::findBestMove(Depth depth, bool maximizingPlayer) {
     return bestMove;
 }
 
-Value Search::alphaBeta(Depth depth, Value alpha, Value beta, bool maximizingPlayer) {
+Value Search_by_dfs::alphaBeta(Value alpha, Value beta, bool maximizingPlayer) {
 
     Value currentEval = evaluator.evaluate();
     auto candidates = evaluator.getCandidates();
 
-
-    if (depth == 0 || currentEval >= 20000) {
+    if (currentEval >= 20000) {
         if(currentEval >= 20000){
             winningPath.clear();
             stack<Pos> tmp = path;
             while (!tmp.empty()) {
-                winningPath.push_back(tmp.top());// tmp > winningPath
+                winningPath.push_back(tmp.top()); // tmp > winningPath
                 tmp.pop();
             }
             reverse(winningPath.begin(), winningPath.end());  // reverse
             printWinningPath();
         }
-        return currentEval + depth;
+        return currentEval;
     }
 
+    
     if (candidates.empty()) {
         return currentEval;
     }
@@ -76,7 +75,7 @@ Value Search::alphaBeta(Depth depth, Value alpha, Value beta, bool maximizingPla
         for (const auto& move : candidates) {
             evaluator.next(move);
             path.push(move);
-            Value eval = alphaBeta(depth - 1, alpha, beta, !maximizingPlayer);
+            Value eval = alphaBeta(alpha, beta, !maximizingPlayer);
             path.pop();
             evaluator.prev();
             maxEval = std::max(maxEval, eval);
@@ -89,7 +88,7 @@ Value Search::alphaBeta(Depth depth, Value alpha, Value beta, bool maximizingPla
         for (const auto& move : candidates) {
             evaluator.next(move);
             path.push(move);
-            Value eval = alphaBeta(depth - 1, alpha, beta, !maximizingPlayer);
+            Value eval = alphaBeta(alpha, beta, !maximizingPlayer);
             path.pop();
             evaluator.prev();
             minEval = std::min(minEval, eval);
@@ -100,8 +99,8 @@ Value Search::alphaBeta(Depth depth, Value alpha, Value beta, bool maximizingPla
     }
 }
 
-void Search::printWinningPath() {
-    cout << "Winning path size: " << winningPath.size() << endl;
+void Search_by_dfs::printWinningPath() {
+    cout << "Winning path size: " << winningPath.size() << endl; // 경로 크기 출력
     cout << "Winning path: ";
     for (const auto& move : winningPath) {
         cout << "[" << move.getX() << ", " << (char)(move.getY() + 64) << "]" << '\t';

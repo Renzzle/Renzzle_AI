@@ -1,5 +1,7 @@
 #include "util.h"
 #include "../search/search.h"
+#include "../search/search_by_dfs.h"
+
 
 #ifdef _WIN32
 #include <Windows.h>
@@ -34,7 +36,6 @@ void patternDemo() {
     Board board;
     bool passed = true;
 
-    TEST_TIME_START();
     board.move(Pos(7, 7));
     board.move(Pos(7, 8));
     board.move(Pos(8, 7));
@@ -51,7 +52,6 @@ void patternDemo() {
     board.move(Pos(4, 10));
     board.move(Pos(6, 9));
     board.move(Pos(7, 9));
-    TEST_TIME_END("Pattern test");
     
     printBoardPattern(board, BLACK);
     printBoardPattern(board, WHITE);
@@ -167,26 +167,27 @@ void abpDemo() {
     Board board;
     Evaluator eval;
     Search searcher;
+    Search_by_dfs searcher_dfs;
 
     // #0: [9, E] (depth=4)
-    board.move(Pos(7, 7));
-    board.move(Pos(7, 8));
-    board.move(Pos(8, 7));
-    board.move(Pos(6, 7));
-    board.move(Pos(8, 9));
-    board.move(Pos(8, 8));
-    board.move(Pos(9, 8));
-    board.move(Pos(10, 9));
-    board.move(Pos(10, 7));
-    board.move(Pos(11, 6));
-    board.move(Pos(6, 8));
-    board.move(Pos(5, 7));
-    board.move(Pos(5, 9));
-    board.move(Pos(4, 10));
-    board.move(Pos(6, 9));
-    board.move(Pos(7, 9));
+    // board.move(Pos(7, 7));
+    // board.move(Pos(7, 8));
+    // board.move(Pos(8, 7));
+    // board.move(Pos(6, 7));
+    // board.move(Pos(8, 9));
+    // board.move(Pos(8, 8));
+    // board.move(Pos(9, 8));
+    // board.move(Pos(10, 9));
+    // board.move(Pos(10, 7));
+    // board.move(Pos(11, 6));
+    // board.move(Pos(6, 8));
+    // board.move(Pos(5, 7));
+    // board.move(Pos(5, 9));
+    // board.move(Pos(4, 10));
+    // board.move(Pos(6, 9));
+    // board.move(Pos(7, 9));
 
-    // #1: [8, F] (depth=6)
+    // #1: [8, F] (depth=9)
     // board.move(Pos(BOARD_SIZE + 1 - 8, 8));
     // board.move(Pos(BOARD_SIZE + 1 - 9, 8));
     // board.move(Pos(BOARD_SIZE + 1 - 8, 9));
@@ -202,34 +203,37 @@ void abpDemo() {
     // board.move(Pos(BOARD_SIZE + 1 - 7, 7));
     // board.move(Pos(BOARD_SIZE + 1 - 7, 6));
 
-    // #2: [5, I] (depth=4)
-    // board.move(Pos(BOARD_SIZE + 1 - 8, 8));
-    // board.move(Pos(BOARD_SIZE + 1 - 9, 8));
-    // board.move(Pos(BOARD_SIZE + 1 - 8, 9));
-    // board.move(Pos(BOARD_SIZE + 1 - 8, 7));
-    // board.move(Pos(BOARD_SIZE + 1 - 10, 9));
-    // board.move(Pos(BOARD_SIZE + 1 - 9, 10));
-    // board.move(Pos(BOARD_SIZE + 1 - 9, 9));
-    // board.move(Pos(BOARD_SIZE + 1 - 7, 9));
-    // board.move(Pos(BOARD_SIZE + 1 - 10, 10));
-    // board.move(Pos(BOARD_SIZE + 1 - 11, 11));
-    // board.move(Pos(BOARD_SIZE + 1 - 10, 8));
-    // board.move(Pos(BOARD_SIZE + 1 - 10, 11));
-    // board.move(Pos(BOARD_SIZE + 1 - 8, 10));
-    // board.move(Pos(BOARD_SIZE + 1 - 7, 11));
+    // #2: [5, I] (depth=7)
+    board.move(Pos(BOARD_SIZE + 1 - 8, 8));
+    board.move(Pos(BOARD_SIZE + 1 - 9, 8));
+    board.move(Pos(BOARD_SIZE + 1 - 8, 9));
+    board.move(Pos(BOARD_SIZE + 1 - 8, 7));
+    board.move(Pos(BOARD_SIZE + 1 - 10, 9));
+    board.move(Pos(BOARD_SIZE + 1 - 9, 10));
+    board.move(Pos(BOARD_SIZE + 1 - 9, 9));
+    board.move(Pos(BOARD_SIZE + 1 - 7, 9));
+    board.move(Pos(BOARD_SIZE + 1 - 10, 10));
+    board.move(Pos(BOARD_SIZE + 1 - 11, 11));
+    board.move(Pos(BOARD_SIZE + 1 - 10, 8));
+    board.move(Pos(BOARD_SIZE + 1 - 10, 11));
+    board.move(Pos(BOARD_SIZE + 1 - 8, 10));
+    board.move(Pos(BOARD_SIZE + 1 - 7, 11));
 
     printBoard(board);
     cout << endl;
 
     Depth searchDepth;
-    for (searchDepth = 7; searchDepth <= 10; searchDepth++) {
+    
+    for (searchDepth = 9; searchDepth <= 11; searchDepth++) {
+        TEST_TIME_START();
         eval.setBoard(board);
-        searcher.setEvaluator(eval);
+        searcher_dfs.setEvaluator(eval);
 
-        cout << "----- searchDepth = " << searchDepth << " -----";
-        Pos bestMove = searcher.findBestMove(searchDepth, board.isBlackTurn());
+        cout << "----- searchDepth = " << searchDepth << " -----" << endl;
         
+        Pos bestMove = searcher_dfs.findBestMove(searchDepth, board.isBlackTurn());
         cout << "\n<Best Move> ";
         cout << "[" << bestMove.getX() << ", " << (char)(bestMove.getY() + 64) << "] (for " << (board.isBlackTurn() ? "BLACK" : "WHITE") << ")" << endl << endl;
+        TEST_TIME_END("VCF DFS: depth: " << searchDepth << " / ");
     }
 }
