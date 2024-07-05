@@ -1,5 +1,6 @@
 #pragma once
 
+#include "../test/util.h"
 #include "line.h"
 #include "pos.h"
 #include <array>
@@ -76,13 +77,13 @@ bool Board::move(Pos p) {
     if (result != ONGOING) return false;
     if (moveCnt == BOARD_SIZE * BOARD_SIZE) return false;
 
-    getCell(p).setPiece(isBlackTurn() ? BLACK : WHITE);
     moveCnt++;
     moves.push(p);
-
+    
+    setResult(p);
+    getCell(p).setPiece(isBlackTurn() ? WHITE : BLACK);
     clearPattern(getCell(p));
     setPatterns(p);
-    setResult(p);
 
     return true;
 }
@@ -268,23 +269,20 @@ bool Board::isForbidden(Pos& p) {
 
 void Board::setResult(Pos& p) {
     bool isBlackTurn = this->isBlackTurn();
+
     if (!isBlackTurn && isForbidden(p)) {
         result = WHITE_WIN;
         return;
     }
+
+    Piece self = isBlackTurn ? WHITE : BLACK;
     for (Direction dir = DIRECTION_START; dir < DIRECTION_SIZE; dir++) {
-        p.dir = dir;
-        Line line = getLine(p);
-        int realLen, fullLen, start, end;
-        tie(realLen, fullLen, start, end) = line.countLine();
-        if (realLen >= 5 && isBlackTurn) {
-            result = WHITE_WIN;
-            return;
-        } else if (realLen == 5 && !isBlackTurn) {
-            result = BLACK_WIN;
+        if(getCell(p).getPattern(self, dir) == FIVE) {
+            result = isBlackTurn ? WHITE_WIN : BLACK_WIN;
             return;
         }
     }
+
     result = ONGOING;
 }
 

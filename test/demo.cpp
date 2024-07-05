@@ -83,7 +83,9 @@ void getCandidatesDemo() {
     }
 }
 
-void printCell(CellArray& cells){
+void printBoard(Board& board) {
+    CellArray cells = board.getBoardStatus();
+    
     for (int i = 0; i < BOARD_SIZE + 2; i++) {
         for (int j = 0; j < BOARD_SIZE + 2; j++) {
             Piece p = cells[i][j].getPiece();
@@ -108,12 +110,7 @@ void printCell(CellArray& cells){
         }
         cout << endl;
     }
-}
-
-void printBoard(Board& board) {
-    CellArray cells = board.getBoardStatus();
-    printCell(cells);
-
+    
     return;
 }
 
