@@ -1,5 +1,6 @@
 #pragma once
 
+#include "../test/util.h"
 #include "line.h"
 #include "pos.h"
 #include <array>
@@ -80,7 +81,7 @@ bool Board::move(Pos p) {
     moves.push(p);
     
     setResult(p);
-    getCell(p).setPiece(isBlackTurn() ? BLACK : WHITE);
+    getCell(p).setPiece(isBlackTurn() ? WHITE : BLACK);
     clearPattern(getCell(p));
     setPatterns(p);
 
