@@ -1,8 +1,10 @@
+#pragma once
 #include "../game/board.h"
 #include <list>
 #include <tuple>
 
 using Value = int;
+using Depth = int;
 
 class Evaluator {
 
@@ -12,10 +14,10 @@ private:
 public:
     void setBoard(Board board);
     list<Pos> getCandidates();
-    Value evaluate(Color color);
+    Value evaluate();
     void next(Pos p);
     void prev();
-
+    bool isGameOver();
 };
 
 void Evaluator::setBoard(Board board) {
@@ -31,6 +33,7 @@ void Evaluator::prev() {
 }
 
 list<Pos> Evaluator::getCandidates() {
+
     list<Pos> moves;
     list<tuple<Pos, int>> tmp;
 
@@ -67,24 +70,19 @@ list<Pos> Evaluator::getCandidates() {
     });
     for (const auto& item : tmp) {
         moves.push_back(get<0>(item));
+        if (get<1>(item) >= 10000) break;
     }
 
     return moves;
 }
 
-Value Evaluator::evaluate(Color color) {
+Value Evaluator::evaluate() {
     Result result = board.getResult();
+
     if (result == ONGOING) return 0;
-    else if (result == BLACK_WIN) {
-        if (color == COLOR_BLACK)
-            return 20000;
-        else
-            return -20000;
-    } else if (result == WHITE_WIN) {
-        if (color == COLOR_BLACK)
-            return -20000;
-        else
-            return 20000;
-    }
-    return 0;
+    else return 20000;
+}
+
+bool Evaluator::isGameOver() {
+    return board.getResult() != ONGOING;
 }

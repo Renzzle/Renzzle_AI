@@ -1,9 +1,11 @@
 #include "util.h"
-#include "../game/board.h"
-#include "../evaluate/evaluator.h"
+#include "../search/search.h"
+#include "../search/search_by_dfs.h"
+
 
 #ifdef _WIN32
 #include <Windows.h>
+#include <vector>
 #endif
 
 const char* patternNames[] = { " D", "OL", "B1", " 1", "B2", " 2", "2A", "2B", "B3", " 3", "3A", "B4", " 4", " 5", " P" };
@@ -14,15 +16,16 @@ void printCell(CellArray& cells);
 void printBoardPattern(Board& board, Piece p);
 void printBoard(Board& board);
 void printPatternCells(CellArray& cells, Piece p, Direction k);
+void abpDemo();
 
 int main() {
     #ifdef _WIN32
     SetConsoleOutputCP(CP_UTF8);
     #endif
 
-    patternDemo();
-    cout << endl << endl;
-    getCandidatesDemo();
+    //patternDemo();
+    //getCandidatesDemo();
+    abpDemo();
 
     return 0;
 }
@@ -33,17 +36,22 @@ void patternDemo() {
     Board board;
     bool passed = true;
 
-    TEST_TIME_START();
-    board.move(Pos(7, 12));
-    board.move(Pos(1, 1));
-    board.move(Pos(14, 12));
-    board.move(Pos(1, 2));
-    board.move(Pos(8, 12));
-    board.move(Pos(1, 3));
-    board.move(Pos(13, 12));
-    board.move(Pos(1, 4));
-    board.move(Pos(10, 12));
-    TEST_TIME_END("Pattern test");
+    board.move(Pos(7, 7));
+    board.move(Pos(7, 8));
+    board.move(Pos(8, 7));
+    board.move(Pos(6, 7));
+    board.move(Pos(8, 9));
+    board.move(Pos(8, 8));
+    board.move(Pos(9, 8));
+    board.move(Pos(10, 9));
+    board.move(Pos(10, 7));
+    board.move(Pos(11, 6));
+    board.move(Pos(6, 8));
+    board.move(Pos(5, 7));
+    board.move(Pos(5, 9));
+    board.move(Pos(4, 10));
+    board.move(Pos(6, 9));
+    board.move(Pos(7, 9));
     
     printBoardPattern(board, BLACK);
     printBoardPattern(board, WHITE);
@@ -95,7 +103,7 @@ void printBoard(Board& board) {
                     else if (i != 0 && i != BOARD_SIZE + 1 && j != 0) printf(" %02d", i);
                     break;
                 case BLACK:
-                    cout << "🔵";
+                    cout << "⚫";
                     break;
                 case WHITE:
                     cout << "⚪";
@@ -119,7 +127,7 @@ void printPatternCells(CellArray& cells, Piece p, Direction k) {
         for (int j = 0; j < BOARD_SIZE + 2; j++) {
             if (cells[i][j].getPiece() != EMPTY) {
                 if (cells[i][j].getPiece() == BLACK) {
-                    cout << "🔵"; 
+                    cout << "⚫"; 
                 } else if (cells[i][j].getPiece() == WHITE) {
                     cout << "⚪"; 
                 } else {
@@ -149,5 +157,80 @@ void printBoardPattern(Board& board, Piece p) {
         cout << pieceName[p] << ": " << directionName[k];
         printPatternCells(cells, p, static_cast<Direction>(k));
         cout << "---------------------------------------" << endl;
+    }
+}
+
+void abpDemo() {
+    Board board;
+    Evaluator eval;
+    Search searcher;
+    Search_by_dfs searcher_dfs;
+
+    // #0: [9, E] (depth=4)
+    // board.move(Pos(7, 7));
+    // board.move(Pos(7, 8));
+    // board.move(Pos(8, 7));
+    // board.move(Pos(6, 7));
+    // board.move(Pos(8, 9));
+    // board.move(Pos(8, 8));
+    // board.move(Pos(9, 8));
+    // board.move(Pos(10, 9));
+    // board.move(Pos(10, 7));
+    // board.move(Pos(11, 6));
+    // board.move(Pos(6, 8));
+    // board.move(Pos(5, 7));
+    // board.move(Pos(5, 9));
+    // board.move(Pos(4, 10));
+    // board.move(Pos(6, 9));
+    // board.move(Pos(7, 9));
+
+    // #1: [8, F] (depth=9)
+    // board.move(Pos(BOARD_SIZE + 1 - 8, 8));
+    // board.move(Pos(BOARD_SIZE + 1 - 9, 8));
+    // board.move(Pos(BOARD_SIZE + 1 - 8, 9));
+    // board.move(Pos(BOARD_SIZE + 1 - 9, 9));
+    // board.move(Pos(BOARD_SIZE + 1 - 9, 7));
+    // board.move(Pos(BOARD_SIZE + 1 - 10, 7));
+    // board.move(Pos(BOARD_SIZE + 1 - 10, 8));
+    // board.move(Pos(BOARD_SIZE + 1 - 10, 9));
+    // board.move(Pos(BOARD_SIZE + 1 - 11, 9));
+    // board.move(Pos(BOARD_SIZE + 1 - 12, 10));
+    // board.move(Pos(BOARD_SIZE + 1 - 7, 8));
+    // board.move(Pos(BOARD_SIZE + 1 - 8, 10));
+    // board.move(Pos(BOARD_SIZE + 1 - 7, 7));
+    // board.move(Pos(BOARD_SIZE + 1 - 7, 6));
+
+    // #2: [5, I] (depth=7)
+    board.move(Pos(BOARD_SIZE + 1 - 8, 8));
+    board.move(Pos(BOARD_SIZE + 1 - 9, 8));
+    board.move(Pos(BOARD_SIZE + 1 - 8, 9));
+    board.move(Pos(BOARD_SIZE + 1 - 8, 7));
+    board.move(Pos(BOARD_SIZE + 1 - 10, 9));
+    board.move(Pos(BOARD_SIZE + 1 - 9, 10));
+    board.move(Pos(BOARD_SIZE + 1 - 9, 9));
+    board.move(Pos(BOARD_SIZE + 1 - 7, 9));
+    board.move(Pos(BOARD_SIZE + 1 - 10, 10));
+    board.move(Pos(BOARD_SIZE + 1 - 11, 11));
+    board.move(Pos(BOARD_SIZE + 1 - 10, 8));
+    board.move(Pos(BOARD_SIZE + 1 - 10, 11));
+    board.move(Pos(BOARD_SIZE + 1 - 8, 10));
+    board.move(Pos(BOARD_SIZE + 1 - 7, 11));
+
+    printBoard(board);
+    cout << endl;
+
+    Depth searchDepth;
+    
+    for (searchDepth = 9; searchDepth <= 11; searchDepth++) {
+        TEST_TIME_START();
+        eval.setBoard(board);
+        searcher_dfs.setEvaluator(eval);
+
+        cout << "----- searchDepth = " << searchDepth << " -----" << endl;
+        
+        Pos bestMove = searcher_dfs.findBestMove(searchDepth, board.isBlackTurn());
+        cout << "\n<Best Move> ";
+        cout << "[" << bestMove.getX() << ", " << (char)(bestMove.getY() + 64) << "] (for " << (board.isBlackTurn() ? "BLACK" : "WHITE") << ")" << endl << endl;
+        TEST_TIME_END("VCF DFS: depth: " << searchDepth << " / ");
     }
 }
