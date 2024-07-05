@@ -3,7 +3,7 @@
 #include <limits>
 #include <algorithm>
 
-constexpr Value INF = std::numeric_limits<Value>::max();
+Value INF = std::numeric_limits<Value>::max();
 
 class Search {
 private:
@@ -48,7 +48,6 @@ Pos Search::findBestMove(Depth depth, bool maximizingPlayer) {
 }
 
 Value Search::alphaBeta(Depth depth, Value alpha, Value beta, bool maximizingPlayer) {
-
     Value currentEval = evaluator.evaluate();
     auto candidates = evaluator.getCandidates();
 

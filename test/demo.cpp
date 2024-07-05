@@ -1,6 +1,6 @@
 #include "util.h"
-#include "../search/search.h"
-#include "../search/search_by_dfs.h"
+//#include "../search/search.h"
+#include "../search/vcf_search.h"
 
 
 #ifdef _WIN32
@@ -160,11 +160,19 @@ void printBoardPattern(Board& board, Piece p) {
     }
 }
 
+Board getBoard(string moves) {
+    vector<pair<int, int>> v = processString(moves);
+    Board board;
+    for (auto p : v) {
+        board.move(Pos(p.second, p.first));
+    }
+    return board;
+}
+
 void abpDemo() {
     Board board;
     Evaluator eval;
-    Search searcher;
-    Search_by_dfs searcher_dfs;
+    VCFSearch vcfSearcher;
 
     // #0: [9, E] (depth=4)
     // board.move(Pos(7, 7));
@@ -200,37 +208,37 @@ void abpDemo() {
     // board.move(Pos(BOARD_SIZE + 1 - 7, 7));
     // board.move(Pos(BOARD_SIZE + 1 - 7, 6));
 
-    // #2: [5, I] (depth=7)
-    board.move(Pos(BOARD_SIZE + 1 - 8, 8));
-    board.move(Pos(BOARD_SIZE + 1 - 9, 8));
-    board.move(Pos(BOARD_SIZE + 1 - 8, 9));
-    board.move(Pos(BOARD_SIZE + 1 - 8, 7));
-    board.move(Pos(BOARD_SIZE + 1 - 10, 9));
-    board.move(Pos(BOARD_SIZE + 1 - 9, 10));
-    board.move(Pos(BOARD_SIZE + 1 - 9, 9));
-    board.move(Pos(BOARD_SIZE + 1 - 7, 9));
-    board.move(Pos(BOARD_SIZE + 1 - 10, 10));
-    board.move(Pos(BOARD_SIZE + 1 - 11, 11));
-    board.move(Pos(BOARD_SIZE + 1 - 10, 8));
-    board.move(Pos(BOARD_SIZE + 1 - 10, 11));
-    board.move(Pos(BOARD_SIZE + 1 - 8, 10));
-    board.move(Pos(BOARD_SIZE + 1 - 7, 11));
-
+    //board = getBoard("h8h9i8g8i10j9i9i7j10k11h10k10j8k7g10f10g11f12g7f6f7f11");
+    //board = getBoard("h8h9i8g8i10i9h11g12j9i11j11k10h7i7");
+    board = getBoard("h8g9h9g10h10h6i8i9g11i10f13h12d10e11d9e9d8b10c9f8e8i13e7e13i6");
+    //board = getBoard("h8h9h10g8f9i9j9g10i8k10g9f7e6f8g6f5f6h6e9d8e8e7e11f10c9d9d10b8c11e12d11f11d13d7");
+    //board = getBoard("h8h9i9g10e12f11g8g9i10");
+    //board = getBoard("h8g9i9f9c9e9g8g7i10g10e10f11e12");
     printBoard(board);
     cout << endl;
 
     Depth searchDepth;
-    
-    for (searchDepth = 9; searchDepth <= 11; searchDepth++) {
-        TEST_TIME_START();
-        eval.setBoard(board);
-        searcher_dfs.setEvaluator(eval);
 
-        cout << "----- searchDepth = " << searchDepth << " -----" << endl;
+    eval.setBoard(board);
+    vcfSearcher.setEvaluator(eval);
+
+    TEST_TIME_START();    
+    Pos bestMove = vcfSearcher.findBestMove();
+    TEST_TIME_END("VCF DFS");
+    TEST_PRINT(bestMove.getX() << (char)(bestMove.getY() + 64));
+
+    vcfSearcher.printWinningPath();
+
+    // for (searchDepth = 9; searchDepth <= 11; searchDepth++) {
+    //     TEST_TIME_START();
+    //     eval.setBoard(board);
+    //     vcfSearcher.setEvaluator(eval);
+
+    //     cout << "----- searchDepth = " << searchDepth << " -----" << endl;
         
-        Pos bestMove = searcher_dfs.findBestMove(searchDepth, board.isBlackTurn());
-        cout << "\n<Best Move> ";
-        cout << "[" << bestMove.getX() << ", " << (char)(bestMove.getY() + 64) << "] (for " << (board.isBlackTurn() ? "BLACK" : "WHITE") << ")" << endl << endl;
-        TEST_TIME_END("VCF DFS: depth: " << searchDepth << " / ");
-    }
+    //     Pos bestMove = vcfSearcher.findBestMove(searchDepth, board.isBlackTurn());
+    //     cout << "\n<Best Move> ";
+    //     cout << "[" << bestMove.getX() << ", " << (char)(bestMove.getY() + 64) << "] (for " << (board.isBlackTurn() ? "BLACK" : "WHITE") << ")" << endl << endl;
+    //     TEST_TIME_END("VCF DFS: depth: " << searchDepth << " / ");
+    // }
 }

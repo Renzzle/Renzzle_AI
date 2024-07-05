@@ -10,9 +10,11 @@ class Evaluator {
 
 private:
     Board board;
+    Color vcfColor;
 
 public:
     void setBoard(Board board);
+    void setVCFColor();
     list<Pos> getCandidates();
     Value evaluate();
     void next(Pos p);
@@ -24,6 +26,10 @@ void Evaluator::setBoard(Board board) {
     this->board = board;
 }
 
+void Evaluator::setVCFColor() {
+    this->vcfColor = board.isBlackTurn() ? COLOR_BLACK : COLOR_WHITE;
+}
+
 void Evaluator::next(Pos p) {
     board.move(p);
 }
@@ -33,12 +39,12 @@ void Evaluator::prev() {
 }
 
 list<Pos> Evaluator::getCandidates() {
-
     list<Pos> moves;
     list<tuple<Pos, int>> tmp;
 
     Piece self = board.isBlackTurn() ? BLACK : WHITE;
     Piece oppo = !board.isBlackTurn() ? BLACK : WHITE;
+    bool isVCFColorTurn = board.isBlackTurn() ? COLOR_BLACK : COLOR_WHITE == vcfColor;
 
     for (int i = 1; i <= BOARD_SIZE; i++) {
         for (int j = 1; j <= BOARD_SIZE; j++) {
@@ -47,9 +53,9 @@ list<Pos> Evaluator::getCandidates() {
             int val = 0;
             for (Direction dir = DIRECTION_START; dir < DIRECTION_SIZE; dir++) {
                 Pattern p = cell.getPattern(self, dir);
-                if (p != PATTERN_SIZE) {
+                if (p != PATTERN_SIZE && isVCFColorTurn) {
                     if (p == FIVE) val += 1000000;
-                    else if (p == FREE_4) val += 10000;
+                    else if (p == FREE_4) val += 40000;
                     else if (p == BLOCKED_4) val += 5000;
                     else if (p == FREE_3A) val += 100;
                     else if (p == FREE_3) val += 100;
@@ -70,7 +76,7 @@ list<Pos> Evaluator::getCandidates() {
     });
     for (const auto& item : tmp) {
         moves.push_back(get<0>(item));
-        if (get<1>(item) >= 10000) break;
+        if (get<1>(item) >= 40000) break;
     }
 
     return moves;
@@ -78,9 +84,15 @@ list<Pos> Evaluator::getCandidates() {
 
 Value Evaluator::evaluate() {
     Result result = board.getResult();
-
     if (result == ONGOING) return 0;
-    else return 20000;
+    else if (result == BLACK_WIN) {
+        if (vcfColor == COLOR_BLACK) return 20000;
+        else return -20000;
+    }
+    else if (result == WHITE_WIN) {
+        if (vcfColor == COLOR_BLACK) return -20000;
+        else return 20000;
+    }
 }
 
 bool Evaluator::isGameOver() {
