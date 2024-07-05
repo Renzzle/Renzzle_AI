@@ -45,8 +45,8 @@ Pos Search::findBestMove(Depth depth, bool maximizingPlayer) {
 Value Search::alphaBeta(Depth depth, Value alpha, Value beta, bool maximizingPlayer) {
     Value currentEval = evaluator.evaluate();
 
-    if (depth == 0) {
-        return currentEval;
+    if (depth == 0 || currentEval == 20000) {
+        return currentEval + depth;
     }
 
     auto candidates = evaluator.getCandidates();
@@ -62,9 +62,11 @@ Value Search::alphaBeta(Depth depth, Value alpha, Value beta, bool maximizingPla
             evaluator.prev();
             maxEval = std::max(maxEval, eval);
             alpha = std::max(alpha, eval);
+            // if(eval >= 20000) 
+            //     TEST_PRINT("depth: " << depth << "/ move: " << move.getX() << ", " << (char)(move.getY() + 64));
             if (beta <= alpha)    break;
         }
-        return maxEval;
+        return maxEval * -1;
     } else {
         Value minEval = INF;
         for (const auto& move : candidates) {
@@ -73,8 +75,10 @@ Value Search::alphaBeta(Depth depth, Value alpha, Value beta, bool maximizingPla
             evaluator.prev();
             minEval = std::min(minEval, eval);
             beta = std::min(beta, eval);
+            // if(eval >= 20000) 
+            //     TEST_PRINT("depth:" << depth << " move:" << move.getX() << ", " << (char)(move.getY() + 64));
             if (beta <= alpha)    break;
         }
-        return minEval;
+        return minEval * -1;
     }
 }

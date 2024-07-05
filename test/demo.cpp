@@ -222,7 +222,7 @@ void abpDemo() {
     cout << endl;
 
     Depth searchDepth;
-    for (searchDepth = 1; searchDepth <= 10; searchDepth++) {
+    for (searchDepth = 7; searchDepth <= 10; searchDepth++) {
         eval.setBoard(board);
         searcher.setEvaluator(eval);
 
