@@ -44,7 +44,7 @@ list<Pos> Evaluator::getCandidates() {
 
     Piece self = board.isBlackTurn() ? BLACK : WHITE;
     Piece oppo = !board.isBlackTurn() ? BLACK : WHITE;
-    bool isVCFColorTurn = board.isBlackTurn() ? COLOR_BLACK : COLOR_WHITE == vcfColor;
+    bool isVCFColorTurn = (board.isBlackTurn() ? COLOR_BLACK : COLOR_WHITE) == vcfColor;
 
     for (int i = 1; i <= BOARD_SIZE; i++) {
         for (int j = 1; j <= BOARD_SIZE; j++) {
