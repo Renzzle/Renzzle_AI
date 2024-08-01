@@ -20,6 +20,7 @@ public:
     void next(Pos p);
     void prev();
     bool isGameOver();
+    Board getBoard();
 };
 
 void Evaluator::setBoard(Board board) {
@@ -59,7 +60,7 @@ list<Pos> Evaluator::getCandidates() {
                     else if (p == BLOCKED_4) val += 5000;
                     else if (p == FREE_3A) val += 100;
                     else if (p == FREE_3) val += 100;
-                    else val += (int)p * (int)p;
+                    else val += (int)p * (int)p;    
                 }
                 p = cell.getPattern(oppo, dir);
                 if (p != PATTERN_SIZE) {
@@ -97,4 +98,8 @@ Value Evaluator::evaluate() {
 
 bool Evaluator::isGameOver() {
     return board.getResult() != ONGOING;
+}
+
+Board Evaluator::getBoard() {
+    return board;
 }
