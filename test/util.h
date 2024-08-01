@@ -18,8 +18,9 @@
 
 #define TEST_TIME_END(message) \
     auto end_time = std::chrono::high_resolution_clock::now(); \
-    std::chrono::duration<double> duration = (end_time - start_time); \
-    std::cout << message << " is taken " << duration.count() << " sec" << std::endl;
+    auto duration = std::chrono::duration_cast<std::chrono::nanoseconds>(end_time - start_time); \
+    double seconds = duration.count() / 1e9; \
+    std::cout << message << " is taken " << seconds  << " sec" << std::endl;
 
 #define TEST_ASSERT(expression) assert(expression)
 
