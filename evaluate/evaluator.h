@@ -40,6 +40,8 @@ private:
 
     // collect for information (not direct candidates)
     vector<Pos> oppoMate; // opponent's open four, double four
+    vector<Pos> oppoFourThree;
+    vector<Pos> oppoDoubleThree;
     vector<Pos> oppoForbidden;
     vector<Pos> oppoFour;
     vector<Pos> oppoOpenThree;
@@ -92,7 +94,7 @@ void Evaluator::classify(Board& board, Pos pos) {
         oppoFive.push_back(pos);
     } else if (myPatternCnt[FREE_4] > 0 || myPatternCnt[BLOCKED_4] >= 2) {
         myMate.push_back(pos);
-    } else if (myPatternCnt[BLOCKED_4] + myPatternCnt[FREE_3] + myPatternCnt[FREE_3A] >= 2) {
+    } else if (myPatternCnt[BLOCKED_4] > 0 && myPatternCnt[FREE_3] + myPatternCnt[FREE_3A] > 0) {
         myFourThree.push_back(pos);
     } else if (myPatternCnt[FREE_3] + myPatternCnt[FREE_3A] >= 2) {
         myDoubleThree.push_back(pos);
@@ -119,10 +121,16 @@ void Evaluator::classify(Board& board, Pos pos) {
     }
     if (oppoPatternCnt[FREE_4] > 0 || oppoPatternCnt[BLOCKED_4] >= 2) {
         oppoMate.push_back(pos);
-    } else if (oppoPatternCnt[BLOCKED_4] + oppoPatternCnt[FREE_4] > 0) {
-        oppoFour.push_back(pos);
+    } else if (oppoPatternCnt[BLOCKED_4] > 0 && oppoPatternCnt[FREE_3] + oppoPatternCnt[FREE_3A] > 0) {
+        oppoFourThree.push_back(pos);
+    } else if (oppoPatternCnt[FREE_3] + oppoPatternCnt[FREE_3A] >= 2) {
+        oppoDoubleThree.push_back(pos); 
     } else if (oppoPatternCnt[FREE_3] + oppoPatternCnt[FREE_3A] > 0) {
         oppoOpenThree.push_back(pos);
+    }
+
+    if (oppoPatternCnt[BLOCKED_4] + oppoPatternCnt[FREE_4] > 0) {
+        oppoFour.push_back(pos);
     }
     
     connectionsScore = oppoPatternCnt[FREE_2] + oppoPatternCnt[FREE_2A] + oppoPatternCnt[FREE_2B] + oppoPatternCnt[BLOCKED_3];
@@ -180,10 +188,10 @@ vector<Pos> Evaluator::getCandidates(Board& board) {
     });
     result.insert(result.end(), attacks.begin(), attacks.end());
 
-    sort(etc.begin(), etc.end(), [](const tuple<Pos, Score>& a, const tuple<Pos, Score>& b) {
-        return get<1>(a) > get<1>(b); 
-    });
     if (!etc.empty()) {
+        sort(etc.begin(), etc.end(), [](const tuple<Pos, Score>& a, const tuple<Pos, Score>& b) {
+            return get<1>(a) > get<1>(b); 
+        });
         result.insert(result.end(), etc.begin(), etc.end());
     }
     return result;
@@ -236,20 +244,32 @@ int Evaluator::evaluate(Board& board) {
     if (!myFive.empty()) {
         return MAX_VALUE - 1;
     }
+    // 1 step before lose
+    if (!oppoFive.empty()) {
+        return MIN_VALUE + 1;
+    }
     // 3 step before win
-    if (oppoFive.empty() && !myMate.empty()) {
+    if (!myMate.empty()) {
         return MAX_VALUE - 3;
     }
+    // 3 step before lose
+    if (!oppoMate.empty()) {
+        return MIN_VALUE + 3;
+    }
     // 5 step before win
-    if (oppoFive.empty() && oppoFour.empty() && 
-    (!myFourThree.empty() || !myDoubleThree.empty())) {
+    if (oppoFour.empty() && (!myFourThree.empty() || !myDoubleThree.empty())) {
         return MAX_VALUE - 5;
+    }
+    // 5 step before lose
+    if (myFour.empty() && myFourThree.empty() && (!oppoFourThree.empty() || !oppoDoubleThree.empty())) {
+        return MIN_VALUE + 5;
     }
 
     // case 3: else
     int val = 0;
-    val += myFour.size() * 5;
-    val += myOpenThree.size() * 5;
+    val += myFour.size() * 10;
+    val += myFourThree.size() * 10;
+    val += myOpenThree.size() * 10;
     val -= oppoFour.size() * 5;
     val -= oppoOpenThree.size() * 5;
     
