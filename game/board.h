@@ -25,7 +25,6 @@ private:
     Pattern getPattern(Line& line, Color color);
     void setPatterns(Pos& p);
     void clearPattern(Cell& cell);
-    bool isForbidden(Pos p);
     void setResult(Pos& p);
 
 public:
@@ -36,6 +35,7 @@ public:
     bool move(Pos p);
     void undo();
     Result getResult();
+    bool isForbidden(Pos p);
     
 };
 
@@ -201,11 +201,8 @@ void Board::undo() {
 }
 
 bool Board::isForbidden(Pos p) {
-    // only black stone
-    bool isBlackTurn = !this->isBlackTurn();
-    assert(isBlackTurn == true);
-
     Cell c = getCell(p);
+    assert(c.getPiece() == EMPTY);
 
     int winByFour = 0;
     int winByThree = 0;
