@@ -5,6 +5,7 @@
 #include <vector>
 
 using namespace std;
+using Value = int;
 
 class Node {
 public:
