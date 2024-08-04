@@ -81,7 +81,7 @@ void getCandidatesDemo() {
 
     printBoard(board);
 
-    Evaluator evaluator;
+    EvaluatorV1 evaluator;
     evaluator.setBoard(board);
     list<Pos> moves = evaluator.getCandidates();
 
@@ -171,7 +171,7 @@ Board getBoard(string moves) {
 
 void abpDemo() {
     Board board;
-    Evaluator eval;
+    EvaluatorV1 eval;
     VCFSearch vcfSearcher;
 
     // #0: [9, E] (depth=4)

@@ -1,4 +1,5 @@
 #include "../evaluate/evaluator.h"
+#include "../evaluate/evaluator_v1.h"
 #include <vector>
 #include <limits>
 #include <algorithm>
@@ -7,19 +8,19 @@ Value INF = std::numeric_limits<Value>::max();
 
 class Search {
 private:
-    Evaluator evaluator;
+    EvaluatorV1 evaluator;
     stack<Pos> path;
     vector<Pos> winningPath;
 
     Value alphaBeta(Depth depth, Value alpha, Value beta, bool maximizingPlayer);
 
 public:
-    void setEvaluator(Evaluator eval);
+    void setEvaluator(EvaluatorV1 eval);
     Pos findBestMove(Depth depth, bool maximizingPlayer);
     void printWinningPath();
 };
 
-void Search::setEvaluator(Evaluator eval) {
+void Search::setEvaluator(EvaluatorV1 eval) {
     this->evaluator = eval;
 }
 

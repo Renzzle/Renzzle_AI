@@ -17,6 +17,7 @@ public:
     void setVCFColor();
     list<Pos> getCandidates();
     Value evaluate();
+    Value evaluateVCF();
     void next(Pos p);
     void prev();
     bool isGameOver();
@@ -84,6 +85,19 @@ list<Pos> EvaluatorV1::getCandidates() {
 }
 
 Value EvaluatorV1::evaluate() {
+    Result result = board.getResult();
+    if (result == ONGOING) return 0;
+    else if (result == BLACK_WIN) {
+        if (vcfColor == COLOR_BLACK) return 20000;
+        else return -20000;
+    }
+    else if (result == WHITE_WIN) {
+        if (vcfColor == COLOR_BLACK) return -20000;
+        else return 20000;
+    }
+}
+
+Value EvaluatorV1::evaluateVCF() {
     Result result = board.getResult();
     if (result == ONGOING) return 0;
     else if (result == BLACK_WIN) {
