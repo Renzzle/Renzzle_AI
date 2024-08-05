@@ -86,8 +86,7 @@ list<Pos> EvaluatorV1::getCandidates() {
 
 Value EvaluatorV1::evaluate() {
     Result result = board.getResult();
-    if (result == ONGOING) return 0;
-    else if (result == BLACK_WIN) {
+    if (result == BLACK_WIN) {
         if (vcfColor == COLOR_BLACK) return 20000;
         else return -20000;
     }
@@ -95,12 +94,12 @@ Value EvaluatorV1::evaluate() {
         if (vcfColor == COLOR_BLACK) return -20000;
         else return 20000;
     }
+    return 0;
 }
 
 Value EvaluatorV1::evaluateVCF() {
     Result result = board.getResult();
-    if (result == ONGOING) return 0;
-    else if (result == BLACK_WIN) {
+    if (result == BLACK_WIN) {
         if (vcfColor == COLOR_BLACK) return 20000;
         else return -20000;
     }
@@ -108,6 +107,7 @@ Value EvaluatorV1::evaluateVCF() {
         if (vcfColor == COLOR_BLACK) return -20000;
         else return 20000;
     }
+    return 0;
 }
 
 bool EvaluatorV1::isGameOver() {
