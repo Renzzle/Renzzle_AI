@@ -70,15 +70,18 @@ void Evaluator::classify(Board& board) {
 
     for (int i = 1; i <= BOARD_SIZE; i++) {
         for (int j = 1; j <= BOARD_SIZE; j++) {
+            // cout << "i : " << i << " j : " << j << endl;
             classify(board, Pos(i, j));
         }
     }
 }
 
 void Evaluator::classify(Board& board, Pos pos) {
-    cout << "classify" << endl;
+    
     // if forbidden move
-    if (self == BLACK && board.isForbidden(pos)) return;
+    // if (self == BLACK && board.isForbidden(pos)) return;
+
+    // cout << "X : " << pos.getX() << " Y : " << pos.getY() << endl;
 
     int myPatternCnt[PATTERN_SIZE] = {0};
     int oppoPatternCnt[PATTERN_SIZE] = {0};
@@ -117,7 +120,11 @@ void Evaluator::classify(Board& board, Pos pos) {
     }
 
     // if opponent's forbidden
-    if (self == WHITE && board.isForbidden(pos)) {
+    // if (self == WHITE && board.isForbidden(pos)) {
+    //     oppoForbidden.push_back(pos);
+    //     return;
+    // }
+    if (self == WHITE) {
         oppoForbidden.push_back(pos);
         return;
     }
@@ -152,7 +159,7 @@ Score Evaluator::calculateUtilScore(int myPatternCnt[], int oppoPatternCnt[]) {
 }
 
 vector<Pos> Evaluator::getCandidates(Board& board) {
-    std::cout << "getCandidates : " << endl;
+    std::cout << "getCandidates" << endl;
     classify(board);
 
     vector<Pos> result;
@@ -207,11 +214,12 @@ vector<Pos> Evaluator::getCandidates(Board& board) {
 }
 
 vector<Pos> Evaluator::getFours(Board& board) {
+    cout << "getFours" << endl;
     classify(board);
-
+    cout << " after classify" << endl;
     vector<Pos> result;
     if (!myFive.empty()) {
-        result.push_back(myFive.front());
+        result.push_back(myFive.front()); 
         return result;
     }
     if (!myMate.empty()) {
@@ -235,6 +243,7 @@ vector<Pos> Evaluator::getFours(Board& board) {
 }
 
 int Evaluator::evaluate(Board& board) {
+    cout << "evaluate" << endl;
     classify(board);
 
     // case 1: finish

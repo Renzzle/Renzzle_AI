@@ -22,13 +22,13 @@ class VCFSearch {
     std::stack<std::shared_ptr<Node>> path;
     int nodesExplored;
     BoardManager boardManager;
+    Piece targetColor; // The color we are trying to win with
 
     Value alphaBeta(std::shared_ptr<Node> node, Value alpha, Value beta, bool maximizingPlayer);
 
 public:
     VCFSearch(Board initialBoard);
 
-    // void setEvaluator(const Evaluator& eval);
     Pos findBestMove();
     void printWinningPath();
     int getNodesExplored() const;
@@ -38,29 +38,40 @@ public:
 VCFSearch::VCFSearch(Board initialBoard) : evaluator(), nodesExplored(0), boardManager(initialBoard) {
     currentNode = std::make_shared<Node>(initialBoard, Pos(), 0);
     tree.addNode(currentNode);
+    targetColor = initialBoard.isBlackTurn() ? BLACK : WHITE;
 }
 
 void VCFSearch::incrementNodesExplored() {
     nodesExplored++;
 }
 
-// void VCFSearch::setEvaluator(const Evaluator& eval) {
-//     this->evaluator = eval;
-// }
-
 Pos VCFSearch::findBestMove() {
     Value bestValue = -INF;
     Pos bestMove;
 
-    // auto candidates = evaluator.getCandidates(boardManager.getBoard());
-    auto candidates = evaluator.getFours(boardManager.getBoard());
+    bool isTargetTurn = (targetColor == BLACK && boardManager.isBlackTurn()) || (targetColor == WHITE && !boardManager.isBlackTurn());
+    auto candidates = isTargetTurn ? evaluator.getFours(boardManager.getBoard()) : evaluator.getCandidates(boardManager.getBoard());
 
-    
+    // Print the candidates
+    std::cout << "Candidates: ";
+    for (const auto& pos : candidates) {
+        std::cout << "[" << pos.getX() << ", " << (char)(pos.getY() + 64) << "] ";
+    }
+    std::cout << std::endl;
+
     for (const auto& move : candidates) {
-        cout<<"move X : " << move.getX() << " move Y : " << move.getY() << endl;
+        std::cout << "move X : " << move.getX() << " move Y : " << move.getY() << std::endl;
         boardManager.move(move); // 보드 상태 업데이트
         auto newBoard = boardManager.getBoard(); // 현재 보드 상태 가져오기
         auto childNode = tree.createVcfNode(currentNode->path, newBoard, move, 0);
+
+        // Output the path of the child node
+        std::cout << "Child node path: ";
+        for (const auto& pos : childNode->path) {
+            std::cout << "[" << pos.getX() << ", " << (char)(pos.getY() + 64) << "] ";
+        }
+        std::cout << std::endl;
+
         tree.addNode(childNode);
         path.push(childNode);
 
@@ -73,7 +84,7 @@ Pos VCFSearch::findBestMove() {
             bestValue = moveValue;
             bestMove = move;
         }
-        if (moveValue >= 20000) {
+        if (moveValue == 50000) {
             break;
         }
     }
@@ -83,19 +94,28 @@ Pos VCFSearch::findBestMove() {
 Value VCFSearch::alphaBeta(std::shared_ptr<Node> node, Value alpha, Value beta, bool maximizingPlayer) {
     incrementNodesExplored();
     Value currentEval = evaluator.evaluate(boardManager.getBoard());
-    auto candidates = evaluator.getCandidates(boardManager.getBoard());
+
+    bool isTargetTurn = (targetColor == BLACK && boardManager.isBlackTurn()) || (targetColor == WHITE && !boardManager.isBlackTurn());
+    auto candidates = isTargetTurn ? evaluator.getFours(boardManager.getBoard()) : evaluator.getCandidates(boardManager.getBoard());
+
+    // Print the candidates
+    std::cout << "Candidates: ";
+    for (const auto& pos : candidates) {
+        std::cout << "[" << pos.getX() << ", " << (char)(pos.getY() + 64) << "] ";
+    }
+    std::cout << std::endl;
 
     if (currentEval != 0) {
         node->score = currentEval;
-        if (currentEval >= 20000) {
-            winningPath.clear();
-            std::stack<std::shared_ptr<Node>> tmp = path;
-
-            while (!tmp.empty()) {
-                winningPath.push_back(tmp.top()->move); // Pos 정보를 winningPath에 저장
-                tmp.pop();
+        if (currentEval == 50000) {
+            std::cout << " WIN : " << std::endl;
+            winningPath = node->path;
+            // Output the path of the final node
+            std::cout << "Final node path: ";
+            for (const auto& pos : node->path) {
+                std::cout << "[" << pos.getX() << ", " << (char)(pos.getY() + 64) << "] ";
             }
-            std::reverse(winningPath.begin(), winningPath.end());
+            std::cout << std::endl;
         }
         return currentEval;
     }
@@ -112,6 +132,14 @@ Value VCFSearch::alphaBeta(std::shared_ptr<Node> node, Value alpha, Value beta, 
             boardManager.move(move); // 보드 상태 업데이트
             auto newBoard = boardManager.getBoard(); // 현재 보드 상태 가져오기
             auto childNode = tree.createVcfNode(node->path, newBoard, move, 0);
+
+            // Output the path of the child node
+            std::cout << "Child node path: ";
+            for (const auto& pos : childNode->path) {
+                std::cout << "[" << pos.getX() << ", " << (char)(pos.getY() + 64) << "] ";
+            }
+            std::cout << std::endl;
+
             tree.addNode(childNode);
             path.push(childNode);
 
@@ -131,6 +159,14 @@ Value VCFSearch::alphaBeta(std::shared_ptr<Node> node, Value alpha, Value beta, 
             boardManager.move(move); // 보드 상태 업데이트
             auto newBoard = boardManager.getBoard(); // 현재 보드 상태 가져오기
             auto childNode = tree.createVcfNode(node->path, newBoard, move, 0);
+
+            // Output the path of the child node
+            std::cout << "Child node path: ";
+            for (const auto& pos : childNode->path) {
+                std::cout << "[" << pos.getX() << ", " << (char)(pos.getY() + 64) << "] ";
+            }
+            std::cout << std::endl;
+
             tree.addNode(childNode);
             path.push(childNode);
 
