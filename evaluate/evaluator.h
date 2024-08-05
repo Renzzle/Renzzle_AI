@@ -60,28 +60,25 @@ public:
     vector<Pos> getCandidates(Board& board);
     vector<Pos> getFours(Board& board);
     int evaluate(Board& board);
+    int vcfEvaluate(Board& board, Color targetColor);
 
 }; 
 
 void Evaluator::classify(Board& board) {
     self = board.isBlackTurn() ? BLACK : WHITE;
     oppo = !board.isBlackTurn() ? BLACK : WHITE;
-    cout << "MyTyrn : " << self << endl;
 
     for (int i = 1; i <= BOARD_SIZE; i++) {
         for (int j = 1; j <= BOARD_SIZE; j++) {
-            // cout << "i : " << i << " j : " << j << endl;
-            classify(board, Pos(i, j));
+            if (board.getCell(Pos(i, j)).getPiece() == EMPTY)
+                classify(board, Pos(i, j));
         }
     }
 }
 
 void Evaluator::classify(Board& board, Pos pos) {
-    
     // if forbidden move
-    // if (self == BLACK && board.isForbidden(pos)) return;
-
-    // cout << "X : " << pos.getX() << " Y : " << pos.getY() << endl;
+    if (self == BLACK && board.isForbidden(pos)) return;
 
     int myPatternCnt[PATTERN_SIZE] = {0};
     int oppoPatternCnt[PATTERN_SIZE] = {0};
@@ -120,11 +117,7 @@ void Evaluator::classify(Board& board, Pos pos) {
     }
 
     // if opponent's forbidden
-    // if (self == WHITE && board.isForbidden(pos)) {
-    //     oppoForbidden.push_back(pos);
-    //     return;
-    // }
-    if (self == WHITE) {
+    if (self == WHITE && board.isForbidden(pos)) {
         oppoForbidden.push_back(pos);
         return;
     }
@@ -159,7 +152,6 @@ Score Evaluator::calculateUtilScore(int myPatternCnt[], int oppoPatternCnt[]) {
 }
 
 vector<Pos> Evaluator::getCandidates(Board& board) {
-    std::cout << "getCandidates" << endl;
     classify(board);
 
     vector<Pos> result;
@@ -186,7 +178,7 @@ vector<Pos> Evaluator::getCandidates(Board& board) {
         result.insert(result.end(), myDoubleThree.begin(), myDoubleThree.end());
     }
     
-    vector<tuple<Pos, Score>> attacks;  // vector<Pos> 에서 vector<tuple<Pos, Score>> 로 변경
+    vector<tuple<Pos, Score>> attacks; 
     if (!myFour.empty()) {
         attacks.insert(attacks.end(), myFour.begin(), myFour.end());
     }
@@ -196,27 +188,23 @@ vector<Pos> Evaluator::getCandidates(Board& board) {
     sort(attacks.begin(), attacks.end(), [](const tuple<Pos, Score>& a, const tuple<Pos, Score>& b) {
         return get<1>(a) > get<1>(b); 
     });
-    // result.insert(result.end(), attacks.begin(), attacks.end());
     for (const auto& attack : attacks) {
-        result.push_back(std::get<0>(attack)); // Pos 요소만 추가
+        result.push_back(std::get<0>(attack));
     }
 
     if (!etc.empty()) {
         sort(etc.begin(), etc.end(), [](const tuple<Pos, Score>& a, const tuple<Pos, Score>& b) {
             return get<1>(a) > get<1>(b); 
         });
-        // result.insert(result.end(), etc.begin(), etc.end());
         for (const auto& e : etc) {
-            result.push_back(std::get<0>(e)); // Pos 요소만 추가
+            result.push_back(std::get<0>(e)); 
         }
     }
     return result;
 }
 
 vector<Pos> Evaluator::getFours(Board& board) {
-    cout << "getFours" << endl;
     classify(board);
-    cout << " after classify" << endl;
     vector<Pos> result;
     if (!myFive.empty()) {
         result.push_back(myFive.front()); 
@@ -233,9 +221,8 @@ vector<Pos> Evaluator::getFours(Board& board) {
         return get<1>(a) > get<1>(b); 
     });
     if (!myFour.empty()) {
-        // result.insert(result.end(), myFour.begin(), myFour.end());
         for (const auto& four : myFour) {
-            result.push_back(get<0>(four)); // Pos 요소만 추가
+            result.push_back(get<0>(four)); 
         }
     }
 
@@ -243,7 +230,6 @@ vector<Pos> Evaluator::getFours(Board& board) {
 }
 
 int Evaluator::evaluate(Board& board) {
-    cout << "evaluate" << endl;
     classify(board);
 
     // case 1: finish
@@ -302,4 +288,23 @@ int Evaluator::evaluate(Board& board) {
     }
 
     return val;
+}
+
+int Evaluator::vcfEvaluate(Board& board, Color targetColor) {
+    classify(board);
+
+    Result result = board.getResult();
+    if (result != ONGOING) {
+        if (result == DRAW) return 0;
+        if (targetColor == COLOR_BLACK && result == BLACK_WIN)
+            return MAX_VALUE;
+        if (targetColor == COLOR_BLACK && result == WHITE_WIN)
+            return MIN_VALUE;
+        if (targetColor == COLOR_WHITE && result == BLACK_WIN)
+            return MIN_VALUE;
+        if (targetColor == COLOR_WHITE && result == WHITE_WIN)
+            return MAX_VALUE;
+    }
+
+    return 0;
 }

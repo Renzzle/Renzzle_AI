@@ -202,7 +202,7 @@ void Board::undo() {
 
 bool Board::isForbidden(Pos p) {
     Cell c = getCell(p);
-    assert(c.getPiece() == EMPTY);
+    if (c.getPiece() != EMPTY) return false;
 
     int winByFour = 0;
     int winByThree = 0;
