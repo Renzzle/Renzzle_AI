@@ -6,6 +6,16 @@ using namespace std;
 
 class BoardTest : public TestBase {
 
+private:
+    Board getBoard(string moves) {
+        vector<pair<int, int>> v = processString(moves);
+        Board board;
+        for (auto p : v) {
+            board.move(Pos(p.first, p.second));
+        }
+        return board;
+    }
+
 public:
     BoardTest() {
         registerTestMethod([this]() { getTurnTest(); });
