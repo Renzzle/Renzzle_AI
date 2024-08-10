@@ -1,10 +1,10 @@
 #include "util.h"
 //#include "../search/search.h"
 #include "../search/vcf_search.h"
+#include <vector>
 
 #ifdef _WIN32
 #include <Windows.h>
-#include <vector>
 #endif
 
 using Depth = int;

@@ -52,11 +52,12 @@ private:
     const Score attackScore[PATTERN_SIZE] = { 0, 00, 00, 01, 01, 04, 05, 06, 07, 30, 37, 160, 700, 3000};
     const Score defendScore[PATTERN_SIZE] = { 0, 00, 00, 00, 00, 00, 00, 00, 00, 05, 07, 007, 160, 1000};
 
+public:
+    void init();
     void classify(Board& board);
     void classify(Board& board, Pos pos);
     Score calculateUtilScore(int myPatternCnt[], int oppoPatternCnt[]);
-
-public:
+// public:
     vector<Pos> getCandidates(Board& board);
     vector<Pos> getFours(Board& board);
     int evaluate(Board& board);
@@ -64,7 +65,31 @@ public:
 
 }; 
 
+void Evaluator::init() {
+    myFive.clear();
+    myMate.clear();
+    myFourThree.clear();
+    myDoubleThree.clear();
+    myFour.clear();
+    myOpenThree.clear();
+    oppoFive.clear();
+    etc.clear();
+    oppoMate.clear();
+    oppoFourThree.clear();
+    oppoDoubleThree.clear();
+    oppoForbidden.clear();
+    oppoFour.clear();
+    oppoOpenThree.clear();
+    myStrategicMove.clear();
+    oppoStrategicMove.clear();
+
+    return;
+}
+
 void Evaluator::classify(Board& board) {
+    init();
+    if (board.getResult() != ONGOING) return;
+
     self = board.isBlackTurn() ? BLACK : WHITE;
     oppo = !board.isBlackTurn() ? BLACK : WHITE;
 
@@ -77,9 +102,6 @@ void Evaluator::classify(Board& board) {
 }
 
 void Evaluator::classify(Board& board, Pos pos) {
-    // if forbidden move
-    if (self == BLACK && board.isForbidden(pos)) return;
-
     int myPatternCnt[PATTERN_SIZE] = {0};
     int oppoPatternCnt[PATTERN_SIZE] = {0};
 
@@ -94,7 +116,12 @@ void Evaluator::classify(Board& board, Pos pos) {
         myFive.push_back(pos);
     } else if (oppoPatternCnt[FIVE] > 0) {
         oppoFive.push_back(pos);
-    } else if (myPatternCnt[FREE_4] > 0 || myPatternCnt[BLOCKED_4] >= 2) {
+    }
+    
+    // if forbidden move
+    if (self == BLACK && board.isForbidden(pos)) return;
+
+    if (myPatternCnt[FREE_4] > 0 || myPatternCnt[BLOCKED_4] >= 2) {
         myMate.push_back(pos);
     } else if (myPatternCnt[BLOCKED_4] > 0 && myPatternCnt[FREE_3] + myPatternCnt[FREE_3A] > 0) {
         myFourThree.push_back(pos);
@@ -205,6 +232,7 @@ vector<Pos> Evaluator::getCandidates(Board& board) {
 
 vector<Pos> Evaluator::getFours(Board& board) {
     classify(board);
+
     vector<Pos> result;
     if (!myFive.empty()) {
         result.push_back(myFive.front()); 
