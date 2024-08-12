@@ -68,8 +68,8 @@ public:
         assert(currentNode->board.getCell(movePos).getPiece() == BLACK);
 
         // 2. Check if the movePos is correctly added to the path
-        assert(!currentNode->path.empty());
-        assert(currentNode->path.back().getX() == movePos.getX() && currentNode->path.back().getY() == movePos.getY());
+        assert(!currentNode->board.getPath().empty());
+        assert(currentNode->board.getPath().back().getX() == movePos.getX() && currentNode->board.getPath().back().getY() == movePos.getY());
 
         // 3. Verify that the depth is correctly incremented
         assert(currentNode->depth == 1); // Initial depth was 0, so it should be 1 now
@@ -109,7 +109,7 @@ public:
         shared_ptr<Node> currentNode = treeManager.getNode(treeManager.getBoard());
         assert(currentNode != nullptr);
         assert(currentNode->board.getCell(Pos(9, 6)).getPiece() == WHITE);
-        assert(currentNode->path.back().getX() == Pos(9, 6).getX() && currentNode->path.back().getY() == Pos(9, 6).getY());
+        assert(currentNode->board.getPath().back().getX() == Pos(9, 6).getX() && currentNode->board.getPath().back().getY() == Pos(9, 6).getY());
 
         // move c3 , undo twice
         treeManager.move(Pos(3, 3));
@@ -182,16 +182,16 @@ public:
         assert(currentNode != nullptr);
 
         // Verify that the path is correctly stored
-        assert(currentNode->path.size() == 3);
+        assert(currentNode->board.getPath().size() == 16);
 
         // First move: h7
-        assert(currentNode->path[0].getX() == 8 && currentNode->path[0].getY() == 7);
+        assert(currentNode->board.getPath()[13].getX() == 8 && currentNode->board.getPath()[13].getY() == 7);
 
         // Second move: i6
-        assert(currentNode->path[1].getX() == 9 && currentNode->path[1].getY() == 6);
+        assert(currentNode->board.getPath()[14].getX() == 9 && currentNode->board.getPath()[14].getY() == 6);
 
         // Third move: j5
-        assert(currentNode->path[2].getX() == 10 && currentNode->path[2].getY() == 5);
+        assert(currentNode->board.getPath()[15].getX() == 10 && currentNode->board.getPath()[15].getY() == 5);
 
         cout << "Move path test passed!" << endl;
     }
@@ -219,18 +219,18 @@ public:
         assert(currentNode != nullptr);
 
         // Verify that the path is correctly stored
-        TEST_PRINT("currentNode->path.size() : " << currentNode->path.size());
-        assert(currentNode->path.size() == 8);
+        TEST_PRINT("currentNode->board.getPath().size() : " << currentNode->board.getPath().size());
+        assert(currentNode->board.getPath().size() == 8);
 
         // Check each move in the path 
-        assert(currentNode->path[0].getX() == 8 && currentNode->path[0].getY() == 8); // h8
-        assert(currentNode->path[1].getX() == 9 && currentNode->path[1].getY() == 8); // i8
-        assert(currentNode->path[2].getX() == 8 && currentNode->path[2].getY() == 7); // h7
-        assert(currentNode->path[3].getX() == 9 && currentNode->path[3].getY() == 7); // i7
-        assert(currentNode->path[4].getX() == 8 && currentNode->path[4].getY() == 6); // h6
-        assert(currentNode->path[5].getX() == 9 && currentNode->path[5].getY() == 6); // i6
-        assert(currentNode->path[6].getX() == 8 && currentNode->path[6].getY() == 5); // h5
-        assert(currentNode->path[7].getX() == 9 && currentNode->path[7].getY() == 5); // i5
+        assert(currentNode->board.getPath()[0].getX() == 8 && currentNode->board.getPath()[0].getY() == 8); // h8
+        assert(currentNode->board.getPath()[1].getX() == 9 && currentNode->board.getPath()[1].getY() == 8); // i8
+        assert(currentNode->board.getPath()[2].getX() == 8 && currentNode->board.getPath()[2].getY() == 7); // h7
+        assert(currentNode->board.getPath()[3].getX() == 9 && currentNode->board.getPath()[3].getY() == 7); // i7
+        assert(currentNode->board.getPath()[4].getX() == 8 && currentNode->board.getPath()[4].getY() == 6); // h6
+        assert(currentNode->board.getPath()[5].getX() == 9 && currentNode->board.getPath()[5].getY() == 6); // i6
+        assert(currentNode->board.getPath()[6].getX() == 8 && currentNode->board.getPath()[6].getY() == 5); // h5
+        assert(currentNode->board.getPath()[7].getX() == 9 && currentNode->board.getPath()[7].getY() == 5); // i5
     }
 
     void testGenKey(){
@@ -240,7 +240,7 @@ public:
         for (int i = 0; i < 10000; i++) {
             tree.generateKey(board);
         }
-        TEST_TIME_END("genKey : ");
+        TEST_TIME_END("genKey(x10000)");
     }
 
 };

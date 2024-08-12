@@ -3,13 +3,13 @@
 #include "line.h"
 #include "pos.h"
 #include <array>
-#include <stack>
+#include <vector>
 
 #define BOARD_SIZE 15
 #define STATIC_WALL &cells[0][0];
 
 using CellArray = array<array<Cell, BOARD_SIZE + 2>, BOARD_SIZE + 2>;
-using MoveList = stack<Pos>;
+using MoveList = vector<Pos>;
 
 class Board {
 
@@ -34,6 +34,7 @@ PUBLIC
     void undo();
     Result getResult();
     bool isForbidden(Pos p);
+    vector<Pos> getPath();
     
 };
 
@@ -76,7 +77,7 @@ bool Board::move(Pos p) {
     if (moveCnt == BOARD_SIZE * BOARD_SIZE) return false;
 
     moveCnt++;
-    moves.push(p);
+    moves.push_back(p);
     
     setResult(p);
     getCell(p).setPiece(isBlackTurn() ? WHITE : BLACK);
@@ -188,14 +189,14 @@ Pattern Board::getPattern(Line& line, Color color) {
 }
 
 void Board::undo() {
-    Pos p = moves.top();
+    Pos p = moves.back();
 
     moveCnt--;
     getCell(p).setPiece(EMPTY);
     setPatterns(p);
     result = ONGOING;
 
-    moves.pop();
+    moves.pop_back();
 }
 
 bool Board::isForbidden(Pos p) {
@@ -297,4 +298,8 @@ void Board::setResult(Pos& p) {
 
 Result Board::getResult() {
     return result;
+}
+
+vector<Pos> Board::getPath() {
+    return moves;
 }

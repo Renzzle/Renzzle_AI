@@ -20,7 +20,7 @@ PUBLIC
     Board& getBoard();
     void addNode(shared_ptr<Node> node);
     shared_ptr<Node> getNode(Board& board);
-    shared_ptr<Node> createNode(const vector<Pos>& parentPath, Board board, Pos move, Value score, int depth);
+    shared_ptr<Node> createNode(Board board, Pos move, Value score, int depth);
     vector<Pos> getVCFPath();
 
 };
@@ -30,7 +30,7 @@ TreeManager::TreeManager(Board initialBoard) : board(initialBoard), tree() {
     Value initialScore = 0;
     int initialDepth = 0;
 
-    auto rootNode = createNode( /*path*/ {}, board, initialMove, initialScore, initialDepth);
+    auto rootNode = createNode(board, initialMove, initialScore, initialDepth);
     addNode(rootNode);
     currentNode = rootNode;
     nodeHistory.push(currentNode);
@@ -42,10 +42,7 @@ void TreeManager::move(Pos p) {
     Board newBoard = previousNode->board;
     newBoard.move(p);
 
-    vector<Pos> newPath = previousNode->path;
-
-    newPath.push_back(p);
-    currentNode = createNode(newPath, newBoard, p, /*score*/ 0, previousNode->depth + 1);
+    currentNode = createNode(newBoard, p, /*score*/ 0, previousNode->depth + 1);
     addNode(currentNode);
     nodeHistory.push(currentNode);
 }
@@ -61,7 +58,6 @@ Board& TreeManager::getBoard() {
     return currentNode -> board;
 }
 
-
 void TreeManager::addNode(shared_ptr<Node> node) {
     tree.addNode(node);
 }
@@ -70,6 +66,10 @@ shared_ptr<Node> TreeManager::getNode(Board& board) {
     return tree.getNode(board);
 }
 
-shared_ptr<Node> TreeManager::createNode(const vector<Pos>& parentPath, Board board, Pos move, Value score, int depth) {
-    return tree.createNode(parentPath, board, move, score, depth);
+shared_ptr<Node> TreeManager::createNode(Board board, Pos move, Value score, int depth) {
+    return tree.createNode(board, move, score, depth);
+}
+
+vector<Pos> TreeManager::getVCFPath() {
+    return currentNode->board.getPath();
 }

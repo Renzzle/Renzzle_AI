@@ -37,7 +37,7 @@ public:
     shared_ptr<Node> getNode(Board& board);
 
     // Method to create a new node.
-    shared_ptr<Node> createNode(const vector<Pos>& parent, Board board, Pos move, Value score, int depth);
+    shared_ptr<Node> createNode(Board board, Pos move, Value score, int depth);
 
 };
 
@@ -95,12 +95,11 @@ shared_ptr<Node> Tree::getNode(Board& board) {
 }
 
 // Definition of the createNode method.
-shared_ptr<Node> Tree::createNode(const vector<Pos>& parentPath, Board board, Pos move, Value score, int depth) {
+shared_ptr<Node> Tree::createNode(Board board, Pos move, Value score, int depth) {
     size_t key = generateKey(board);
     if (nodeMap.find(key) != nodeMap.end()) {
         return nodeMap[key]; // Node already exists, return it
     }
     auto newNode = make_shared<Node>(board, move, score, depth);
-    newNode->path = parentPath;
     return newNode;
 }
