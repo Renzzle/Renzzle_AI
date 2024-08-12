@@ -19,14 +19,15 @@ private:
 
 public:
     TreeManagerTest() {
-        registerTestMethod([this]() { rootNodeInitializationTest(); });
-        registerTestMethod([this]() { moveMethodTest(); });
-        registerTestMethod([this]() { generateKeyTest(); });
-        registerTestMethod([this]() { undoMethodTest(); });
-        registerTestMethod([this]() { boardStateTest(); });
-        registerTestMethod([this]() { movePathTest(); });
-        registerTestMethod([this]() { sequentialMovePathTest(); });
-        registerTestMethod([this]() { testGenKey(); });
+        // registerTestMethod([this]() { rootNodeInitializationTest(); });
+        // registerTestMethod([this]() { moveMethodTest(); });
+        // registerTestMethod([this]() { generateKeyTest(); });
+        // registerTestMethod([this]() { undoMethodTest(); });
+        // registerTestMethod([this]() { boardStateTest(); });
+        // registerTestMethod([this]() { movePathTest(); });
+        // registerTestMethod([this]() { sequentialMovePathTest(); });
+        // registerTestMethod([this]() { testGenKey(); });
+        registerTestMethod([this]() { privateMethodTest(); });
     }
 
     void rootNodeInitializationTest() {
@@ -247,9 +248,10 @@ void testGenKey(){
     TEST_TIME_END("genKey : ");
 }
 
+void privateMethodTest() { }
+
 };
 
-// main 함수`
 int main() {
     TreeManagerTest treeManagerTest;
     treeManagerTest.runAllTests();

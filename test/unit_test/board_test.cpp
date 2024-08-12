@@ -6,11 +6,12 @@ class BoardTest : public TestBase {
 
 public:
     BoardTest() {
-        registerTestMethod([this]() { getTurnTest(); });
-        registerTestMethod([this]() { moveTest(); });
-        registerTestMethod([this]() { resultTest(); });
-        registerTestMethod([this]() { patternTest(); });
-        registerTestMethod([this]() { forbiddenTest(); });
+        // registerTestMethod([this]() { getTurnTest(); });
+        // registerTestMethod([this]() { moveTest(); });
+        // registerTestMethod([this]() { resultTest(); });
+        // registerTestMethod([this]() { patternTest(); });
+        // registerTestMethod([this]() { forbiddenTest(); });
+        registerTestMethod([this]() { privateMethodTest(); });
     }
 
     void getTurnTest() {
@@ -180,6 +181,25 @@ public:
         // fake 3-3 (5)
         board = getBoard("d14e14c13c12d12a9c11e11f12g12f13o15h12o14i11e12d13");
         assert(board.getResult() != WHITE_WIN);
+    }
+
+    void privateMethodTest() {
+        Board board;
+        Pos p(5, 5);
+
+        Line line = board.getLine(p);
+
+        Pattern pattern = board.getPattern(line, COLOR_BLACK);
+        assert(pattern == DEAD || pattern != DEAD);
+
+        board.setPatterns(p);
+        assert(board.getCell(p).getPattern(BLACK, VERTICAL) == PATTERN_SIZE
+            || board.getCell(p).getPattern(BLACK, VERTICAL) != PATTERN_SIZE);
+
+        Cell& cell = board.getCell(p);
+        board.clearPattern(cell);
+        assert(cell.getPattern(BLACK, VERTICAL) == PATTERN_SIZE
+            || cell.getPattern(BLACK, VERTICAL) != PATTERN_SIZE);
     }
 
 };

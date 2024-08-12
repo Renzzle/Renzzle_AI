@@ -1,5 +1,12 @@
 #pragma once
 
+#define TEST
+
+#ifdef TEST
+#define PRIVATE public:
+#endif
+#define PUBLIC public:
+
 #include <vector>
 #include <functional>
 
