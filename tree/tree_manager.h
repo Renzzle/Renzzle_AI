@@ -3,7 +3,7 @@
 #include "tree.h"
 #include "../game/board.h"
 #include <stack>
-#include<iomanip>
+#include <iomanip>
 
 class TreeManager {
 
@@ -21,6 +21,7 @@ public:
     void addNode(shared_ptr<Node> node);
     shared_ptr<Node> getNode(Board& board);
     shared_ptr<Node> createNode(const vector<Pos>& parentPath, Board board, Pos move, Value score, int depth);
+    vector<Pos> getVCFPath();
 
 };
 
@@ -71,5 +72,9 @@ shared_ptr<Node> TreeManager::getNode(Board& board) {
 
 shared_ptr<Node> TreeManager::createNode(const vector<Pos>& parentPath, Board board, Pos move, Value score, int depth) {
     return tree.createNode(parentPath, board, move, score, depth);
+}
+
+vector<Pos> TreeManager::getVCFPath() {
+    return currentNode->path;
 }
 

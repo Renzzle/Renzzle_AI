@@ -2,36 +2,8 @@
 
 #include "../evaluate/evaluator.h"
 #include "../tree/tree.h"
+#include "../tree/tree_manager.h"
 #include <vector>
-
-class TreeManager {
-
-private:
-    Board board;
-    vector<Pos> path;
-
-public:
-    TreeManager(Board& board) {
-        this->board = board;
-    }
-    Board& next(Pos pos) {
-        path.push_back(pos);
-        board.move(pos);
-        return board;
-    }
-    Board& prev() {
-        path.pop_back();
-        board.undo();
-        return board;
-    }
-    Board& getBoard() {
-        return board;
-    }
-    vector<Pos> getPath() {
-        return path;
-    }
-
-};
 
 class VCFSearch {
 
@@ -84,14 +56,14 @@ bool VCFSearch::findVCF() {
     if (moves.empty()) return false;
 
     for (auto move : moves) {
-        treeManager.next(move);
+        treeManager.move(move);
         if (findVCF()) return true;
-        treeManager.prev();
+        treeManager.undo();
     }
 
     return false;
 }
 
 vector<Pos> VCFSearch::getVCFPath() {
-    return treeManager.getPath();
+    return treeManager.getVCFPath();
 }

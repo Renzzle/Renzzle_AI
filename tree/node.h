@@ -11,7 +11,7 @@ class Node {
 public:
     Board board;             // The state of the game board at this node.
     Pos move;                // The move that led to this node.
-    Value val;             // The evaluated score of this node.
+    Value val;               // The evaluated score of this node.
     vector<Pos> path;        // Path from the start to this node.
     int depth;               // Depth of the node, default is -1.
 
