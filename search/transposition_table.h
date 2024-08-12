@@ -8,8 +8,6 @@
 using HashKey = uint64_t;
 using Value = int;
 
-using namespace std;
-
 struct TTEntry {
     Value value;
     int depth;

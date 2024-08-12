@@ -8,14 +8,14 @@
 
 using Value = int;
 using Depth = int;
-using HashKey = std::uint64_t;
+using HashKey = uint64_t;
 
 class EvaluatorV1 {
 private:
     Board board;
     Color vcfColor;
     HashKey zobristHash;
-    std::array<std::array<HashKey, 3>, BOARD_SIZE * BOARD_SIZE> zobristTable;
+    array<array<HashKey, 3>, BOARD_SIZE * BOARD_SIZE> zobristTable;
 
     void initZobristTable();
 
@@ -29,11 +29,11 @@ public:
     void next(Pos p);
     void prev();
     bool isGameOver();
-    HashKey getZobristKey() const;  // 추가된 메서드
+    HashKey getZobristKey() const;
 };
 
 void EvaluatorV1::initZobristTable() {
-    std::mt19937_64 rng(0xdeadbeef);
+    mt19937_64 rng(0xdeadbeef);
     for (int i = 0; i < BOARD_SIZE * BOARD_SIZE; ++i) {
         for (int j = 0; j < 3; ++j) {
             zobristTable[i][j] = rng();
@@ -87,7 +87,7 @@ void EvaluatorV1::prev() {
 }
 
 HashKey EvaluatorV1::getZobristKey() const {
-    return zobristHash;  // 현재 보드 상태의 해시 키 반환
+    return zobristHash;
 }
 
 list<Pos> EvaluatorV1::getCandidates() {
