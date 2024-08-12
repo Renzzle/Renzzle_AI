@@ -2,17 +2,25 @@
 #include "../game/board.h"
 #include <list>
 #include <tuple>
+#include <random>
+#include <cstdint>
+#include <array>
 
 using Value = int;
 using Depth = int;
+using HashKey = std::uint64_t;
 
 class EvaluatorV1 {
-
 private:
     Board board;
     Color vcfColor;
+    HashKey zobristHash;
+    std::array<std::array<HashKey, 3>, BOARD_SIZE * BOARD_SIZE> zobristTable;
+
+    void initZobristTable();
 
 public:
+    EvaluatorV1() { initZobristTable(); }
     void setBoard(Board board);
     void setVCFColor();
     list<Pos> getCandidates();
@@ -21,11 +29,30 @@ public:
     void next(Pos p);
     void prev();
     bool isGameOver();
-    
+    HashKey getZobristKey() const;  // 추가된 메서드
 };
+
+void EvaluatorV1::initZobristTable() {
+    std::mt19937_64 rng(0xdeadbeef);
+    for (int i = 0; i < BOARD_SIZE * BOARD_SIZE; ++i) {
+        for (int j = 0; j < 3; ++j) {
+            zobristTable[i][j] = rng();
+        }
+    }
+}
 
 void EvaluatorV1::setBoard(Board board) {
     this->board = board;
+    this->zobristHash = 0;
+    for (int i = 1; i <= BOARD_SIZE; ++i) {
+        for (int j = 1; j <= BOARD_SIZE; ++j) {
+            Pos pos(i, j);
+            Piece piece = board.getCell(pos).getPiece();
+            if (piece != EMPTY) {
+                zobristHash ^= zobristTable[(i - 1) * BOARD_SIZE + (j - 1)][piece];
+            }
+        }
+    }
 }
 
 void EvaluatorV1::setVCFColor() {
@@ -33,17 +60,39 @@ void EvaluatorV1::setVCFColor() {
 }
 
 void EvaluatorV1::next(Pos p) {
+    Piece oldPiece = board.getCell(p).getPiece();
     board.move(p);
+    Piece newPiece = board.getCell(p).getPiece();
+    int index = (p.getX() - 1) * BOARD_SIZE + (p.getY() - 1);
+    if (oldPiece != EMPTY) {
+        zobristHash ^= zobristTable[index][oldPiece];
+    }
+    if (newPiece != EMPTY) {
+        zobristHash ^= zobristTable[index][newPiece];
+    }
 }
 
 void EvaluatorV1::prev() {
+    Pos lastMove = board.getLastMove();
+    Piece newPiece = EMPTY;
+    Piece oldPiece = board.getCell(lastMove).getPiece();
+    int index = (lastMove.getX() - 1) * BOARD_SIZE + (lastMove.getY() - 1);
+    if (oldPiece != EMPTY) {
+        zobristHash ^= zobristTable[index][oldPiece];
+    }
+    if (newPiece != EMPTY) {
+        zobristHash ^= zobristTable[index][newPiece];
+    }
     board.undo();
+}
+
+HashKey EvaluatorV1::getZobristKey() const {
+    return zobristHash;  // 현재 보드 상태의 해시 키 반환
 }
 
 list<Pos> EvaluatorV1::getCandidates() {
     list<Pos> moves;
     list<tuple<Pos, int>> tmp;
-
     Piece self = board.isBlackTurn() ? BLACK : WHITE;
     Piece oppo = !board.isBlackTurn() ? BLACK : WHITE;
     bool isVCFColorTurn = (board.isBlackTurn() ? COLOR_BLACK : COLOR_WHITE) == vcfColor;

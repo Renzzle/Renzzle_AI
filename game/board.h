@@ -35,8 +35,8 @@ public:
     bool move(Pos p);
     void undo();
     Result getResult();
+    Pos getLastMove();
     bool isForbidden(Pos p);
-    
 };
 
 Board::Board() {
@@ -207,7 +207,6 @@ bool Board::isForbidden(Pos p) {
     int winByFour = 0;
     int winByThree = 0;
 
-    // five, overline, 4-4
     for (Direction dir = DIRECTION_START; dir < DIRECTION_SIZE; dir++) {
         p.dir = dir;
         Pattern pattern = c.getPattern(BLACK, p.dir);
@@ -221,8 +220,6 @@ bool Board::isForbidden(Pos p) {
         }
     }
 
-    // recursive 3-3
-    // move
     getCell(p).setPiece(BLACK);
     setPatterns(p);
 
@@ -230,7 +227,6 @@ bool Board::isForbidden(Pos p) {
         p.dir = dir;
         Pattern pattern = c.getPattern(BLACK, p.dir);
 
-        // double three forbidden type
         if (pattern != FREE_3 && pattern != FREE_3A)
             continue;
         
@@ -263,7 +259,6 @@ bool Board::isForbidden(Pos p) {
         }
     }
 
-    // undo
     getCell(p).setPiece(EMPTY);
     setPatterns(p);
 
@@ -291,4 +286,11 @@ void Board::setResult(Pos& p) {
 
 Result Board::getResult() {
     return result;
+}
+
+Pos Board::getLastMove() {
+    if (!moves.empty()) {
+        return moves.top();
+    }
+    return Pos();
 }

@@ -1,5 +1,6 @@
 #include "../evaluate/evaluator.h"
 #include "../evaluate/evaluator_v1.h"
+#include "transposition_table.h"
 #include <vector>
 #include <algorithm>
 #include <limits>
@@ -8,10 +9,11 @@
 
 class VCFSearch {
     EvaluatorV1 evaluator;
-    std::stack<Pos> path;
-    std::vector<Pos> winningPath;
+    stack<Pos> path;
+    vector<Pos> winningPath;
+    TranspositionTable TT;
 
-    bool dfs(bool maximizingPlayer);
+    Value alphaBeta(bool maximizingPlayer, Value alpha, Value beta, int depth);
 
 public:
     void setEvaluator(EvaluatorV1 eval);
@@ -27,62 +29,88 @@ Pos VCFSearch::findBestMove() {
     evaluator.setVCFColor();
     auto candidates = evaluator.getCandidates();
 
+    Value alpha = MIN_VALUE;
+    Value beta = MAX_VALUE;
+    Pos bestMove;
+
     for (const auto& move : candidates) {
         evaluator.next(move);
         path.push(move);
-        if (dfs(false)) {  // dfs 탐색을 통해 VCF 승리가 가능한지 확인
-            printWinningPath();
-            path.pop();
-            evaluator.prev();
-            return move;  // VCF 승리가 가능한 첫번째 착수 위치를 반환
+
+        Value currentEval = alphaBeta(false, alpha, beta, 0);
+
+        if (currentEval > alpha) {
+            alpha = currentEval;
+            bestMove = move;
         }
+
         path.pop();
         evaluator.prev();
     }
-    return Pos();  // VCF 승리가 가능한 위치가 없는 경우 빈 위치 반환
+    return bestMove;
 }
 
-bool VCFSearch::dfs(bool maximizingPlayer) {
+Value VCFSearch::alphaBeta(bool maximizingPlayer, Value alpha, Value beta, int depth) {
+    HashKey posKey = evaluator.getZobristKey();
+    Value ttValue;
+    bool ttHit = TT.probe(posKey, ttValue, depth);
+
+    if (ttHit) {
+        if (ttValue >= beta) {
+            return ttValue;
+        }
+        alpha = max(alpha, ttValue);
+    }
+
     auto candidates = evaluator.getCandidates();
 
     if (candidates.empty()) {
-        return false;  // 더 이상 후보가 없는 경우
+        return maximizingPlayer ? MIN_VALUE : MAX_VALUE;
     }
 
     for (const auto& move : candidates) {
         evaluator.next(move);
         path.push(move);
         Value currentEval = evaluator.evaluate();
-        
-        if (currentEval >= 20000) {  // VCF 승리가 확인된 경우
+
+        if (currentEval >= 20000) {
             winningPath.clear();
-            std::stack<Pos> tmp = path;
+            stack<Pos> tmp = path;
             while (!tmp.empty()) {
                 winningPath.push_back(tmp.top());
                 tmp.pop();
             }
-            std::reverse(winningPath.begin(), winningPath.end());
+            reverse(winningPath.begin(), winningPath.end());
             path.pop();
             evaluator.prev();
-            return true;
+            TT.store(posKey, currentEval, depth);
+            return currentEval;
         }
 
-        if (dfs(!maximizingPlayer)) {  // 재귀적으로 DFS 탐색
-            path.pop();
-            evaluator.prev();
-            return true;
+        if (maximizingPlayer) {
+            alpha = max(alpha, alphaBeta(false, alpha, beta, depth + 1));
+        } else {
+            beta = min(beta, alphaBeta(true, alpha, beta, depth + 1));
         }
+
         path.pop();
         evaluator.prev();
+
+        if (alpha >= beta) {
+            break;
+        }
     }
-    return false;
+
+    Value result = maximizingPlayer ? alpha : beta;
+    TT.store(posKey, result, depth);
+    return result;
 }
 
 void VCFSearch::printWinningPath() {
-    std::cout << "Winning path size: " << winningPath.size() << std::endl;
-    std::cout << "Winning path: ";
+    cout << "Winning path size: " << winningPath.size() << endl;
+    cout << "Winning path: ";
     for (const auto& move : winningPath) {
-        std::cout << "[" << move.getX() << ", " << (char)(move.getY() + 64) << "]" << ' ';
+        cout << "[" << move.getX() << ", " << (char)(move.getY() + 64) << "]" << ' ';
     }
-    std::cout << std::endl;
+    cout << endl;
 }
