@@ -5,7 +5,7 @@
 #ifdef TEST
 
 #define PRIVATE public:
-#define PUBLIC
+#define PUBLIC public:
 
 #define TEST_PRINT(msg) std::cout << msg << std::endl
 

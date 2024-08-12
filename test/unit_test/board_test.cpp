@@ -7,6 +7,7 @@ class BoardTest : public TestBase {
 public:
     BoardTest() {
         registerTestMethod([this]() { getTurnTest(); });
+        registerTestMethod([this]() { setPatternTest(); });
         registerTestMethod([this]() { moveTest(); });
         registerTestMethod([this]() { resultTest(); });
         registerTestMethod([this]() { patternTest(); });
@@ -17,6 +18,16 @@ public:
         Board board;
         bool ibt = board.isBlackTurn();
         assert(ibt);
+    }
+
+    void setPatternTest() {
+        Board board;
+        Pos p(8, 8);
+        TEST_TIME_START();
+        for (int i = 0; i < 1000; i++) {
+            board.setPatterns(p);
+        }
+        TEST_TIME_END("setPatturns(x1000)");
     }
 
     void moveTest() {
