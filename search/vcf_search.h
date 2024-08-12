@@ -93,6 +93,5 @@ bool VCFSearch::findVCF() {
 }
 
 vector<Pos> VCFSearch::getVCFPath() {
-    findVCF();
     return treeManager.getPath();
 }

@@ -3,10 +3,12 @@
 #include <vector>
 #include <functional>
 
+using namespace std;
+
 class TestBase {
 public:
     virtual ~TestBase() = default;
-    using TestMethod = std::function<void()>;
+    using TestMethod = function<void()>;
 
     void registerTestMethod(const TestMethod& method) {
         testMethods.push_back(method);
@@ -19,5 +21,5 @@ public:
     }
 
 protected:
-    std::vector<TestMethod> testMethods;
+    vector<TestMethod> testMethods;
 };
