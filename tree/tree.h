@@ -9,6 +9,7 @@
 #include <memory>
 
 using namespace std;
+using Value = int;
 
 // hash specialization for Pos
 namespace std {

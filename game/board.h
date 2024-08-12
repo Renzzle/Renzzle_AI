@@ -202,10 +202,11 @@ void Board::undo() {
 
 bool Board::isForbidden(Pos p) {
     Cell c = getCell(p);
-    assert(c.getPiece() == EMPTY);
+    if (c.getPiece() != EMPTY) return false;
 
     int winByFour = 0;
     int winByThree = 0;
+    int pThreeCnt = 0;
 
     // five, overline, 4-4
     for (Direction dir = DIRECTION_START; dir < DIRECTION_SIZE; dir++) {
@@ -219,7 +220,14 @@ bool Board::isForbidden(Pos p) {
             if (++winByFour >= 2)
                 return true;
         }
+
+        if (pattern == FREE_3 || pattern == FREE_3A)
+            pThreeCnt++;
     }
+    
+    // if there is not open three more than two
+    if (pThreeCnt < 2)
+        return false;
 
     // recursive 3-3
     // move

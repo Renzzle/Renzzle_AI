@@ -52,32 +52,56 @@ private:
     const Score attackScore[PATTERN_SIZE] = { 0, 00, 00, 01, 01, 04, 05, 06, 07, 30, 37, 160, 700, 3000};
     const Score defendScore[PATTERN_SIZE] = { 0, 00, 00, 00, 00, 00, 00, 00, 00, 05, 07, 007, 160, 1000};
 
+public:
+    void init();
     void classify(Board& board);
     void classify(Board& board, Pos pos);
     Score calculateUtilScore(int myPatternCnt[], int oppoPatternCnt[]);
-
-public:
+// public:
     vector<Pos> getCandidates(Board& board);
     vector<Pos> getFours(Board& board);
     int evaluate(Board& board);
+    int vcfEvaluate(Board& board, Color targetColor);
 
 }; 
 
+void Evaluator::init() {
+    myFive.clear();
+    myMate.clear();
+    myFourThree.clear();
+    myDoubleThree.clear();
+    myFour.clear();
+    myOpenThree.clear();
+    oppoFive.clear();
+    etc.clear();
+    oppoMate.clear();
+    oppoFourThree.clear();
+    oppoDoubleThree.clear();
+    oppoForbidden.clear();
+    oppoFour.clear();
+    oppoOpenThree.clear();
+    myStrategicMove.clear();
+    oppoStrategicMove.clear();
+
+    return;
+}
+
 void Evaluator::classify(Board& board) {
+    init();
+    if (board.getResult() != ONGOING) return;
+
     self = board.isBlackTurn() ? BLACK : WHITE;
     oppo = !board.isBlackTurn() ? BLACK : WHITE;
 
     for (int i = 1; i <= BOARD_SIZE; i++) {
         for (int j = 1; j <= BOARD_SIZE; j++) {
-            classify(board, Pos(i, j));
+            if (board.getCell(Pos(i, j)).getPiece() == EMPTY)
+                classify(board, Pos(i, j));
         }
     }
 }
 
 void Evaluator::classify(Board& board, Pos pos) {
-    // if forbidden move
-    if (self == BLACK && board.isForbidden(pos)) return;
-
     int myPatternCnt[PATTERN_SIZE] = {0};
     int oppoPatternCnt[PATTERN_SIZE] = {0};
 
@@ -92,7 +116,12 @@ void Evaluator::classify(Board& board, Pos pos) {
         myFive.push_back(pos);
     } else if (oppoPatternCnt[FIVE] > 0) {
         oppoFive.push_back(pos);
-    } else if (myPatternCnt[FREE_4] > 0 || myPatternCnt[BLOCKED_4] >= 2) {
+    }
+    
+    // if forbidden move
+    if (self == BLACK && board.isForbidden(pos)) return;
+
+    if (myPatternCnt[FREE_4] > 0 || myPatternCnt[BLOCKED_4] >= 2) {
         myMate.push_back(pos);
     } else if (myPatternCnt[BLOCKED_4] > 0 && myPatternCnt[FREE_3] + myPatternCnt[FREE_3A] > 0) {
         myFourThree.push_back(pos);
@@ -176,7 +205,7 @@ vector<Pos> Evaluator::getCandidates(Board& board) {
         result.insert(result.end(), myDoubleThree.begin(), myDoubleThree.end());
     }
     
-    vector<Pos> attacks;
+    vector<tuple<Pos, Score>> attacks; 
     if (!myFour.empty()) {
         attacks.insert(attacks.end(), myFour.begin(), myFour.end());
     }
@@ -186,13 +215,17 @@ vector<Pos> Evaluator::getCandidates(Board& board) {
     sort(attacks.begin(), attacks.end(), [](const tuple<Pos, Score>& a, const tuple<Pos, Score>& b) {
         return get<1>(a) > get<1>(b); 
     });
-    result.insert(result.end(), attacks.begin(), attacks.end());
+    for (const auto& attack : attacks) {
+        result.push_back(std::get<0>(attack));
+    }
 
     if (!etc.empty()) {
         sort(etc.begin(), etc.end(), [](const tuple<Pos, Score>& a, const tuple<Pos, Score>& b) {
             return get<1>(a) > get<1>(b); 
         });
-        result.insert(result.end(), etc.begin(), etc.end());
+        for (const auto& e : etc) {
+            result.push_back(std::get<0>(e)); 
+        }
     }
     return result;
 }
@@ -202,7 +235,7 @@ vector<Pos> Evaluator::getFours(Board& board) {
 
     vector<Pos> result;
     if (!myFive.empty()) {
-        result.push_back(myFive.front());
+        result.push_back(myFive.front()); 
         return result;
     }
     if (!myMate.empty()) {
@@ -216,7 +249,9 @@ vector<Pos> Evaluator::getFours(Board& board) {
         return get<1>(a) > get<1>(b); 
     });
     if (!myFour.empty()) {
-        result.insert(result.end(), myFour.begin(), myFour.end());
+        for (const auto& four : myFour) {
+            result.push_back(get<0>(four)); 
+        }
     }
 
     return result;
