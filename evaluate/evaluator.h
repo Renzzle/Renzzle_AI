@@ -52,12 +52,12 @@ private:
     const Score attackScore[PATTERN_SIZE] = { 0, 00, 00, 01, 01, 04, 05, 06, 07, 30, 37, 160, 700, 3000};
     const Score defendScore[PATTERN_SIZE] = { 0, 00, 00, 00, 00, 00, 00, 00, 00, 05, 07, 007, 160, 1000};
 
-public:
     void init();
     void classify(Board& board);
     void classify(Board& board, Pos pos);
     Score calculateUtilScore(int myPatternCnt[], int oppoPatternCnt[]);
-// public:
+    
+public:
     vector<Pos> getCandidates(Board& board);
     vector<Pos> getFours(Board& board);
     int evaluate(Board& board);

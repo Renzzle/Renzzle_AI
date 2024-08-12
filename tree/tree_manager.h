@@ -6,26 +6,25 @@
 #include<iomanip>
 
 class TreeManager {
+
 private:
     Board board;
     Tree tree;
     shared_ptr<Node> currentNode;
-     std::stack<shared_ptr<Node>> nodeHistory;
+    std::stack<shared_ptr<Node>> nodeHistory;
 
 public:
     TreeManager(Board initialBoard);
-
     void move(Pos p);
     void undo();
     Board& getBoard();
-
     void addNode(shared_ptr<Node> node);
     shared_ptr<Node> getNode(Board& board);
     shared_ptr<Node> createNode(const vector<Pos>& parentPath, Board board, Pos move, Value score, int depth);
+
 };
 
 TreeManager::TreeManager(Board initialBoard) : board(initialBoard), tree() {
-
     Pos initialMove;
     Value initialScore = 0;
     int initialDepth = 0;
@@ -37,7 +36,6 @@ TreeManager::TreeManager(Board initialBoard) : board(initialBoard), tree() {
 }
 
 void TreeManager::move(Pos p) {     
-
     shared_ptr<Node> previousNode = currentNode;
 
     Board newBoard = previousNode->board;
@@ -52,7 +50,6 @@ void TreeManager::move(Pos p) {
 }
 
 void TreeManager::undo() {
-
     if (nodeHistory.size() > 1) {
         nodeHistory.pop();
         currentNode = nodeHistory.top();

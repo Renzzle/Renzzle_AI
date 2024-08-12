@@ -22,11 +22,11 @@ namespace std {
 }
 
 class Tree {
-// private:
 
-public:
+private:
     unordered_map<size_t, shared_ptr<Node>> nodeMap; // Hash map to store nodes with board state keys.
 
+public:
     // Method to generate the key for the hash map.
     size_t generateKey(Board& board);
 
@@ -39,8 +39,6 @@ public:
     // Method to create a new node.
     shared_ptr<Node> createNode(const vector<Pos>& parent, Board board, Pos move, Value score, int depth);
 
-    // Method to create a new VCF node without depth.
-    shared_ptr<Node> createVcfNode(const vector<Pos>& parent, Board board, Pos move, Value score);
 };
 
 // Definition of the generateKey method.
@@ -76,13 +74,11 @@ size_t Tree::generateKey(Board& board) {
         hashValue ^= (hash<Pos>()(pos) + prime + (hashValue << 6) + (hashValue >> 2));
     }
 
-    // TEST_PRINT("GENKEY : " << hashValue);
     return hashValue;
 }
 
 // Definition of the addNode method.
 void Tree::addNode(shared_ptr<Node> node) {
-    
     size_t key = generateKey(node->board);
 
     nodeMap[key] = node;
