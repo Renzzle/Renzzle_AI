@@ -1,10 +1,7 @@
 #include "util.h"
 #include <vector>
 
-using namespace std;
-
 void patternDemo();
-void getCandidatesDemo();
 
 int main() {
     patternDemo();

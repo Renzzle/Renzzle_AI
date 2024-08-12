@@ -30,9 +30,6 @@ public:
     // Method to generate the key for the hash map.
     size_t generateKey(Board& board);
 
-    // Helper method to convert Pos to string
-    // string posToString(const Pos& pos) const;
-
     // Method to add a node to the hash map.
     void addNode(shared_ptr<Node> node);
 
@@ -67,20 +64,21 @@ size_t Tree::generateKey(Board& board) {
     sort(blackStones.begin(), blackStones.end());
 
     size_t hashValue = 0;
+    size_t prime = 31; // small decimal value add to the hash value
+    
+    // Combine the positions of white stones
     for (const auto& pos : whiteStones) {
-        hashValue ^= hash<Pos>()(pos) ^ (hash<int>()(WHITE) << 1);
-    }
-    for (const auto& pos : blackStones) {
-        hashValue ^= hash<Pos>()(pos) ^ (hash<int>()(BLACK) << 1);
+        hashValue ^= (hash<Pos>()(pos) + prime + (hashValue << 6) + (hashValue >> 2));
     }
 
+    // Combine the positions of black stones
+    for (const auto& pos : blackStones) {
+        hashValue ^= (hash<Pos>()(pos) + prime + (hashValue << 6) + (hashValue >> 2));
+    }
+
+    // TEST_PRINT("GENKEY : " << hashValue);
     return hashValue;
 }
-
-// Helper method to convert Pos to string
-// string Tree::posToString(const Pos& pos) const {
-//     return "(" + to_string(pos.getX()) + "," + to_string(pos.getY()) + ")";
-// }
 
 // Definition of the addNode method.
 void Tree::addNode(shared_ptr<Node> node) {
@@ -108,22 +106,5 @@ shared_ptr<Node> Tree::createNode(const vector<Pos>& parentPath, Board board, Po
     }
     auto newNode = make_shared<Node>(board, move, score, depth);
     newNode->path = parentPath;
-    newNode->path.push_back(move);
-    nodeMap[key] = newNode;
-    // std::cout << "New node created: " << key << std::endl;
-    return newNode;
-}
-
-// Definition of the createVcfNode method.
-shared_ptr<Node> Tree::createVcfNode(const vector<Pos>& parentPath, Board board, Pos move, Value score) {
-    size_t key = generateKey(board);
-    if (nodeMap.find(key) != nodeMap.end()) {
-        return nodeMap[key]; // Node already exists, return it
-    }
-    auto newNode = make_shared<Node>(board, move, score);
-    newNode->path = parentPath;
-    newNode->path.push_back(move);
-    nodeMap[key] = newNode;
-    // std::cout << "New VCF node created: " << key << std::endl;
     return newNode;
 }
