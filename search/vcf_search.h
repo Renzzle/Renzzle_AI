@@ -7,14 +7,14 @@
 
 class VCFSearch {
 
-private:
+PRIVATE
     TreeManager treeManager;
     Evaluator evaluator;
     Color targetColor;
     bool isWin();
     bool isTargetTurn();
 
-public:
+PUBLIC
     VCFSearch(Board& board);
     bool findVCF();
     vector<Pos> getVCFPath();

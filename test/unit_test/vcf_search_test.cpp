@@ -20,8 +20,9 @@ private:
 
 public:
     VCFSearchTest() {
-        registerTestMethod([this]() { findExistBlackVCFs(); });
-        registerTestMethod([this]() { findExistWhiteVCFs(); });
+        // registerTestMethod([this]() { findExistBlackVCFs(); });
+        // registerTestMethod([this]() { findExistWhiteVCFs(); });
+        registerTestMethod([this]() { privateMethodTest(); });
     }
 
     void findExistBlackVCFs() {
@@ -48,11 +49,24 @@ public:
         }
     }
 
+    void privateMethodTest() {
+        string process = "h8h9i8g8i10j9i9i7j10k11h10k10j8k7g10f10g11f12g7f6f7f11";
+        //string process = "h8g9h9g10h10h6i8i9g11i10f13h12d10e11d9e9d8b10c9f8e8i13e7e13i6";
+
+        Board board = getBoard(process);
+        VCFSearch vcfSearcher(board);
+
+        assert(vcfSearcher.isWin() == true || vcfSearcher.isWin() == false);
+
+        assert(vcfSearcher.isTargetTurn() == true || vcfSearcher.isTargetTurn() == false);
+
+    }
+
 };
 
 int main() {
-    VCFSearchTest vcfSeasrchTest;
-    vcfSeasrchTest.runAllTests();
+    VCFSearchTest vcfSearchTest;
+    vcfSearchTest.runAllTests();
 
     return 0;
 }

@@ -13,7 +13,7 @@ using MoveList = stack<Pos>;
 
 class Board {
 
-private:
+PRIVATE
     CellArray cells;
     MoveList moves;
     unsigned int moveCnt;
@@ -25,7 +25,7 @@ private:
     void clearPattern(Cell& cell);
     void setResult(Pos& p);
 
-public:
+PUBLIC
     Board();
     bool isBlackTurn();
     CellArray& getBoardStatus();

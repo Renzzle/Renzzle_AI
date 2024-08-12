@@ -7,13 +7,13 @@
 
 class TreeManager {
 
-private:
+PRIVATE
     Board board;
     Tree tree;
     shared_ptr<Node> currentNode;
-    std::stack<shared_ptr<Node>> nodeHistory;
+    stack<shared_ptr<Node>> nodeHistory;
 
-public:
+PUBLIC
     TreeManager(Board initialBoard);
     void move(Pos p);
     void undo();
@@ -73,8 +73,3 @@ shared_ptr<Node> TreeManager::getNode(Board& board) {
 shared_ptr<Node> TreeManager::createNode(const vector<Pos>& parentPath, Board board, Pos move, Value score, int depth) {
     return tree.createNode(parentPath, board, move, score, depth);
 }
-
-vector<Pos> TreeManager::getVCFPath() {
-    return currentNode->path;
-}
-
