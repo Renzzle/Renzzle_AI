@@ -1,10 +1,3 @@
-#define TREE_MANAGER_TEST
-
-#ifdef TREE_MANAGER_TEST
-#define PRIVATE public:
-#endif
-#define PUBLIC public:
-
 #include "../test.h"
 #include "../util.h"
 #include "../../tree/tree_manager.h"

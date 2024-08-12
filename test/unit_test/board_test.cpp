@@ -1,10 +1,3 @@
-#define BOARD_TEST
-
-#ifdef BOARD_TEST
-#define PRIVATE public:
-#endif
-#define PUBLIC public:
-
 #include "../test.h"
 #include "../util.h"
 #include "../../game/board.h"

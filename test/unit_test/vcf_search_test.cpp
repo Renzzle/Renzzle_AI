@@ -1,10 +1,3 @@
-#define VCF_SEARCH_TEST
-
-#ifdef VCF_SEARCH_TEST
-#define PRIVATE public:
-#endif
-#define PUBLIC public:
-
 #include "../test.h"
 #include "../util.h"
 #include "../../search/vcf_search.h"
