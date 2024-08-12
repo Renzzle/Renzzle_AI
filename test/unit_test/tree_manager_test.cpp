@@ -1,7 +1,7 @@
-#include "test.h"
-#include "../tree/tree_manager.h"
-#include "../game/board.h"
-#include "../test/util.h"
+#include "../test.h"
+#include "../util.h"
+#include "../../tree/tree_manager.h"
+#include "../../game/board.h"
 
 using namespace std;
 

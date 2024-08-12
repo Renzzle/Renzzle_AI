@@ -1,6 +1,6 @@
-#include "test.h"
-#include "util.h"
-#include "../search/vcf_search.h"
+#include "../test.h"
+#include "../util.h"
+#include "../../search/vcf_search.h"
 
 class VCFSearchTest : public TestBase {
 

@@ -1,8 +1,6 @@
-#include "test.h"
-#include "util.h"
-#include "../game/board.h"
-
-using namespace std;
+#include "../test.h"
+#include "../util.h"
+#include "../../game/board.h"
 
 class BoardTest : public TestBase {
 
