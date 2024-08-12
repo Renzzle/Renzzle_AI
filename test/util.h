@@ -60,7 +60,7 @@ Board getBoard(string moves) {
     vector<pair<int, int>> v = processString(moves);
     Board board;
     for (auto p : v) {
-        board.move(Pos(p.second, p.first));
+        board.move(Pos(p.first, p.second));
     }
     return board;
 }

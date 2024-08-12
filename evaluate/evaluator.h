@@ -317,22 +317,3 @@ int Evaluator::evaluate(Board& board) {
 
     return val;
 }
-
-int Evaluator::vcfEvaluate(Board& board, Color targetColor) {
-    classify(board);
-
-    Result result = board.getResult();
-    if (result != ONGOING) {
-        if (result == DRAW) return 0;
-        if (targetColor == COLOR_BLACK && result == BLACK_WIN)
-            return MAX_VALUE;
-        if (targetColor == COLOR_BLACK && result == WHITE_WIN)
-            return MIN_VALUE;
-        if (targetColor == COLOR_WHITE && result == BLACK_WIN)
-            return MIN_VALUE;
-        if (targetColor == COLOR_WHITE && result == WHITE_WIN)
-            return MAX_VALUE;
-    }
-
-    return 0;
-}
