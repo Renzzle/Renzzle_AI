@@ -1,5 +1,5 @@
 #include "test.h"
-#include "../game/tree_manager.h"
+#include "../tree/tree_manager.h"
 #include "../game/board.h"
 #include "../test/util.h"
 
@@ -101,7 +101,7 @@ public:
 
     // "h8i7g7i9f6i8e5"
     Board board1 = getBoard("h8i7g7i9f6i8e5");
-    treeManager = TreeManager(board1); // 새 트리 매니저로 초기화
+    treeManager = TreeManager(board1);
 
     // move i6
     treeManager.move(Pos(9, 6));
@@ -239,7 +239,7 @@ void sequentialMovePathTest() {
 
 void testGenKey(){
     Board board = getBoard("a14a15c15d14h9e4e9c12j4k7f10b5m11i5g11c7e12g8k11g9c4d11f7k10k4f4e10d5f12i7i11i4c2k8d12g2d8m12g7g13g6j13j8l13h5i14e5e14l11l5k9f3l10f5e7k5i10c5c13i2j9m2h14a10a4b12b7d13f8k13n5m8j3f9b4a8d15d10c10g14l9o12j2k6m3a7j15d7e13g1j7l2c9n12n15o8n13o2n6m1m15j11n10n7n2o6");
-    Tree tree;
+    Tree tree;  
     TEST_TIME_START();
     for (int i = 0; i < 10000; i++) {
         tree.generateKey(board);

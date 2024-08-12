@@ -1,7 +1,7 @@
 #pragma once
 
-#include "../tree/tree.h"
-#include "board.h"
+#include "tree.h"
+#include "../game/board.h"
 #include <stack>
 #include<iomanip>
 
@@ -18,12 +18,10 @@ public:
     void move(Pos p);
     void undo();
     Board& getBoard();
-    void printBoard();
 
     void addNode(shared_ptr<Node> node);
     shared_ptr<Node> getNode(Board& board);
     shared_ptr<Node> createNode(const vector<Pos>& parentPath, Board board, Pos move, Value score, int depth);
-    // shared_ptr<Node> createVcfNode(const vector<Pos>& parentPath, Board board, Pos move, Value score);
 };
 
 TreeManager::TreeManager(Board initialBoard) : board(initialBoard), tree() {
@@ -76,40 +74,5 @@ shared_ptr<Node> TreeManager::getNode(Board& board) {
 
 shared_ptr<Node> TreeManager::createNode(const vector<Pos>& parentPath, Board board, Pos move, Value score, int depth) {
     return tree.createNode(parentPath, board, move, score, depth);
-}
-
-// shared_ptr<Node> TreeManager::createVcfNode(const vector<Pos>& parentPath, Board board, Pos move, Value score) {
-//     return tree.createVcfNode(parentPath, board, move, score);
-// }
-
-void TreeManager::printBoard() {
-    CellArray cells = board.getBoardStatus();
-    
-    for (int i = 0; i < BOARD_SIZE + 2; i++) {
-
-        for (int j = 0; j < BOARD_SIZE + 2; j++) {
-            Piece p = cells[i][j].getPiece();
-            switch (p) {
-                case WALL:
-                    if (i == BOARD_SIZE + 1 && j < BOARD_SIZE) printf("%2c", j + 65);
-                    else if (i != 0 && i != BOARD_SIZE + 1 && j != 0) printf(" %02d", i);
-                    break;
-                case BLACK:
-                    cout << "⚫";
-                    break;
-                case WHITE:
-                    cout << "⚪";
-                    break;
-                case EMPTY:
-                    cout << "─┼";
-                    break;
-                default:
-                    // Handle unexpected cases
-                    break;
-            }  
-        }
-        cout << endl;
-    } 
-    return;
 }
 
