@@ -1,10 +1,6 @@
-#include <iostream>
 #include "test.h"
+#include "util.h"
 #include "../search/vcf_search.h"
-
-#ifdef _WIN32
-#include <Windows.h>
-#endif
 
 using namespace std;
 
@@ -18,10 +14,6 @@ public:
 };
 
 int main() {
-    #ifdef _WIN32
-    SetConsoleOutputCP(CP_UTF8);
-    #endif
-
     Board board;
     // board = getBoard("h8h9i8g8i10j9i9i7j10k11h10k10j8k7g10f10g11f12g7f6f7f11");
     // board = getBoard("h8h9i8g8i10i9h11g12j9i11j11k10h7i7");

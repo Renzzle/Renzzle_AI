@@ -1,11 +1,9 @@
 #pragma once
 
-#include "../test/util.h"
 #include "line.h"
 #include "pos.h"
 #include <array>
 #include <stack>
-#include <iostream>
 
 #define BOARD_SIZE 15
 #define STATIC_WALL &cells[0][0];
