@@ -15,7 +15,7 @@ private:
         bool result = vcfSearcher.findVCF();
         TEST_TIME_END("vcf search");
         assert(result == isExist);
-        cout << endl << endl;
+        cout << endl;
     }
 
 public:
