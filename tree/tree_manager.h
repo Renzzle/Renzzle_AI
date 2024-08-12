@@ -21,6 +21,7 @@ PUBLIC
     void addNode(shared_ptr<Node> node);
     shared_ptr<Node> getNode(Board& board);
     shared_ptr<Node> createNode(const vector<Pos>& parentPath, Board board, Pos move, Value score, int depth);
+    vector<Pos> getVCFPath();
 
 };
 
