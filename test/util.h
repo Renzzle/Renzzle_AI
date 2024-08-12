@@ -11,32 +11,6 @@
 #include <Windows.h>
 #endif
 
-#define DEBUG 1
-
-#if DEBUG
-
-#define TEST_PRINT(msg) std::cout << msg << std::endl
-
-#define TEST_TIME_START() \
-    auto start_time = std::chrono::high_resolution_clock::now();
-
-#define TEST_TIME_END(message) \
-    auto end_time = std::chrono::high_resolution_clock::now(); \
-    auto duration = std::chrono::duration_cast<std::chrono::nanoseconds>(end_time - start_time); \
-    double seconds = duration.count() / 1e9; \
-    std::cout << message << " is taken " << seconds  << " sec" << std::endl;
-
-#define TEST_ASSERT(expression) assert(expression)
-
-#else
-
-#define TEST_PRINT(msg)
-#define TEST_TIME_START()
-#define TEST_TIME_END(message)
-#define TEST_ASSERT(expression)
-
-#endif
-
 using namespace std;
 
 vector<pair<int, int>> processString(const string& input) {
