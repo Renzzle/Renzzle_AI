@@ -37,8 +37,10 @@
 
 #endif
 
-std::vector<std::pair<int, int>> processString(const std::string& input) {
-    std::vector<std::pair<int, int>> result;
+using namespace std;
+
+vector<pair<int, int>> processString(const string& input) {
+    vector<pair<int, int>> result;
     for (size_t i = 0; i < input.length(); i += 2) {
         char letter = input[i];
         int number;

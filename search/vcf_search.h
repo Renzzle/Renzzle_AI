@@ -1,6 +1,5 @@
 #pragma once
 
-#include "../test/util.h"
 #include "../evaluate/evaluator.h"
 #include "../tree/tree.h"
 #include <vector>
@@ -94,6 +93,5 @@ bool VCFSearch::findVCF() {
 }
 
 vector<Pos> VCFSearch::getVCFPath() {
-    findVCF();
     return treeManager.getPath();
 }
