@@ -2,6 +2,7 @@
 
 #include "tree.h"
 #include "../game/board.h"
+#include "../test/test.h"
 #include <stack>
 #include <iomanip>
 

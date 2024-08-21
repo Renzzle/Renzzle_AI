@@ -2,6 +2,7 @@
 
 #include "line.h"
 #include "pos.h"
+#include "../test/test.h"
 #include <array>
 #include <vector>
 
@@ -35,6 +36,7 @@ PUBLIC
     Result getResult();
     bool isForbidden(Pos p);
     vector<Pos> getPath();
+    vector<Pos> getAllEmptyPositions() const;
     
 };
 
@@ -302,4 +304,17 @@ Result Board::getResult() {
 
 vector<Pos> Board::getPath() {
     return moves;
+}
+
+vector<Pos> Board::getAllEmptyPositions() const {
+    vector<Pos> emptyPositions;
+    for (int i = 1; i <= BOARD_SIZE; ++i) {
+        for (int j = 1; j <= BOARD_SIZE; ++j) {
+            Pos pos(i, j);
+            if (cells[i][j].getPiece() == EMPTY) {
+                emptyPositions.push_back(pos);
+            }
+        }
+    }
+    return emptyPositions;
 }

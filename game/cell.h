@@ -12,7 +12,7 @@ private:
 
 public:
     Cell();
-    Piece getPiece();
+    Piece getPiece() const;
     void setPiece(const Piece& piece);
     Pattern getPattern(Piece piece, Direction dir);
     void setPattern(Piece piece, Direction dir, Pattern pattern);
@@ -27,7 +27,7 @@ Cell::Cell() {
     }
 }
 
-Piece Cell::getPiece() {
+Piece Cell::getPiece() const {
     return piece;
 }
 

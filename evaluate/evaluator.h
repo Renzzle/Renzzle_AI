@@ -3,7 +3,7 @@
 #include <vector>
 #include <algorithm>
 #include <tuple>
-
+ 
 #define MAX_VALUE 50000
 #define MIN_VALUE -50000
 
@@ -61,7 +61,7 @@ public:
     vector<Pos> getCandidates(Board& board);
     vector<Pos> getFours(Board& board);
     int evaluate(Board& board);
-    int vcfEvaluate(Board& board, Color targetColor);
+    //int vcfEvaluate(Board& board, Color targetColor);
 
 }; 
 

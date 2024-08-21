@@ -1,8 +1,8 @@
 #pragma once
 
 #include "../evaluate/evaluator.h"
-#include "../tree/tree.h"
 #include "../tree/tree_manager.h"
+#include "../test/test.h"
 #include <vector>
 
 class VCFSearch {
@@ -25,25 +25,6 @@ VCFSearch::VCFSearch(Board& board) : treeManager(board) {
     targetColor = board.isBlackTurn() ? COLOR_BLACK : COLOR_WHITE;
 }
 
-bool VCFSearch::isWin() {
-    Result result = treeManager.getBoard().getResult();
-    if (result == BLACK_WIN && targetColor == COLOR_BLACK)
-        return true;
-    if (result == WHITE_WIN && targetColor == COLOR_WHITE)
-        return true;
-    return false;
-}
-
-bool VCFSearch::isTargetTurn() {
-    if (treeManager.getBoard().isBlackTurn()) {
-        if (targetColor == COLOR_BLACK) return true;
-        else return false;
-    } else {
-        if (targetColor == COLOR_BLACK) return false;
-        else return true;
-    }
-}
-
 bool VCFSearch::findVCF() {
     if (isWin()) return true;
     
@@ -62,6 +43,25 @@ bool VCFSearch::findVCF() {
     }
 
     return false;
+}
+
+bool VCFSearch::isWin() {
+    Result result = treeManager.getBoard().getResult();
+    if (result == BLACK_WIN && targetColor == COLOR_BLACK)
+        return true;
+    if (result == WHITE_WIN && targetColor == COLOR_WHITE)
+        return true;
+    return false;
+}
+
+bool VCFSearch::isTargetTurn() {
+    if (treeManager.getBoard().isBlackTurn()) {
+        if (targetColor == COLOR_BLACK) return true;
+        else return false;
+    } else {
+        if (targetColor == COLOR_BLACK) return false;
+        else return true;
+    }
 }
 
 vector<Pos> VCFSearch::getVCFPath() {
