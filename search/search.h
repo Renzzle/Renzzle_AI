@@ -34,7 +34,7 @@ int Search::alphaBeta(Board& board, int depth, int alpha, int beta, bool maximiz
         return evaluator.evaluate(board);
     }
 
-    vector<Pos> moves = treeManager.getBoard().getAllEmptyPositions();
+    vector<Pos> moves = evaluator.getCandidates(treeManager.getBoard());
 
     if (moves.empty()) return evaluator.evaluate(board);
 
@@ -92,7 +92,7 @@ Pos Search::findBestMove() {
     int bestValue = MIN_VALUE;
     Pos bestMove;
 
-    vector<Pos> moves = treeManager.getBoard().getAllEmptyPositions();
+    vector<Pos> moves = evaluator.getCandidates(treeManager.getBoard());
 
     for (Pos move : moves) {
         treeManager.move(move);

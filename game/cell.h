@@ -22,8 +22,8 @@ public:
 Cell::Cell() {
     this->piece = EMPTY;
     for(Direction dir = DIRECTION_START; dir < DIRECTION_SIZE; dir++) {
-        setPattern(BLACK, dir, PATTERN_SIZE);
-        setPattern(WHITE, dir, PATTERN_SIZE);
+        setPattern(BLACK, dir, NONE);
+        setPattern(WHITE, dir, NONE);
     }
 }
 
@@ -36,11 +36,9 @@ void Cell::setPiece(const Piece& piece) {
 }
 
 Pattern Cell::getPattern(Piece piece, Direction dir) {
-    assert(piece == BLACK || piece == WHITE);
     return patterns[piece][dir];
 }
 
 void Cell::setPattern(Piece piece, Direction dir, Pattern pattern) {
-    assert(piece == BLACK || piece == WHITE);
     this->patterns[piece][dir] = pattern;
 }

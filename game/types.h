@@ -20,20 +20,21 @@ enum Piece {
 };
 
 enum Pattern {
-    DEAD,        // can never make a five
-    OVERLINE,    // overline
-    BLOCKED_1,   // one step before BLOCKED_2
-    FREE_1,      // one step before FREE_2
-    BLOCKED_2,   // one step before BLOCKED_3
-    FREE_2,      // one step before two FREE_3
-    FREE_2A,     // one step before three FREE_3
-    FREE_2B,     // one step before four FREE_3
-    BLOCKED_3,   // one step before BLOCKED_4
-    FREE_3,      // one step before one FREE_4
-    FREE_3A,     // one step before two FREE_4
-    BLOCKED_4,   // one step before FREE_5
-    FREE_4,      // one step before two FREE_5
-    FIVE,        // five
+    NONE,       // 00
+    DEAD,       // 01. can never make a five
+    OVERLINE,   // 02. overline
+    BLOCKED_1,  // 03. one step before BLOCKED_2
+    FREE_1,     // 04. one step before FREE_2
+    BLOCKED_2,  // 05. one step before BLOCKED_3
+    FREE_2,     // 06. one step before two FREE_3
+    FREE_2A,    // 07. one step before three FREE_3
+    FREE_2B,    // 08. one step before four FREE_3
+    BLOCKED_3,  // 09. one step before BLOCKED_4
+    FREE_3,     // 10. one step before one FREE_4
+    FREE_3A,    // 11. one step before two FREE_4
+    BLOCKED_4,  // 12. one step before FREE_5
+    FREE_4,     // 13. one step before two FREE_5
+    FIVE,       // 14. five
     PATTERN_SIZE
 };
 

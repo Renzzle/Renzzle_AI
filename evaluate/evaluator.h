@@ -11,7 +11,7 @@ using Score = int;
 
 class Evaluator {
 
-private:
+PRIVATE
     Piece self = BLACK;
     Piece oppo = WHITE;
 
@@ -57,7 +57,7 @@ private:
     void classify(Board& board, Pos pos);
     Score calculateUtilScore(int myPatternCnt[], int oppoPatternCnt[]);
     
-public:
+PUBLIC
     vector<Pos> getCandidates(Board& board);
     vector<Pos> getFours(Board& board);
     int evaluate(Board& board);
