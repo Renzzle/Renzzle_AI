@@ -14,6 +14,12 @@ private:
         TEST_TIME_START();
         bool result = vcfSearcher.findVCF();
         TEST_TIME_END("vcf search");
+
+        // vector<Pos> path = vcfSearcher.getVCFPath();
+        // for (Pos p : path) {
+        //     TEST_PRINT("(" << p.getX() << ", " << (char)(p.getY() + 96) << ") ");
+        // }
+
         assert(result == isExist);
         cout << endl;
     }
@@ -23,7 +29,7 @@ public:
         registerTestMethod([this]() { findExistBlackVCFs(); });
         registerTestMethod([this]() { findExistWhiteVCFs(); });
     }
-
+ 
     void findExistBlackVCFs() {
         const string processArr[] = {
             "h8h9i8g8i10j9i9i7j10k11h10k10j8k7g10f10g11f12g7f6f7f11",

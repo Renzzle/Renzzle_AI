@@ -44,12 +44,14 @@ public:
 
     void registerTestMethod(const TestMethod& method) {
         testMethods.push_back(method);
+        return;
     }
 
     void runAllTests() {
         for (const auto& method : testMethods) {
             method();
         }
+        return;
     }
 
 protected:

@@ -2,6 +2,7 @@
 
 #include "line.h"
 #include "pos.h"
+#include "../test/test.h"
 #include <array>
 #include <vector>
 
@@ -35,6 +36,7 @@ PUBLIC
     Result getResult();
     bool isForbidden(Pos p);
     vector<Pos> getPath();
+    vector<Pos> getAllEmptyPositions() const;
     
 };
 

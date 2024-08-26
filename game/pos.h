@@ -65,5 +65,4 @@ public:
         if (x == other.x) return y < other.y;
         return x < other.x;
     }
-
 };

@@ -27,7 +27,7 @@ public:
         for (int i = 0; i < 1000; i++) {
             board.setPatterns(p);
         }
-        TEST_TIME_END("setPatturns(x1000)");
+        TEST_TIME_END("setPatterns(x1000)");
     }
 
     void moveTest() {
