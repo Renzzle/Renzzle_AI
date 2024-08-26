@@ -305,16 +305,3 @@ Result Board::getResult() {
 vector<Pos> Board::getPath() {
     return moves;
 }
-
-vector<Pos> Board::getAllEmptyPositions() const {
-    vector<Pos> emptyPositions;
-    for (int i = 1; i <= BOARD_SIZE; ++i) {
-        for (int j = 1; j <= BOARD_SIZE; ++j) {
-            Pos pos(i, j);
-            if (cells[i][j].getPiece() == EMPTY) {
-                emptyPositions.push_back(pos);
-            }
-        }
-    }
-    return emptyPositions;
-}
