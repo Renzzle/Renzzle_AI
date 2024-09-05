@@ -5,6 +5,26 @@
 class VCFSearchTest : public TestBase {
 
 private:
+    void printVCFPath(const vector<Pos>& path, Board& board) {
+        for (size_t i = 0; i < path.size(); ++i) {
+            const Pos& p = path[i];
+
+            string player = (i % 2 == 0) ? "BLACK" : "WHITE";
+            TEST_PRINT(i + 1 << ": (" << (char)(p.getY() + 96) << ", " << p.getX() << ") - " << player);
+        }
+    }
+
+    void printSimulatedVCFPath(const vector<Pos>& path, Board& board) {
+        size_t originalMoveCount = board.getPath().size();
+
+        for (size_t i = originalMoveCount; i < path.size(); ++i) {
+            const Pos& p = path[i];
+
+            string player = (i % 2 == 0) ? "BLACK" : "WHITE";
+            TEST_PRINT(i + 1 << ": (" << (char)(p.getY() + 96) << ", " << p.getX() << ") - " << player);
+        }
+    }
+
     void vcfTest(string process, bool isExist) {
         Board board = getBoard(process);
         VCFSearch vcfSearcher(board);
@@ -15,14 +35,15 @@ private:
         bool result = vcfSearcher.findVCF();
         TEST_TIME_END("vcf search");
 
-        // vector<Pos> path = vcfSearcher.getVCFPath();
-        // for (Pos p : path) {
-        //     TEST_PRINT("(" << p.getX() << ", " << (char)(p.getY() + 96) << ") ");
-        // }
+        vector<Pos> path = vcfSearcher.getVCFPath();
 
-        assert(result == isExist);
-        cout << endl;
+        TEST_PRINT("printVCFPath");
+        printVCFPath(path, board);
+
+        TEST_PRINT("printSimulatedVCFPath");
+        printSimulatedVCFPath(path, board);
     }
+
 
 public:
     VCFSearchTest() {

@@ -36,7 +36,6 @@ PUBLIC
     Result getResult();
     bool isForbidden(Pos p);
     vector<Pos> getPath();
-    vector<Pos> getAllEmptyPositions() const;
     
 };
 
