@@ -27,7 +27,7 @@ vector<pair<int, int>> processString(const string& input) {
 
         int letterValue = letter - 'a' + 1;
 
-        result.emplace_back(letterValue, number);
+        result.emplace_back(number, letterValue);
     }
     return result;
 }
@@ -48,13 +48,12 @@ void printBoard(Board& board) {
 
     CellArray cells = board.getBoardStatus();
     
-    for (int i = 0; i < BOARD_SIZE + 2; i++) {
-
+    for (int i = BOARD_SIZE + 1; i >= 0; i--) {
         for (int j = 0; j < BOARD_SIZE + 2; j++) {
             Piece p = cells[i][j].getPiece();
             switch (p) {
                 case WALL:
-                    if (i == BOARD_SIZE + 1 && j < BOARD_SIZE) printf("%2c", j + 65);
+                    if (i == 0 && j < BOARD_SIZE) printf("%2c", j + 65);
                     else if (i != 0 && i != BOARD_SIZE + 1 && j != 0) printf(" %02d", i);
                     break;
                 case BLACK:
@@ -79,7 +78,7 @@ void printBoard(Board& board) {
 
 void printPatternCells(CellArray& cells, Piece p, Direction k) {
     const char* patternNames[] = { " N", " D", "OL", "B1", " 1", "B2", " 2", "2A", "2B", "B3", " 3", "3A", "B4", " 4", " 5", " P" };
-    for (int i = 0; i < BOARD_SIZE + 2; i++) {
+    for (int i = BOARD_SIZE + 1; i >= 0; i--) {
         for (int j = 0; j < BOARD_SIZE + 2; j++) {
             if (cells[i][j].getPiece() != EMPTY) {
                 if (cells[i][j].getPiece() == BLACK) {
@@ -87,7 +86,7 @@ void printPatternCells(CellArray& cells, Piece p, Direction k) {
                 } else if (cells[i][j].getPiece() == WHITE) {
                     cout << "⚪"; 
                 } else {
-                    if (i == BOARD_SIZE + 1 && j < BOARD_SIZE) 
+                    if (i == 0 && j < BOARD_SIZE) 
                         printf("%2c", j + 65);
                     else if (i != 0 && i != BOARD_SIZE + 1 && j != 0) 
                         printf(" %02d", i);

@@ -25,23 +25,27 @@ private:
         }
     }
 
-    void vcfTest(string process, bool isExist) {
+    void vcfTest(string process) {
         Board board = getBoard(process);
         VCFSearch vcfSearcher(board);
 
         printBoard(board);
+        TEST_PRINT("");
 
         TEST_TIME_START();
         bool result = vcfSearcher.findVCF();
-        TEST_TIME_END("vcf search");
+        TEST_TIME_END("∙ vcf search");
+        TEST_PRINT("");
 
         vector<Pos> path = vcfSearcher.getVCFPath();
 
-        TEST_PRINT("printVCFPath");
+        TEST_PRINT("∙ printVCFPath");
         printVCFPath(path, board);
+        TEST_PRINT("");
 
-        TEST_PRINT("printSimulatedVCFPath");
+        TEST_PRINT("∙ printSimulatedVCFPath");
         printSimulatedVCFPath(path, board);
+        TEST_PRINT("");
     }
 
 
@@ -59,7 +63,9 @@ public:
         };
 
         for (auto process : processArr) {
-            vcfTest(process, true);
+            TEST_PRINT("=================================\n");
+            TEST_PRINT("path: " << process);
+            vcfTest(process);
         }
     }
 
@@ -71,7 +77,9 @@ public:
         };
 
         for (auto process : processArr) {
-            vcfTest(process, true);
+            TEST_PRINT("=================================\n");
+            TEST_PRINT("∙ path: " << process);
+            vcfTest(process);
         }
     }
 
