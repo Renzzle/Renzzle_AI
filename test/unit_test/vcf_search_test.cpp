@@ -74,7 +74,6 @@ public:
             "h8g9h9g10h10h6i8i9g11i10f13h12d10e11d9e9d8b10c9f8e8i13e7e13i6",
             "h8h9i9g10e12f11g8g9i10",
             "h8g9i9f9c9e9g8g7i10g10e10f11e12",
-            "h13f13h12j13k13c10e10c9e9c8e8c4e4c3e3c2e2c11l7c13n8n7n9n6f2f3g2g3i2i3j2"
         };
 
         for (auto process : processArr) {

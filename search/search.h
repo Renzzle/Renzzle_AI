@@ -13,7 +13,7 @@ private:
     Evaluator evaluator;
     Color targetColor;
     int maxDepth;
-    vector<Pos> simulatedPath;
+    vector<Pos> path;
     int alphaBeta(Board& board, int depth, int alpha, int beta, bool maximizingPlayer);
     int ids(Board& board, int depthLimit);
     bool isGameOver(Board& board);
@@ -24,7 +24,7 @@ public:
     Pos findBestMove();
     Pos iterativeDeepeningSearch();
     vector<Pos> getPath();
-    // vector<Pos> getSimulatedPath();
+    vector<Pos> getSimulatedPath();
 
 };
 
@@ -34,7 +34,7 @@ Search::Search(Board& board, int maxDepth) : treeManager(board), maxDepth(maxDep
 
 int Search::alphaBeta(Board& board, int depth, int alpha, int beta, bool maximizingPlayer) {
     if (depth == 0 || isGameOver(board)) {
-        if (depth == 0) simulatedPath = treeManager.getPath();
+        if (depth == 0) path = treeManager.getPath();
         return          evaluator.evaluate(board);
     }
 
@@ -93,7 +93,7 @@ bool Search::isTargetTurn() {
 }
 
 Pos Search::findBestMove() {
-    simulatedPath.clear();
+    path.clear();
 
     int bestValue = MIN_VALUE;
     Pos bestMove;
@@ -102,10 +102,10 @@ Pos Search::findBestMove() {
 
     for (Pos move : moves) {
         treeManager.move(move);
-        simulatedPath.push_back(move);
+        path.push_back(move);
         int moveValue = alphaBeta(treeManager.getBoard(), maxDepth - 1, MIN_VALUE, MAX_VALUE, false);
         treeManager.undo();
-        simulatedPath.pop_back();
+        path.pop_back();
 
         if (moveValue > bestValue) {
             bestValue = moveValue;
@@ -122,11 +122,5 @@ Pos Search::iterativeDeepeningSearch() {
 }
 
 vector<Pos> Search::getPath() {
-    vector<Pos> path = treeManager.getPath();
-    path.insert(path.end(), simulatedPath.begin(), simulatedPath.end());
     return path;
 }
-
-// vector<Pos> Search::getSimulatedPath() {
-//     return simulatedPath;
-// }

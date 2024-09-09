@@ -14,9 +14,9 @@ PRIVATE
         }
     }
 
-    void printSimulatedPath(const vector<Pos>& path, Board& board) {
+    void printSimulatedPath(const vector<Pos>& path, Board& board) {     
         size_t originalMoveCount = board.getPath().size();
-        
+   
         for (size_t i = originalMoveCount; i < path.size(); ++i) {
             const Pos& p = path[i];
 
