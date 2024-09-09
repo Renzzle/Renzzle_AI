@@ -23,6 +23,7 @@ PUBLIC
     shared_ptr<Node> getNode(Board& board);
     shared_ptr<Node> createNode(Board board, Pos move, Value score, int depth);
     vector<Pos> getVCFPath();
+    vector<Pos> getPath();
 
 };
 
@@ -72,5 +73,9 @@ shared_ptr<Node> TreeManager::createNode(Board board, Pos move, Value score, int
 }
 
 vector<Pos> TreeManager::getVCFPath() {
+    return currentNode->board.getPath();
+}
+
+vector<Pos> TreeManager::getPath() {
     return currentNode->board.getPath();
 }

@@ -113,37 +113,37 @@ public:
          * wall : |
          */
         // dead: x.o?x
-        assert(board.getCell(Pos(9, 13)).getPattern(BLACK, VERTICAL) == DEAD);
+        assert(board.getCell(Pos(13, 9)).getPattern(BLACK, HORIZONTAL) == DEAD);
         // normal overline: ooo?oo
-        assert(board.getCell(Pos(8, 2)).getPattern(BLACK, VERTICAL) == OVERLINE);
+        assert(board.getCell(Pos(2, 8)).getPattern(BLACK, HORIZONTAL) == OVERLINE);
         // 4-4 overline: ooo.?.ooo
-        assert(board.getCell(Pos(5, 6)).getPattern(BLACK, HORIZONTAL) == OVERLINE);
+        assert(board.getCell(Pos(6, 5)).getPattern(BLACK, VERTICAL) == OVERLINE);
         // blocked 1: x?....
-        assert(board.getCell(Pos(6, 12)).getPattern(BLACK, HORIZONTAL) == BLOCKED_1);
+        assert(board.getCell(Pos(12, 6)).getPattern(BLACK, VERTICAL) == BLOCKED_1);
         // free 1: x.?...
-        assert(board.getCell(Pos(6, 11)).getPattern(BLACK, HORIZONTAL) == FREE_1);
+        assert(board.getCell(Pos(11, 6)).getPattern(BLACK, VERTICAL) == FREE_1);
         // blocked 2: xo?....
-        assert(board.getCell(Pos(12, 13)).getPattern(BLACK, VERTICAL) == BLOCKED_2);
+        assert(board.getCell(Pos(13, 12)).getPattern(BLACK, HORIZONTAL) == BLOCKED_2);
         // free 2: .o..?.
-        assert(board.getCell(Pos(8, 10)).getPattern(BLACK, UPWARD) == FREE_2);
+        assert(board.getCell(Pos(10, 8)).getPattern(BLACK, UPWARD) == FREE_2);
         // free 2a: .o.?..
-        assert(board.getCell(Pos(9, 11)).getPattern(BLACK, UPWARD) == FREE_2A);
+        assert(board.getCell(Pos(11, 9)).getPattern(BLACK, UPWARD) == FREE_2A);
         // free 2b: .o?...
-        assert(board.getCell(Pos(12, 8)).getPattern(BLACK, HORIZONTAL) == FREE_2B);
+        assert(board.getCell(Pos(8, 12)).getPattern(BLACK, VERTICAL) == FREE_2B);
         // blocked 3: ooxx?..
-        assert(board.getCell(Pos(14, 5)).getPattern(WHITE, HORIZONTAL) == BLOCKED_3);
+        assert(board.getCell(Pos(5, 14)).getPattern(WHITE, VERTICAL) == BLOCKED_3);
         // free 3: .x?.x.
-        assert(board.getCell(Pos(4, 13)).getPattern(WHITE, VERTICAL) == FREE_3);
+        assert(board.getCell(Pos(13, 4)).getPattern(WHITE, HORIZONTAL) == FREE_3);
         // free 3a: ..xx?..
-        assert(board.getCell(Pos(8, 11)).getPattern(BLACK, HORIZONTAL) == FREE_3A);
+        assert(board.getCell(Pos(11, 8)).getPattern(BLACK, VERTICAL) == FREE_3A);
         // blocked 4: |?xxx..
-        assert(board.getCell(Pos(3, 1)).getPattern(WHITE, HORIZONTAL) == BLOCKED_4);
+        assert(board.getCell(Pos(1, 3)).getPattern(WHITE, VERTICAL) == BLOCKED_4);
         // free 4: .xxx?.
-        assert(board.getCell(Pos(3, 5)).getPattern(WHITE, HORIZONTAL) == FREE_4);
+        assert(board.getCell(Pos(5, 3)).getPattern(WHITE, VERTICAL) == FREE_4);
         // five: ?xxxx
-        assert(board.getCell(Pos(3, 7)).getPattern(WHITE, HORIZONTAL) == FIVE);
+        assert(board.getCell(Pos(7, 3)).getPattern(WHITE, VERTICAL) == FIVE);
         // white overline five: xxxx?x
-        assert(board.getCell(Pos(3, 12)).getPattern(WHITE, HORIZONTAL) == FIVE);
+        assert(board.getCell(Pos(12, 3)).getPattern(WHITE, VERTICAL) == FIVE);
     }
 
     void forbiddenTest() {
