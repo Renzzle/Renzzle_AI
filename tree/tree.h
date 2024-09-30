@@ -29,12 +29,7 @@ namespace std {
 class Tree {
 
 private:
-    unordered_map<size_t, shared_ptr<Node>> nodeMap; // Hash map to store nodes with board state keys.
-
-    static size_t zobristTable[BOARD_SIZE + 2][BOARD_SIZE + 2][NUM_PIECE_TYPES];
-    static bool zobristInitialized;
-
-    static void initializeZobristTable();
+    unordered_map<size_t, shared_ptr<Node>> nodeMap;
 
 public:
     Tree();
@@ -53,66 +48,11 @@ public:
 
 };
 
-size_t Tree::zobristTable[BOARD_SIZE + 2][BOARD_SIZE + 2][NUM_PIECE_TYPES];
-bool Tree::zobristInitialized = false;
-
-Tree::Tree() {
-    if (!zobristInitialized) {
-        initializeZobristTable();
-        zobristInitialized = true;
-    }
-}
-
-void Tree::initializeZobristTable() {
-    random_device rd;
-    mt19937_64 rng(rd());
-    uniform_int_distribution<size_t> dist(0, numeric_limits<size_t>::max());
-
-    for (int i = 0; i <= BOARD_SIZE + 1; ++i) {
-        for (int j = 0; j <= BOARD_SIZE + 1; ++j) {
-            for (int k = 0; k < NUM_PIECE_TYPES; ++k) {
-                zobristTable[i][j][k] = dist(rng);
-            }
-        }
-    }
-}
+Tree::Tree() { }
 
 // Definition of the generateKey method.
 size_t Tree::generateKey(Board& board) {
-    size_t hashValue = 0;
-
-    auto& cells = board.getBoardStatus();
-
-    for (int i = 0; i <= BOARD_SIZE + 1; ++i) {
-        for (int j = 0; j <= BOARD_SIZE + 1; ++j) {
-            Piece piece = cells[i][j].getPiece();
-
-            int pieceIndex = 0;
-
-            switch (piece) {
-                case EMPTY:
-                    pieceIndex = 0;
-                    break;
-                case BLACK:
-                    pieceIndex = 1;
-                    break;
-                case WHITE:
-                    pieceIndex = 2;
-                    break;
-                case WALL:
-                    pieceIndex = 3;
-                    break;
-                default:
-                    pieceIndex = 0;
-            }
-
-            if (piece != EMPTY) {
-                hashValue ^= zobristTable[i][j][pieceIndex];
-            }
-        }
-    }
-
-    return hashValue;
+    return board.getCurrentHash();
 }
 
 // Definition of the addNode method.
