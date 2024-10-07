@@ -220,7 +220,6 @@ public:
         treeManager.move(Pos(8, 5)); // h5
         treeManager.move(Pos(9, 5)); // i5
 
-
         // Retrieve the current node
         shared_ptr<Node> currentNode = treeManager.getNode(treeManager.getBoard());
         assert(currentNode != nullptr);
@@ -341,9 +340,10 @@ public:
 
         const size_t NUM_POSITIONS = 10000;
         unordered_set<size_t> hashSet;
+        unordered_set<string> boardSet;
         size_t collisionCount = 0;
 
-        TEST_PRINT("Generating and hashing " << NUM_POSITIONS << " board positions...");
+        TEST_PRINT("Generating and hashing " << NUM_POSITIONS << " unique board positions...");
 
         TEST_TIME_START();
 
@@ -351,11 +351,14 @@ public:
         mt19937 gen(rd());
         uniform_int_distribution<> moveDist(1, BOARD_SIZE);
 
-        for (size_t i = 0; i < NUM_POSITIONS; ++i) {
+        size_t generatedBoards = 0;
+
+        while (generatedBoards < NUM_POSITIONS) {
             Board board;
-            size_t numMoves = (i % (BOARD_SIZE * BOARD_SIZE / 2)) + 1;
+            size_t numMoves = (generatedBoards % (BOARD_SIZE * BOARD_SIZE / 2)) + 1;
 
             set<pair<int, int>> occupiedPositions;
+            vector<pair<int, int>> moves;
 
             for (size_t moveNum = 0; moveNum < numMoves; ++moveNum) {
                 int x, y;
@@ -365,25 +368,41 @@ public:
                 } while (occupiedPositions.find({x, y}) != occupiedPositions.end());
 
                 occupiedPositions.insert({x, y});
+                moves.push_back({x, y});
                 board.move(Pos(x, y));
             }
 
-            size_t hashValue = board.getCurrentHash();
-
-            if (hashSet.find(hashValue) != hashSet.end()) {
-                collisionCount++;
-            } else {
-                hashSet.insert(hashValue);
+            string boardKey;
+            for (int i = 1; i <= BOARD_SIZE; ++i) {
+                for (int j = 1; j <= BOARD_SIZE; ++j) {
+                    Piece piece = board.getCell(Pos(i, j)).getPiece();
+                    boardKey += to_string(static_cast<int>(piece)) + ",";
+                }
             }
 
-            if ((i + 1) % 1000 == 0) {
-                TEST_PRINT("Processed " << (i + 1) << " positions...");
+            if (boardSet.find(boardKey) != boardSet.end()) {
+                continue;
+            } else {
+                boardSet.insert(boardKey);
+                generatedBoards++;
+
+                size_t hashValue = board.getCurrentHash();
+
+                if (hashSet.find(hashValue) != hashSet.end()) {
+                    collisionCount++;
+                } else {
+                    hashSet.insert(hashValue);
+                }
+
+                if (generatedBoards % 1000 == 0) {
+                    TEST_PRINT("Processed " << generatedBoards << " unique positions...");
+                }
             }
         }
 
         TEST_TIME_END("Hashing and collision detection");
 
-        TEST_PRINT("Total positions hashed: " << NUM_POSITIONS);
+        TEST_PRINT("Total unique positions hashed: " << NUM_POSITIONS);
         TEST_PRINT("Total collisions found: " << collisionCount);
         TEST_PRINT("Unique hashes: " << hashSet.size());
 

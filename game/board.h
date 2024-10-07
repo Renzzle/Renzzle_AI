@@ -93,13 +93,16 @@ bool Board::move(Pos p) {
 
     Piece piece = isBlackTurn() ? BLACK : WHITE;
     int pieceIndex = getPieceIndex(piece);
+
     currentHash ^= zobristTable[p.x][p.y][pieceIndex];
+
+    getCell(p).setPiece(piece);
 
     moveCnt++;
     moves.push_back(p);
     
     setResult(p);
-    getCell(p).setPiece(isBlackTurn() ? WHITE : BLACK);
+
     clearPattern(getCell(p));
     setPatterns(p);
 
@@ -112,15 +115,17 @@ void Board::undo() {
 
     Piece piece = getCell(p).getPiece();
     int pieceIndex = getPieceIndex(piece);
-    currentHash ^= zobristTable[p.x][p.y][pieceIndex];
 
+    currentHash ^= zobristTable[p.x][p.y][pieceIndex];
+    
+    getCell(p).setPiece(EMPTY);
 
     moveCnt--;
-    getCell(p).setPiece(EMPTY);
-    setPatterns(p);
-    result = ONGOING;
-
     moves.pop_back();
+
+    setPatterns(p);
+
+    result = ONGOING;
 }
 
 Result Board::getResult() {
@@ -322,17 +327,21 @@ Pattern Board::getPattern(Line& line, Color color) {
 }
 
 void Board::setResult(Pos& p) {
-    bool isBlackTurn = this->isBlackTurn();
+    Piece self = getCell(p).getPiece();
 
-    if (!isBlackTurn && isForbidden(p)) {
+    if (self == EMPTY) {
+        result = ONGOING;
+        return;
+    }
+
+    if (self == BLACK && isForbidden(p)) {
         result = WHITE_WIN;
         return;
     }
 
-    Piece self = isBlackTurn ? WHITE : BLACK;
     for (Direction dir = DIRECTION_START; dir < DIRECTION_SIZE; dir++) {
-        if(getCell(p).getPattern(self, dir) == FIVE) {
-            result = isBlackTurn ? WHITE_WIN : BLACK_WIN;
+        if (getCell(p).getPattern(self, dir) == FIVE) {
+            result = (self == BLACK) ? BLACK_WIN : WHITE_WIN;
             return;
         }
     }
