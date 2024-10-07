@@ -7,6 +7,11 @@
 #include <functional>
 #include <algorithm>
 #include <memory>
+#include <random>
+#include <limits>
+
+
+#define NUM_PIECE_TYPES 4
 
 using namespace std;
 using Value = int;
@@ -24,9 +29,11 @@ namespace std {
 class Tree {
 
 private:
-    unordered_map<size_t, shared_ptr<Node>> nodeMap; // Hash map to store nodes with board state keys.
+    unordered_map<size_t, shared_ptr<Node>> nodeMap;
 
 public:
+    Tree();
+
     // Method to generate the key for the hash map.
     size_t generateKey(Board& board);
 
@@ -41,40 +48,11 @@ public:
 
 };
 
+Tree::Tree() { }
+
 // Definition of the generateKey method.
 size_t Tree::generateKey(Board& board) {
-    vector<Pos> whiteStones;
-    vector<Pos> blackStones;
-
-    auto cells = board.getBoardStatus();
-    for (int i = 1; i <= BOARD_SIZE; i++) {
-        for (int j = 1; j <= BOARD_SIZE; j++) {
-            Pos p(i, j);
-            if (cells[i][j].getPiece() == WHITE) {
-                whiteStones.push_back(p);
-            } else if (cells[i][j].getPiece() == BLACK) {
-                blackStones.push_back(p);
-            }
-        }
-    }
-    
-    sort(whiteStones.begin(), whiteStones.end());
-    sort(blackStones.begin(), blackStones.end());
-
-    size_t hashValue = 0;
-    size_t prime = 31; // small decimal value add to the hash value
-    
-    // Combine the positions of white stones
-    for (const auto& pos : whiteStones) {
-        hashValue ^= (hash<Pos>()(pos) + prime + (hashValue << 6) + (hashValue >> 2));
-    }
-
-    // Combine the positions of black stones
-    for (const auto& pos : blackStones) {
-        hashValue ^= (hash<Pos>()(pos) + prime + (hashValue << 6) + (hashValue >> 2));
-    }
-
-    return hashValue;
+    return board.getCurrentHash();
 }
 
 // Definition of the addNode method.
