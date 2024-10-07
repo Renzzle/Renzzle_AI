@@ -31,7 +31,7 @@ public:
         // registerTestMethod([this]() { testGenKey(); });
 
         // registerTestMethod([this]() { zobristHashUpdateTest(); });
-        // registerTestMethod([this]() { zobristHashConsistencyTest(); });
+        registerTestMethod([this]() { zobristHashConsistencyTest(); });
         // registerTestMethod([this]() { zobristHashAfterUndoTest(); });
         registerTestMethod([this]() { zobristHashCollisionTest(); });
     }
@@ -278,11 +278,17 @@ public:
         Board board1;
         Board board2;
 
-        string moves = "h8h9i8i9j8j9k8k9";
-        vector<pair<int, int>> v = processString(moves);
+        string moves1 = "h8h9i8i9j8j9k8k9";
+        vector<pair<int, int>> v1 = processString(moves1);
 
-        for (auto p : v) {
+        for (auto p : v1) {
             board1.move(Pos(p.first, p.second));
+        }
+
+        string moves2 = "j8j9k8k9h8h9i8i9";
+        vector<pair<int, int>> v2 = processString(moves2);
+
+        for (auto p : v2) {
             board2.move(Pos(p.first, p.second));
         }
 
