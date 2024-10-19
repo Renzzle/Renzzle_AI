@@ -30,10 +30,10 @@ public:
         // registerTestMethod([this]() { sequentialMovePathTest(); });
         // registerTestMethod([this]() { testGenKey(); });
 
-        // registerTestMethod([this]() { zobristHashUpdateTest(); });
+        registerTestMethod([this]() { zobristHashUpdateTest(); });
         registerTestMethod([this]() { zobristHashConsistencyTest(); });
-        // registerTestMethod([this]() { zobristHashAfterUndoTest(); });
-        registerTestMethod([this]() { zobristHashCollisionTest(); });
+        registerTestMethod([this]() { zobristHashAfterUndoTest(); });
+        // registerTestMethod([this]() { zobristHashCollisionTest(); });
     }
 
     void rootNodeInitializationTest() {
@@ -263,8 +263,7 @@ public:
 
         TEST_ASSERT(initialHash != hashAfterMove);
 
-        int pieceIndex = board.getPieceIndex(BLACK);
-        size_t expectedHash = initialHash ^ Board::zobristTable[movePos.getX()][movePos.getY()][pieceIndex];
+        size_t expectedHash = initialHash ^ getZobristValue(movePos.getX(), movePos.getY(), BLACK);
         TEST_PRINT("Expected Hash after move: " << expectedHash);
 
         TEST_ASSERT(hashAfterMove == expectedHash);
