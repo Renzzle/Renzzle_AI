@@ -2,14 +2,13 @@
 
 #include "line.h"
 #include "pos.h"
+#include "zobrist.h"
 #include "../test/test.h"
 #include <array>
 #include <vector>
-#include <random>
 
 #define BOARD_SIZE 15
 #define STATIC_WALL &cells[0][0];
-#define NUM_PIECE_TYPES 4
 
 using CellArray = array<array<Cell, BOARD_SIZE + 2>, BOARD_SIZE + 2>;
 using MoveList = vector<Pos>;
@@ -22,12 +21,6 @@ PRIVATE
     unsigned int moveCnt;
     Result result;
     size_t currentHash;
-
-    static size_t zobristTable[BOARD_SIZE + 2][BOARD_SIZE + 2][NUM_PIECE_TYPES];
-    static bool zobristInitialized;
-
-    static void initializeZobristTable();
-    int getPieceIndex(Piece piece);
 
     void clearPattern(Cell& cell);
     void setPatterns(Pos& p);
@@ -49,14 +42,7 @@ PUBLIC
     
 };
 
-size_t Board::zobristTable[BOARD_SIZE + 2][BOARD_SIZE + 2][NUM_PIECE_TYPES];
-bool Board::zobristInitialized = false;
-
 Board::Board() {
-    if (!zobristInitialized) {
-        initializeZobristTable();
-        zobristInitialized = true;
-    }
     currentHash = 0;
     moveCnt = 0;
     result = ONGOING;
@@ -65,8 +51,7 @@ Board::Board() {
         for (int j = 0; j < BOARD_SIZE + 2; j++) {
             if (i == 0 || i == BOARD_SIZE + 1 || j == 0 || j == BOARD_SIZE + 1) {
                 cells[i][j].setPiece(WALL);
-                int pieceIndex = getPieceIndex(WALL);
-                currentHash ^= zobristTable[i][j][pieceIndex];
+                currentHash ^= getZobristValue(i, j, WALL);
             } else {
                 cells[i][j].setPiece(EMPTY);
             }
@@ -91,17 +76,14 @@ bool Board::move(Pos p) {
     if (result != ONGOING) return false;
     if (moveCnt == BOARD_SIZE * BOARD_SIZE) return false;
 
-    Piece piece = isBlackTurn() ? BLACK : WHITE;
-    int pieceIndex = getPieceIndex(piece);
-
-    currentHash ^= zobristTable[p.x][p.y][pieceIndex];
-
-    getCell(p).setPiece(piece);
-
     moveCnt++;
     moves.push_back(p);
-    
+
     setResult(p);
+
+    Piece piece = isBlackTurn() ? WHITE : BLACK;
+    currentHash ^= getZobristValue(p.x, p.y, piece);
+    getCell(p).setPiece(piece);
 
     clearPattern(getCell(p));
     setPatterns(p);
@@ -114,9 +96,7 @@ void Board::undo() {
     Pos p = moves.back();
 
     Piece piece = getCell(p).getPiece();
-    int pieceIndex = getPieceIndex(piece);
-
-    currentHash ^= zobristTable[p.x][p.y][pieceIndex];
+    currentHash ^= getZobristValue(p.x, p.y, piece);
     
     getCell(p).setPiece(EMPTY);
 
@@ -327,53 +307,20 @@ Pattern Board::getPattern(Line& line, Color color) {
 }
 
 void Board::setResult(Pos& p) {
-    Piece self = getCell(p).getPiece();
+    bool isBlackTurn = this->isBlackTurn();
 
-    if (self == EMPTY) {
-        result = ONGOING;
-        return;
-    }
-
-    if (self == BLACK && isForbidden(p)) {
+    if (!isBlackTurn && isForbidden(p)) {
         result = WHITE_WIN;
         return;
     }
 
+    Piece self = isBlackTurn ? WHITE : BLACK;
     for (Direction dir = DIRECTION_START; dir < DIRECTION_SIZE; dir++) {
-        if (getCell(p).getPattern(self, dir) == FIVE) {
-            result = (self == BLACK) ? BLACK_WIN : WHITE_WIN;
+        if(getCell(p).getPattern(self, dir) == FIVE) {
+            result = isBlackTurn ? WHITE_WIN : BLACK_WIN;
             return;
         }
     }
 
     result = ONGOING;
-}
-
-void Board::initializeZobristTable() {
-    random_device rd;
-    mt19937_64 rng(rd());
-    uniform_int_distribution<size_t> dist(0, numeric_limits<size_t>::max());
-
-    for (int i = 0; i <= BOARD_SIZE + 1; ++i) {
-        for (int j = 0; j <= BOARD_SIZE + 1; ++j) {
-            for (int k = 0; k < NUM_PIECE_TYPES; ++k) {
-                zobristTable[i][j][k] = dist(rng);
-            }
-        }
-    }
-}
-
-int Board::getPieceIndex(Piece piece) {
-    switch (piece) {
-        case EMPTY:
-            return 0;
-        case BLACK:
-            return 1;
-        case WHITE:
-            return 2;
-        case WALL:
-            return 3;
-        default:
-            return 0;
-    }
 }
