@@ -10,6 +10,7 @@
 #define BOARD_SIZE 15
 #define STATIC_WALL &cells[0][0];
 
+using namespace std;
 using CellArray = array<array<Cell, BOARD_SIZE + 2>, BOARD_SIZE + 2>;
 using MoveList = vector<Pos>;
 

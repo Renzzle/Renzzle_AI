@@ -61,7 +61,6 @@ PUBLIC
     vector<Pos> getCandidates(Board& board);
     vector<Pos> getFours(Board& board);
     int evaluate(Board& board);
-    //int vcfEvaluate(Board& board, Color targetColor);
 
 }; 
 
