@@ -18,8 +18,7 @@ class Board {
 
 PRIVATE
     CellArray cells;
-    MoveList moves;
-    unsigned int moveCnt;
+    MoveList path;
     Result result;
     size_t currentHash;
 
@@ -38,14 +37,13 @@ PUBLIC
     void undo();
     Result getResult();
     bool isForbidden(Pos p);
-    vector<Pos> getPath();
+    MoveList getPath();
     size_t getCurrentHash() const;
     
 };
 
 Board::Board() {
     currentHash = 0;
-    moveCnt = 0;
     result = ONGOING;
 
     for (int i = 0; i < BOARD_SIZE + 2; i++) {
@@ -61,7 +59,7 @@ Board::Board() {
 }
 
 bool Board::isBlackTurn() {
-    return moveCnt % 2 == 0;
+    return path.size() % 2 == 0;
 }
 
 CellArray& Board::getBoardStatus() {
@@ -75,10 +73,9 @@ Cell& Board::getCell(const Pos p) {
 bool Board::move(Pos p) {
     if (getCell(p).getPiece() != EMPTY) return false;
     if (result != ONGOING) return false;
-    if (moveCnt == BOARD_SIZE * BOARD_SIZE) return false;
+    if (path.size() == BOARD_SIZE * BOARD_SIZE) return false;
 
-    moveCnt++;
-    moves.push_back(p);
+    path.push_back(p);
 
     setResult(p);
 
@@ -93,16 +90,15 @@ bool Board::move(Pos p) {
 }
 
 void Board::undo() {
-    if (moves.empty()) return;
-    Pos p = moves.back();
+    if (path.empty()) return;
+    Pos p = path.back();
 
     Piece piece = getCell(p).getPiece();
     currentHash ^= getZobristValue(p.x, p.y, piece);
     
     getCell(p).setPiece(EMPTY);
 
-    moveCnt--;
-    moves.pop_back();
+    path.pop_back();
 
     setPatterns(p);
 
@@ -192,7 +188,7 @@ bool Board::isForbidden(Pos p) {
 }
 
 vector<Pos> Board::getPath() {
-    return moves;
+    return path;
 }
 
 size_t Board::getCurrentHash() const {

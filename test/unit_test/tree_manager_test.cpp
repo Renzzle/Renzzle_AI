@@ -28,12 +28,11 @@ public:
         // registerTestMethod([this]() { boardStateTest(); });
         // registerTestMethod([this]() { movePathTest(); });
         // registerTestMethod([this]() { sequentialMovePathTest(); });
-        // registerTestMethod([this]() { testGenKey(); });
 
         registerTestMethod([this]() { zobristHashUpdateTest(); });
         registerTestMethod([this]() { zobristHashConsistencyTest(); });
         registerTestMethod([this]() { zobristHashAfterUndoTest(); });
-        // registerTestMethod([this]() { zobristHashCollisionTest(); });
+        registerTestMethod([this]() { zobristHashCollisionTest(); });
     }
 
     void rootNodeInitializationTest() {
@@ -46,9 +45,9 @@ public:
         shared_ptr<Node> rootNode = treeManager.getNode(board);
 
         assert(rootNode != nullptr);
-        assert(rootNode->move.getX() == 0 && rootNode->move.getY() == 0);
-        assert(rootNode->depth == 0);
-        assert(rootNode->val == 0);
+        //assert(rootNode->move.getX() == 0 && rootNode->move.getY() == 0);
+        //assert(rootNode->depth == 0);
+        //assert(rootNode->val == 0);
 
         for (int i = 1; i <= BOARD_SIZE; i++) 
             for (int j = 1; j <= BOARD_SIZE; j++) 
@@ -79,7 +78,7 @@ public:
         assert(currentNode->board.getPath().back().getX() == movePos.getX() && currentNode->board.getPath().back().getY() == movePos.getY());
 
         // 3. Verify that the depth is correctly incremented
-        assert(currentNode->depth == 1); // Initial depth was 0, so it should be 1 now
+        //assert(currentNode->depth == 1); // Initial depth was 0, so it should be 1 now
     }
 
     void generateKeyTest() {
@@ -166,8 +165,8 @@ public:
             assert(currentNode->board.getCell(pos).getPiece() == piece);
         }
 
-        assert(currentNode->depth == 0);
-        assert(currentNode->val == 0);
+        //assert(currentNode->depth == 0);
+        //assert(currentNode->val == 0);
     }
 
     void movePathTest() {
@@ -237,16 +236,6 @@ public:
         assert(currentNode->board.getPath()[5].getX() == 9 && currentNode->board.getPath()[5].getY() == 6); // i6
         assert(currentNode->board.getPath()[6].getX() == 8 && currentNode->board.getPath()[6].getY() == 5); // h5
         assert(currentNode->board.getPath()[7].getX() == 9 && currentNode->board.getPath()[7].getY() == 5); // i5
-    }
-
-    void testGenKey(){
-        Board board = getBoard("a14a15c15d14h9e4e9c12j4k7f10b5m11i5g11c7e12g8k11g9c4d11f7k10k4f4e10d5f12i7i11i4c2k8d12g2d8m12g7g13g6j13j8l13h5i14e5e14l11l5k9f3l10f5e7k5i10c5c13i2j9m2h14a10a4b12b7d13f8k13n5m8j3f9b4a8d15d10c10g14l9o12j2k6m3a7j15d7e13g1j7l2c9n12n15o8n13o2n6m1m15j11n10n7n2o6");
-        Tree tree;  
-        TEST_TIME_START();
-        for (int i = 0; i < 10000; i++) {
-            tree.generateKey(board);
-        }
-        TEST_TIME_END("genKey(x10000)");
     }
 
     void zobristHashUpdateTest() {

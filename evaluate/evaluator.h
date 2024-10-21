@@ -7,7 +7,10 @@
 #define MAX_VALUE 50000
 #define MIN_VALUE -50000
 
+// for sort positions value
 using Score = int;
+// evaluate value
+using Value = int;
 
 class Evaluator {
 
@@ -256,7 +259,7 @@ vector<Pos> Evaluator::getFours(Board& board) {
     return result;
 }
 
-int Evaluator::evaluate(Board& board) {
+Value Evaluator::evaluate(Board& board) {
     classify(board);
 
     // case 1: finish

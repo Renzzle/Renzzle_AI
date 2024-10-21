@@ -5,47 +5,28 @@
 class VCFSearchTest : public TestBase {
 
 private:
-    void printVCFPath(const vector<Pos>& path, Board& board) {
-        for (size_t i = 0; i < path.size(); ++i) {
-            const Pos& p = path[i];
-
-            string player = (i % 2 == 0) ? "BLACK" : "WHITE";
-            TEST_PRINT(i + 1 << ": (" << (char)(p.getY() + 96) << ", " << p.getX() << ") - " << player);
-        }
-    }
-
-    void printSimulatedVCFPath(const vector<Pos>& path, Board& board) {
-        size_t originalMoveCount = board.getPath().size();
-
-        for (size_t i = originalMoveCount; i < path.size(); ++i) {
-            const Pos& p = path[i];
-
-            string player = (i % 2 == 0) ? "BLACK" : "WHITE";
-            TEST_PRINT(i + 1 << ": (" << (char)(p.getY() + 96) << ", " << p.getX() << ") - " << player);
-        }
-    }
-
     void vcfTest(string process) {
         Board board = getBoard(process);
         VCFSearch vcfSearcher(board);
 
+        TEST_PRINT("==================================");
         printBoard(board);
         TEST_PRINT("");
 
         TEST_TIME_START();
         bool result = vcfSearcher.findVCF();
-        TEST_TIME_END("∙ vcf search");
-        TEST_PRINT("");
+        TEST_TIME_END("vcf search");
 
-        vector<Pos> path = vcfSearcher.getVCFPath();
+        if(!result) {
+            TEST_PRINT("There is no VCF");
+            return;
+        }
 
-        TEST_PRINT("∙ printVCFPath");
-        printVCFPath(path, board);
-        TEST_PRINT("");
-
-        TEST_PRINT("∙ printSimulatedVCFPath");
-        printSimulatedVCFPath(path, board);
-        TEST_PRINT("");
+        MoveList resultPath = vcfSearcher.getVCFPath();
+        int depth = resultPath.size() - board.getPath().size();
+        TEST_PRINT("Find VCF. Depth: " << depth);
+        printPath(resultPath);
+        TEST_PRINT("==================================");
     }
 
 
@@ -59,12 +40,10 @@ public:
         const string processArr[] = {
             "h8h9i8g8i10j9i9i7j10k11h10k10j8k7g10f10g11f12g7f6f7f11",
             "h8h9i8g8i10i9h11g12j9i11j11k10h7i7",
-            "h8h9h10g8f9i9j9g10i8k10g9f7e6f8g6f5f6h6e9d8e8e7e1B1f10c9d9d10b8c11e12d11f11d13d7"
+            "h8h9h10g8f9i9j9g10i8k10g9f7e6f8g6f5f6h6e9d8e8e7e11f10c9d9d10b8c11e12d11f11d13d7"
         };
 
         for (auto process : processArr) {
-            TEST_PRINT("=================================\n");
-            TEST_PRINT("∙ path: " << process);
             vcfTest(process);
         }
     }
@@ -77,8 +56,6 @@ public:
         };
 
         for (auto process : processArr) {
-            TEST_PRINT("=================================\n");
-            TEST_PRINT("∙ path: " << process);
             vcfTest(process);
         }
     }

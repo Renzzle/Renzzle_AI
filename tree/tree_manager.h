@@ -21,8 +21,7 @@ PUBLIC
     Board& getBoard();
     void addNode(shared_ptr<Node> node);
     shared_ptr<Node> getNode(Board& board);
-    shared_ptr<Node> createNode(Board board, Pos move, Value score, int depth);
-    vector<Pos> getVCFPath();
+    shared_ptr<Node> createNode(Board board, Value score);
     vector<Pos> getPath();
 
 };
@@ -32,7 +31,7 @@ TreeManager::TreeManager(Board initialBoard) : board(initialBoard), tree() {
     Value initialScore = 0;
     int initialDepth = 0;
 
-    auto rootNode = createNode(board, initialMove, initialScore, initialDepth);
+    auto rootNode = createNode(board, initialScore);
     addNode(rootNode);
     currentNode = rootNode;
     nodeHistory.push(currentNode);
@@ -44,7 +43,7 @@ void TreeManager::move(Pos p) {
     Board newBoard = previousNode->board;
     newBoard.move(p);
 
-    currentNode = createNode(newBoard, p, /*score*/ 0, previousNode->depth + 1);
+    currentNode = createNode(newBoard, /*score*/ 0);
     addNode(currentNode);
     nodeHistory.push(currentNode);
 }
@@ -68,12 +67,8 @@ shared_ptr<Node> TreeManager::getNode(Board& board) {
     return tree.getNode(board);
 }
 
-shared_ptr<Node> TreeManager::createNode(Board board, Pos move, Value score, int depth) {
-    return tree.createNode(board, move, score, depth);
-}
-
-vector<Pos> TreeManager::getVCFPath() {
-    return currentNode->board.getPath();
+shared_ptr<Node> TreeManager::createNode(Board board, Value score) {
+    return tree.createNode(board, score);
 }
 
 vector<Pos> TreeManager::getPath() {
