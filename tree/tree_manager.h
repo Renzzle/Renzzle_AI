@@ -15,6 +15,7 @@ PUBLIC
     TreeManager(Board initialBoard);
     bool move(Pos p);
     void undo();
+    bool isVisited(Pos p);
     Board& getBoard();
 
 };
@@ -58,6 +59,19 @@ void TreeManager::undo() {
         nodeHistory.pop();
         currentNode = nodeHistory.top();
     }
+}
+
+bool TreeManager::isVisited(Pos p) {
+    if(currentNode->childNodes.empty())
+        return false;
+
+    for(const auto& pair : currentNode->childNodes) {
+        shared_ptr<Node> node = pair.second;
+        if (node->board.getPath().back() == p) {
+            return true;
+        }
+    }
+    return false;
 }
 
 Board& TreeManager::getBoard() {

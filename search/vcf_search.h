@@ -17,7 +17,7 @@ PRIVATE
 PUBLIC
     VCFSearch(Board& board);
     bool findVCF();
-    vector<Pos> getVCFPath();
+    MoveList getVCFPath();
 
 };
 
@@ -28,7 +28,7 @@ VCFSearch::VCFSearch(Board& board) : treeManager(board) {
 bool VCFSearch::findVCF() {
     if (isWin()) return true;
     
-    vector<Pos> moves;
+    MoveList moves;
     if (isTargetTurn())
         moves = evaluator.getFours(treeManager.getBoard());
     else 
@@ -64,6 +64,6 @@ bool VCFSearch::isTargetTurn() {
     }
 }
 
-vector<Pos> VCFSearch::getVCFPath() {
+MoveList VCFSearch::getVCFPath() {
     return treeManager.getBoard().getPath();
 }
