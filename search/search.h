@@ -34,7 +34,7 @@ Search::Search(Board& board, int maxDepth) : treeManager(board), maxDepth(maxDep
 
 int Search::alphaBeta(Board& board, int depth, int alpha, int beta, bool maximizingPlayer) {
     if (depth == 0 || isGameOver(board)) {
-        if (depth == 0) path = treeManager.getPath();
+        if (depth == 0) path = treeManager.getBoard().getPath();
         return          evaluator.evaluate(board);
     }
 
