@@ -1,81 +1,79 @@
 #pragma once
 
 #include "tree.h"
-#include "../game/board.h"
 #include "../test/test.h"
 #include <stack>
-#include <iomanip>
 
 class TreeManager {
 
 PRIVATE
-    Board board;
-    Tree tree;
+    static Tree tree;
     shared_ptr<Node> currentNode;
     stack<shared_ptr<Node>> nodeHistory;
 
 PUBLIC
     TreeManager(Board initialBoard);
-    void move(Pos p);
+    bool move(Pos p);
     void undo();
+    bool isVisited(Pos p);
     Board& getBoard();
-    void addNode(shared_ptr<Node> node);
-    shared_ptr<Node> getNode(Board& board);
-    shared_ptr<Node> createNode(Board board, Pos move, Value score, int depth);
-    vector<Pos> getVCFPath();
-    vector<Pos> getPath();
 
 };
 
-TreeManager::TreeManager(Board initialBoard) : board(initialBoard), tree() {
-    Pos initialMove;
-    Value initialScore = 0;
-    int initialDepth = 0;
+Tree TreeManager::tree;
 
-    auto rootNode = createNode(board, initialMove, initialScore, initialDepth);
-    addNode(rootNode);
+TreeManager::TreeManager(Board initialBoard) {
+    auto rootNode = tree.createNode(initialBoard);
+    tree.addNodeAsRoot(rootNode);
     currentNode = rootNode;
     nodeHistory.push(currentNode);
 }
 
-void TreeManager::move(Pos p) {     
+bool TreeManager::move(Pos p) {     
     shared_ptr<Node> previousNode = currentNode;
 
-    Board newBoard = previousNode->board;
-    newBoard.move(p);
+    // if child node exist
+    for(const auto& pair : previousNode->childNodes) {
+        shared_ptr<Node> node = pair.second;
+        if (node->board.getPath().back() == p) {
+            currentNode = node;
+            nodeHistory.push(currentNode);
+            return true;
+        }
+    }
 
-    currentNode = createNode(newBoard, p, /*score*/ 0, previousNode->depth + 1);
-    addNode(currentNode);
+    // new child node
+    Board newBoard = previousNode->board;
+    bool result = newBoard.move(p);
+    if(!result) return result; // move failed
+
+    currentNode = tree.createNode(newBoard);
+    tree.addNode(previousNode, currentNode);
     nodeHistory.push(currentNode);
+    return result;
 }
 
 void TreeManager::undo() {
+    // remain root node
     if (nodeHistory.size() > 1) {
         nodeHistory.pop();
         currentNode = nodeHistory.top();
     }
 }
 
+bool TreeManager::isVisited(Pos p) {
+    if(currentNode->childNodes.empty())
+        return false;
+
+    for(const auto& pair : currentNode->childNodes) {
+        shared_ptr<Node> node = pair.second;
+        if (node->board.getPath().back() == p) {
+            return true;
+        }
+    }
+    return false;
+}
+
 Board& TreeManager::getBoard() {
-    return currentNode -> board;
-}
-
-void TreeManager::addNode(shared_ptr<Node> node) {
-    tree.addNode(node);
-}
-
-shared_ptr<Node> TreeManager::getNode(Board& board) {
-    return tree.getNode(board);
-}
-
-shared_ptr<Node> TreeManager::createNode(Board board, Pos move, Value score, int depth) {
-    return tree.createNode(board, move, score, depth);
-}
-
-vector<Pos> TreeManager::getVCFPath() {
-    return currentNode->board.getPath();
-}
-
-vector<Pos> TreeManager::getPath() {
-    return currentNode->board.getPath();
+    return currentNode->board;
 }

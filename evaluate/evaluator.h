@@ -1,4 +1,5 @@
 #pragma once
+
 #include "../game/board.h"
 #include <vector>
 #include <algorithm>
@@ -6,8 +7,12 @@
  
 #define MAX_VALUE 50000
 #define MIN_VALUE -50000
+#define INITIAL_VALUE -99999
 
+// for sort positions value
 using Score = int;
+// evaluate value
+using Value = int;
 
 class Evaluator {
 
@@ -61,7 +66,6 @@ PUBLIC
     vector<Pos> getCandidates(Board& board);
     vector<Pos> getFours(Board& board);
     int evaluate(Board& board);
-    //int vcfEvaluate(Board& board, Color targetColor);
 
 }; 
 
@@ -257,7 +261,7 @@ vector<Pos> Evaluator::getFours(Board& board) {
     return result;
 }
 
-int Evaluator::evaluate(Board& board) {
+Value Evaluator::evaluate(Board& board) {
     classify(board);
 
     // case 1: finish

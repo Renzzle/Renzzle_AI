@@ -18,7 +18,7 @@
     double seconds = duration.count() / 1e9; \
     std::cout << message << " is taken " << seconds  << " sec" << std::endl;
 
-#define TEST_ASSERT(expression) assert(expression)
+#define TEST_ASSERT(expr) TestBase::assertState((expr), #expr, __FILE__, __LINE__)
 
 #else
 
@@ -32,8 +32,10 @@
 
 #endif
 
+#include <iostream>
 #include <vector>
 #include <functional>
+#include <stdexcept>
 
 using namespace std;
 
@@ -41,6 +43,18 @@ class TestBase {
 public:
     virtual ~TestBase() = default;
     using TestMethod = function<void()>;
+
+    static void assertState(bool state, const string& expression, const char* file, int line) {
+        try {
+            if (!state) {
+                throw runtime_error(expression + 
+                        ", File: " + string(file) + 
+                        ", Line: " + to_string(line));
+            } 
+        } catch (const exception& e) {
+            cerr << "\033[31mAssertion Error: " << e.what() << "\033[0m" << endl;
+        }
+    }
 
     void registerTestMethod(const TestMethod& method) {
         testMethods.push_back(method);

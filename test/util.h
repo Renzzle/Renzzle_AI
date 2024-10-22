@@ -115,7 +115,7 @@ void printBoardPattern(Board& board, Piece p) {
     }
 }
 
-void printPath(vector<Pos> path) {
+void printPath(MoveList path) {
     for (const auto& pos : path) {
         cout << (char)(pos.getY() + 96) << pos.getX();
     }
