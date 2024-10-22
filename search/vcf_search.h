@@ -37,6 +37,8 @@ bool VCFSearch::findVCF() {
     if (moves.empty()) return false;
 
     for (auto move : moves) {
+        if(treeManager.isVisited(move))
+            continue;
         treeManager.move(move);
         if (findVCF()) return true;
         treeManager.undo();
