@@ -2,6 +2,7 @@
 
 #include "../game/board.h"
 #include "../evaluate/evaluator.h"
+#include "../test/test.h"
 #include <unordered_map>
 #include <memory>
 
@@ -16,14 +17,14 @@ struct Node {
 
 class Tree {
 
-private:
+PRIVATE
     unordered_map<size_t, shared_ptr<Node>> nodeMap;
 
-public:
+PUBLIC
     void addNodeAsRoot(shared_ptr<Node> node);
     void addNode(shared_ptr<Node> parentNode, shared_ptr<Node> node);
-    shared_ptr<Node> getNode(Board& board);
     shared_ptr<Node> createNode(Board board);
+    bool exist(Board& board);
 
 };
 
@@ -38,20 +39,21 @@ void Tree::addNode(shared_ptr<Node> parentNode, shared_ptr<Node> node) {
     parentNode->childNodes[key] = node;
 }
 
-shared_ptr<Node> Tree::getNode(Board& board) {
+shared_ptr<Node> Tree::createNode(Board board) {
     size_t key = board.getCurrentHash();
     auto it = nodeMap.find(key);
     if (it != nodeMap.end()) {
-        return it->second;
-    }
-    return nullptr; // cannot find
-}
-
-shared_ptr<Node> Tree::createNode(Board board) {
-    size_t key = board.getCurrentHash();
-    if (nodeMap.find(key) != nodeMap.end()) {
-        return nodeMap[key]; // node already exists
+        return it->second; // node already exists
     }
     auto newNode = make_shared<Node>(board);
     return newNode;
+}
+
+bool Tree::exist(Board& board) {
+    size_t key = board.getCurrentHash();
+    auto it = nodeMap.find(key);
+    if (it != nodeMap.end()) {
+        return true;
+    }
+    return false;
 }
