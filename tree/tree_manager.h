@@ -1,54 +1,59 @@
 #pragma once
 
 #include "tree.h"
-#include "../game/board.h"
 #include "../test/test.h"
 #include <stack>
-#include <iomanip>
 
 class TreeManager {
 
 PRIVATE
-    Board board;
-    Tree tree;
+    static Tree tree;
     shared_ptr<Node> currentNode;
     stack<shared_ptr<Node>> nodeHistory;
 
 PUBLIC
     TreeManager(Board initialBoard);
-    void move(Pos p);
+    bool move(Pos p);
     void undo();
     Board& getBoard();
-    void addNode(shared_ptr<Node> node);
-    shared_ptr<Node> getNode(Board& board);
-    shared_ptr<Node> createNode(Board board, Value score);
-    vector<Pos> getPath();
 
 };
 
-TreeManager::TreeManager(Board initialBoard) : board(initialBoard), tree() {
-    Pos initialMove;
-    Value initialScore = 0;
-    int initialDepth = 0;
+Tree TreeManager::tree;
 
-    auto rootNode = createNode(board, initialScore);
-    addNode(rootNode);
+TreeManager::TreeManager(Board initialBoard) {
+    auto rootNode = tree.createNode(initialBoard);
+    tree.addNodeAsRoot(rootNode);
     currentNode = rootNode;
     nodeHistory.push(currentNode);
 }
 
-void TreeManager::move(Pos p) {     
+bool TreeManager::move(Pos p) {     
     shared_ptr<Node> previousNode = currentNode;
 
-    Board newBoard = previousNode->board;
-    newBoard.move(p);
+    // if child node exist
+    for(const auto& pair : previousNode->childNodes) {
+        shared_ptr<Node> node = pair.second;
+        if (node->board.getPath().back() == p) {
+            currentNode = node;
+            nodeHistory.push(currentNode);
+            return true;
+        }
+    }
 
-    currentNode = createNode(newBoard, /*score*/ 0);
-    addNode(currentNode);
+    // new child node
+    Board newBoard = previousNode->board;
+    bool result = newBoard.move(p);
+    if(!result) return result; // move failed
+
+    currentNode = tree.createNode(newBoard);
+    tree.addNode(previousNode, currentNode);
     nodeHistory.push(currentNode);
+    return result;
 }
 
 void TreeManager::undo() {
+    // remain root node
     if (nodeHistory.size() > 1) {
         nodeHistory.pop();
         currentNode = nodeHistory.top();
@@ -56,21 +61,5 @@ void TreeManager::undo() {
 }
 
 Board& TreeManager::getBoard() {
-    return currentNode -> board;
-}
-
-void TreeManager::addNode(shared_ptr<Node> node) {
-    tree.addNode(node);
-}
-
-shared_ptr<Node> TreeManager::getNode(Board& board) {
-    return tree.getNode(board);
-}
-
-shared_ptr<Node> TreeManager::createNode(Board board, Value score) {
-    return tree.createNode(board, score);
-}
-
-vector<Pos> TreeManager::getPath() {
-    return currentNode->board.getPath();
+    return currentNode->board;
 }

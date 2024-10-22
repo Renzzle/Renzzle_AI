@@ -65,5 +65,5 @@ bool VCFSearch::isTargetTurn() {
 }
 
 vector<Pos> VCFSearch::getVCFPath() {
-    return treeManager.getPath();
+    return treeManager.getBoard().getPath();
 }

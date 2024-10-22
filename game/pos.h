@@ -65,4 +65,9 @@ public:
         if (x == other.x) return y < other.y;
         return x < other.x;
     }
+
+    bool operator==(const Pos& other) const {
+        return x == other.x && y == other.y;
+    }
+    
 };
