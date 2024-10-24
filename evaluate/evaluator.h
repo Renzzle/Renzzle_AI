@@ -21,35 +21,35 @@ PRIVATE
     Piece oppo = WHITE;
 
     // sure win candidates
-    vector<Pos> myFive;
+    MoveList myFive;
 
     // sure win if there is no opponent's five
     // my open four, double four
-    vector<Pos> myMate;
+    MoveList myMate;
 
     // sure win if there is no four when block my four
-    vector<Pos> myFourThree;
+    MoveList myFourThree;
     // sure win if there is no opponent's four 
     // & it is white turn
-    vector<Pos> myDoubleThree;
+    MoveList myDoubleThree;
 
     // attack candidates
     vector<tuple<Pos, Score>> myFour;
     vector<tuple<Pos, Score>> myOpenThree;
 
     // must defense candidates if there is no sure win
-    vector<Pos> oppoFive;
+    MoveList oppoFive;
 
     // not mate move or forced move or attack move
     vector<tuple<Pos, Score>> etc;
 
     // collect for information (not direct candidates)
-    vector<Pos> oppoMate; // opponent's open four, double four
-    vector<Pos> oppoFourThree;
-    vector<Pos> oppoDoubleThree;
-    vector<Pos> oppoForbidden;
-    vector<Pos> oppoFour;
-    vector<Pos> oppoOpenThree;
+    MoveList oppoMate; // opponent's open four, double four
+    MoveList oppoFourThree;
+    MoveList oppoDoubleThree;
+    MoveList oppoForbidden;
+    MoveList oppoFour;
+    MoveList oppoOpenThree;
     vector<tuple<Pos, Score>> myStrategicMove;
     vector<tuple<Pos, Score>> oppoStrategicMove;
     
@@ -63,8 +63,8 @@ PRIVATE
     Score calculateUtilScore(int myPatternCnt[], int oppoPatternCnt[]);
     
 PUBLIC
-    vector<Pos> getCandidates(Board& board);
-    vector<Pos> getFours(Board& board);
+    MoveList getCandidates(Board& board);
+    MoveList getFours(Board& board);
     int evaluate(Board& board);
 
 }; 
@@ -182,10 +182,10 @@ Score Evaluator::calculateUtilScore(int myPatternCnt[], int oppoPatternCnt[]) {
     return s;
 }
 
-vector<Pos> Evaluator::getCandidates(Board& board) {
+MoveList Evaluator::getCandidates(Board& board) {
     classify(board);
 
-    vector<Pos> result;
+    MoveList result;
     if (!myFive.empty()) {
         result.push_back(myFive.front());
         return result;
@@ -234,10 +234,10 @@ vector<Pos> Evaluator::getCandidates(Board& board) {
     return result;
 }
 
-vector<Pos> Evaluator::getFours(Board& board) {
+MoveList Evaluator::getFours(Board& board) {
     classify(board);
 
-    vector<Pos> result;
+    MoveList result;
     if (!myFive.empty()) {
         result.push_back(myFive.front()); 
         return result;

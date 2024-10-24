@@ -23,6 +23,7 @@ PRIVATE
 PUBLIC
     void addNodeAsRoot(shared_ptr<Node> node);
     void addNode(shared_ptr<Node> parentNode, shared_ptr<Node> node);
+    void cleanTree();
     shared_ptr<Node> createNode(Board board);
     bool exist(Board& board);
 
@@ -37,6 +38,10 @@ void Tree::addNode(shared_ptr<Node> parentNode, shared_ptr<Node> node) {
     size_t key = node->board.getCurrentHash();
     nodeMap[key] = node;
     parentNode->childNodes[key] = node;
+}
+
+void Tree::cleanTree() {
+    nodeMap.clear();
 }
 
 shared_ptr<Node> Tree::createNode(Board board) {
