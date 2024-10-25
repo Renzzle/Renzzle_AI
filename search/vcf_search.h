@@ -3,6 +3,7 @@
 #include "../evaluate/evaluator.h"
 #include "../tree/tree_manager.h"
 #include "../test/test.h"
+#include "search_monitor.h"
 #include <vector>
 #include <functional>
 #include <chrono>
@@ -14,41 +15,25 @@ class VCFSearch {
 PRIVATE
     TreeManager treeManager;
     Evaluator evaluator;
+    SearchMonitor& monitor;
     Color targetColor;
-    MoveList vcfPath;
     
     bool isWin();
     bool isTargetTurn();
-    void executeTrigger();
-
-    once_flag initTimeFlag;
-    Timestamp startTime;
-    size_t visitCnt;
-    function<bool(double)> trigger;
-    function<void(double, size_t, MoveList)> searchListener;
 
 PUBLIC
-    VCFSearch(Board& board);
+    VCFSearch(Board& board, SearchMonitor& monitor);
     bool findVCF();
-    MoveList getVCFPath();
-    size_t getVisitCnt();
-    void setTrigger(function<bool(double)> newTrigger);
-    void setSearchListener(function<void(double, size_t, MoveList)> newSearchListener);
 
 };
 
-VCFSearch::VCFSearch(Board& board) : treeManager(board) {
+VCFSearch::VCFSearch(Board& board, SearchMonitor& monitor) : treeManager(board), monitor(monitor) {
     targetColor = board.isBlackTurn() ? COLOR_BLACK : COLOR_WHITE;
-
-    trigger = [](double elapsedTime) { return false; };
-
-    searchListener = [](double elapsedTime, size_t visitCnt, MoveList path) {
-        return;
-    };
 }
 
 bool VCFSearch::findVCF() {
-    executeTrigger();
+    monitor.incVisitCnt();
+    monitor.updateElapsedTime();
     if (isWin()) return true;
     
     MoveList moves;
@@ -100,7 +85,7 @@ bool VCFSearch::isWin() {
     // if win, update current node result & set vcf path
     if (isWin) {
         treeManager.getNode()->result = result;
-        vcfPath = treeManager.getNode()->board.getPath();
+        monitor.setBestPath(treeManager.getNode()->board.getPath());
     }
 
     return isWin;
@@ -114,35 +99,4 @@ bool VCFSearch::isTargetTurn() {
         if (targetColor == COLOR_BLACK) return false;
         else return true;
     }
-}
-
-MoveList VCFSearch::getVCFPath() {
-    return vcfPath;
-}
-
-size_t VCFSearch::getVisitCnt() {
-    return visitCnt;
-}
-
-void VCFSearch::executeTrigger() {
-    call_once(initTimeFlag, [this]() {
-        startTime = chrono::high_resolution_clock::now();
-        visitCnt = 0;
-    });
-
-    visitCnt++;
-    Timestamp now = chrono::high_resolution_clock::now();
-    auto duration = std::chrono::duration_cast<std::chrono::nanoseconds>(now - startTime);
-    double seconds = duration.count() / 1e9;
-    if(trigger(seconds)) {
-        searchListener(seconds, visitCnt, treeManager.getBoard().getPath());
-    }
-}
-
-void VCFSearch::setTrigger(std::function<bool(double)> newTrigger) {
-    trigger = newTrigger;
-}
-
-void VCFSearch::setSearchListener(std::function<void(double, size_t, MoveList)> newSearchListener) {
-    searchListener = newSearchListener;
 }

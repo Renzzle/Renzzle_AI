@@ -8,24 +8,25 @@ class VCFSearchTest : public TestBase {
 private:
     void vcfTest(string process) {
         Board board = getBoard(process);
-        VCFSearch vcfSearcher(board);
+        SearchMonitor monitor;
+        VCFSearch vcfSearcher(board, monitor);
 
         // do not use previous search data
         vcfSearcher.treeManager.cleanCache();
 
         // print status every 10sec
         static double lastTriggerTime = 0.0;
-        vcfSearcher.setTrigger([](double elapsedTime) {
-            if (elapsedTime - lastTriggerTime >= 10.0) {
-                lastTriggerTime = elapsedTime;
+        monitor.setTrigger([](SearchMonitor monitor) {
+            if (monitor.getElapsedTime() - lastTriggerTime >= 10.0) {
+                lastTriggerTime = monitor.getElapsedTime();
                 return true;
             }
             return false;
         });
 
-        vcfSearcher.setSearchListener([](double elapsedTime, size_t visitCnt, MoveList path) {
-            TEST_PRINT("Time: " << elapsedTime << "sec, Node: " << visitCnt);
-            printPath(path);
+        monitor.setSearchListener([](SearchMonitor monitor) {
+            TEST_PRINT("Time: " << monitor.getElapsedTime() << "sec, Node: " << monitor.getVisitCnt());
+            printPath(monitor.getBestPath());
         });
 
         TEST_PRINT("==================================");
@@ -41,9 +42,9 @@ private:
             return;
         }
 
-        MoveList resultPath = vcfSearcher.getVCFPath();
+        MoveList resultPath = monitor.getBestPath();
         int depth = resultPath.size() - board.getPath().size();
-        size_t node = vcfSearcher.getVisitCnt();
+        size_t node = monitor.getVisitCnt();
         TEST_PRINT("Find VCF. Depth: " << depth << ", Node: " << node);
         printPath(resultPath);
         TEST_PRINT("==================================");
