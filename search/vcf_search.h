@@ -4,11 +4,6 @@
 #include "../tree/tree_manager.h"
 #include "../test/test.h"
 #include "search_monitor.h"
-#include <vector>
-#include <functional>
-#include <chrono>
-
-using Timestamp = chrono::time_point<chrono::high_resolution_clock>;
 
 class VCFSearch {
 
