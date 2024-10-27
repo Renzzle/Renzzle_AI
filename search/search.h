@@ -3,42 +3,43 @@
 #include "../evaluate/evaluator.h"
 #include "../tree/tree_manager.h"
 #include "../test/test.h"
-#include <vector>
+#include "search_monitor.h"
 #include <limits>
 
 class Search {
 
-private:
+PRIVATE
     TreeManager treeManager;
     Evaluator evaluator;
     Color targetColor;
+    SearchMonitor& monitor;
     int maxDepth;
-    vector<Pos> path;
-    int alphaBeta(Board& board, int depth, int alpha, int beta, bool maximizingPlayer);
+    MoveList path;
+    Value alphaBeta(Board& board, int depth, int alpha, int beta, bool maximizingPlayer);
     int ids(Board& board, int depthLimit);
     bool isGameOver(Board& board);
     bool isTargetTurn();
 
-public:
-    Search(Board& board, int maxDepth);
+PUBLIC
+    Search(Board& board, int maxDepth, SearchMonitor& monitor);
     Pos findBestMove();
     Pos iterativeDeepeningSearch();
-    vector<Pos> getPath();
-    vector<Pos> getSimulatedPath();
+    MoveList getPath();
+    MoveList getSimulatedPath();
 
 };
 
-Search::Search(Board& board, int maxDepth) : treeManager(board), maxDepth(maxDepth) {
+Search::Search(Board& board, int maxDepth, SearchMonitor& monitor) : treeManager(board), maxDepth(maxDepth), monitor(monitor) {
     targetColor = board.isBlackTurn() ? COLOR_BLACK : COLOR_WHITE;
 }
 
-int Search::alphaBeta(Board& board, int depth, int alpha, int beta, bool maximizingPlayer) {
+Value Search::alphaBeta(Board& board, int depth, int alpha, int beta, bool maximizingPlayer) {
     if (depth == 0 || isGameOver(board)) {
         if (depth == 0) path = treeManager.getBoard().getPath();
         return          evaluator.evaluate(board);
     }
 
-    vector<Pos> moves = evaluator.getCandidates(treeManager.getBoard());
+    MoveList moves = evaluator.getCandidates(treeManager.getBoard());
 
     if (moves.empty()) return evaluator.evaluate(board);
 
@@ -47,7 +48,7 @@ int Search::alphaBeta(Board& board, int depth, int alpha, int beta, bool maximiz
 
         for (Pos move : moves) {
             treeManager.move(move);
-            int eval = alphaBeta(treeManager.getBoard(), depth - 1, alpha, beta, false);
+            Value eval = alphaBeta(treeManager.getBoard(), depth - 1, alpha, beta, false);
             treeManager.undo();
             maxEval = max(maxEval, eval);
             alpha = max(alpha, eval);
@@ -60,7 +61,7 @@ int Search::alphaBeta(Board& board, int depth, int alpha, int beta, bool maximiz
 
         for (Pos move : moves) {
             treeManager.move(move);
-            int eval = alphaBeta(treeManager.getBoard(), depth - 1, alpha, beta, true);
+            Value eval = alphaBeta(treeManager.getBoard(), depth - 1, alpha, beta, true);
             treeManager.undo();
             minEval = min(minEval, eval);
             beta = min(beta, eval);
@@ -121,6 +122,6 @@ Pos Search::iterativeDeepeningSearch() {
     return findBestMove();
 }
 
-vector<Pos> Search::getPath() {
+MoveList Search::getPath() {
     return path;
 }

@@ -65,6 +65,7 @@ PRIVATE
 PUBLIC
     MoveList getCandidates(Board& board);
     MoveList getFours(Board& board);
+    MoveList getThreats(Board& board);
     int evaluate(Board& board);
 
 }; 
@@ -199,23 +200,14 @@ MoveList Evaluator::getCandidates(Board& board) {
         return result;
     }
     
-    if (!myFourThree.empty()) {
-        result.insert(result.end(), myFourThree.begin(), myFourThree.end());
-    }
-    if (!oppoMate.empty()) {
-        result.insert(result.end(), oppoMate.begin(), oppoMate.end());
-    }
-    if (!myDoubleThree.empty()) {
-        result.insert(result.end(), myDoubleThree.begin(), myDoubleThree.end());
-    }
+    result.insert(result.end(), myFourThree.begin(), myFourThree.end());
+    result.insert(result.end(), oppoMate.begin(), oppoMate.end());
+    result.insert(result.end(), myDoubleThree.begin(), myDoubleThree.end());
     
     vector<tuple<Pos, Score>> attacks; 
-    if (!myFour.empty()) {
-        attacks.insert(attacks.end(), myFour.begin(), myFour.end());
-    }
-    if (!myOpenThree.empty()) {
-        attacks.insert(attacks.end(), myOpenThree.begin(), myOpenThree.end());
-    }
+    attacks.insert(attacks.end(), myFour.begin(), myFour.end());
+    attacks.insert(attacks.end(), myOpenThree.begin(), myOpenThree.end());
+
     sort(attacks.begin(), attacks.end(), [](const tuple<Pos, Score>& a, const tuple<Pos, Score>& b) {
         return get<1>(a) > get<1>(b); 
     });
@@ -223,14 +215,13 @@ MoveList Evaluator::getCandidates(Board& board) {
         result.push_back(std::get<0>(attack));
     }
 
-    if (!etc.empty()) {
-        sort(etc.begin(), etc.end(), [](const tuple<Pos, Score>& a, const tuple<Pos, Score>& b) {
-            return get<1>(a) > get<1>(b); 
-        });
-        for (const auto& e : etc) {
-            result.push_back(std::get<0>(e)); 
-        }
+    sort(etc.begin(), etc.end(), [](const tuple<Pos, Score>& a, const tuple<Pos, Score>& b) {
+        return get<1>(a) > get<1>(b); 
+    });
+    for (const auto& e : etc) {
+        result.push_back(std::get<0>(e)); 
     }
+    
     return result;
 }
 
@@ -258,6 +249,15 @@ MoveList Evaluator::getFours(Board& board) {
         }
     }
 
+    return result;
+}
+
+MoveList Evaluator::getThreats(Board& board) {
+    MoveList result;
+    MoveList fours = getFours(board);
+
+    result.insert(result.end(), fours.begin(), fours.end());
+    
     return result;
 }
 
