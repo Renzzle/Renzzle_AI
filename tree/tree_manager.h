@@ -16,7 +16,6 @@ PUBLIC
     bool move(Pos p);
     void undo();
     void cleanCache();
-    bool isVisited(Pos p);
     Board& getBoard();
     shared_ptr<Node> getChildNode(Pos p);
     shared_ptr<Node> getNode();
@@ -66,19 +65,6 @@ void TreeManager::undo() {
 
 void TreeManager::cleanCache() {
     tree.cleanTree();
-}
-
-bool TreeManager::isVisited(Pos p) {
-    if (currentNode->childNodes.empty())
-        return false;
-
-    for (const auto& pair : currentNode->childNodes) {
-        shared_ptr<Node> node = pair.second;
-        if (node->board.getPath().back() == p) {
-            return true;
-        }
-    }
-    return false;
 }
 
 Board& TreeManager::getBoard() {

@@ -36,7 +36,9 @@ bool VCFSearch::findVCF() {
     monitor.updateElapsedTime();
     if (isWin()) return true;
     
+    // find candidates
     MoveList moves;
+
     if (isTargetTurn())
         moves = evaluator.getFours(treeManager.getBoard());
     else 
@@ -44,21 +46,22 @@ bool VCFSearch::findVCF() {
 
     if (moves.empty()) return false;
 
+    // dfs
     for (auto move : moves) {
-        // if visited child node, prune except win path 
-        if (treeManager.isVisited(move)) {
-            shared_ptr<Node> childNode = treeManager.getChildNode(move);
-            if (childNode == nullptr) continue;
-
-            Result targetResult = targetColor == COLOR_BLACK ? BLACK_WIN : WHITE_WIN;
+        shared_ptr<Node> childNode = treeManager.getChildNode(move);
+        if (childNode != nullptr) { // child node exist
+            Result targetResult = (targetColor == COLOR_BLACK) ? BLACK_WIN : WHITE_WIN;
+            // prune except win path
             if (childNode->result != targetResult) continue;
         } else {
+            // if a winning path exists, skip searching other nodes
             if (treeManager.currentNode->result != ONGOING) continue;
         }
 
         treeManager.move(move);
         
         if (findVCF()) {
+            // if find vcf, update parent node result
             Result result = treeManager.getNode()->result;
             treeManager.undo();
             treeManager.getNode()->result = result;
@@ -72,10 +75,8 @@ bool VCFSearch::findVCF() {
 }
 
 bool VCFSearch::isWin() {
-    Result result;
+    Result result = treeManager.getBoard().getResult();;
     bool isWin = false;
-
-    result = treeManager.getBoard().getResult();
     
     if (result == BLACK_WIN && targetColor == COLOR_BLACK)
         isWin = true;
