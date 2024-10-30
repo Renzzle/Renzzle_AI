@@ -16,7 +16,7 @@ private:
 
         // print status every 10sec
         static double lastTriggerTime = 0.0;
-        monitor.setTrigger([](SearchMonitor monitor) {
+        monitor.setTrigger([](SearchMonitor& monitor) {
             if (monitor.getElapsedTime() - lastTriggerTime >= 10.0) {
                 lastTriggerTime = monitor.getElapsedTime();
                 return true;
@@ -24,7 +24,7 @@ private:
             return false;
         });
 
-        monitor.setSearchListener([](SearchMonitor monitor) {
+        monitor.setSearchListener([](SearchMonitor& monitor) {
             TEST_PRINT("Time: " << monitor.getElapsedTime() << "sec, Node: " << monitor.getVisitCnt());
             printPath(monitor.getBestPath());
         });

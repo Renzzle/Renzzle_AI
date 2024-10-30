@@ -12,6 +12,7 @@ PRIVATE
     Evaluator evaluator;
     SearchMonitor& monitor;
     Color targetColor;
+    bool isInitTime = false;
     
     bool isWin();
     bool isTargetTurn();
@@ -27,6 +28,10 @@ VCFSearch::VCFSearch(Board& board, SearchMonitor& monitor) : treeManager(board),
 }
 
 bool VCFSearch::findVCF() {
+    if (!isInitTime) {
+        monitor.initStartTime();
+        isInitTime = true;
+    }
     monitor.incVisitCnt();
     monitor.updateElapsedTime();
     if (isWin()) return true;

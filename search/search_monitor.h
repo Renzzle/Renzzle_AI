@@ -17,15 +17,15 @@ PRIVATE
     Value bestValue;
     int depth;
     size_t visitCnt;
-    function<bool(SearchMonitor)> trigger;
-    function<void(SearchMonitor)> searchListener;
+    function<bool(SearchMonitor&)> trigger;
+    function<void(SearchMonitor&)> searchListener;
 
 PUBLIC
     SearchMonitor();
 
     void initStartTime() { startTime = chrono::high_resolution_clock::now(); };
-    void setTrigger(function<bool(SearchMonitor)> newTrigger) { trigger = newTrigger; };
-    void setSearchListener(function<void(SearchMonitor)> newSearchListener) { searchListener = newSearchListener; };
+    void setTrigger(function<bool(SearchMonitor&)> newTrigger) { trigger = newTrigger; };
+    void setSearchListener(function<void(SearchMonitor&)> newSearchListener) { searchListener = newSearchListener; };
     void executeTrigger();
     
     // update data function, executeTrigger function execute
