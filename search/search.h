@@ -13,15 +13,14 @@ PRIVATE
     Evaluator evaluator;
     Color targetColor;
     SearchMonitor& monitor;
-    int maxDepth;
-    MoveList path;
+
     Value alphaBeta(Board& board, int depth, int alpha, int beta, bool maximizingPlayer);
     int ids(Board& board, int depthLimit);
     bool isGameOver(Board& board);
     bool isTargetTurn();
 
 PUBLIC
-    Search(Board& board, int maxDepth, SearchMonitor& monitor);
+    Search(Board& board, SearchMonitor& monitor);
     Pos findBestMove();
     Pos iterativeDeepeningSearch();
     MoveList getPath();
@@ -29,13 +28,13 @@ PUBLIC
 
 };
 
-Search::Search(Board& board, int maxDepth, SearchMonitor& monitor) : treeManager(board), maxDepth(maxDepth), monitor(monitor) {
+Search::Search(Board& board, SearchMonitor& monitor) : treeManager(board), monitor(monitor) {
     targetColor = board.isBlackTurn() ? COLOR_BLACK : COLOR_WHITE;
 }
 
 Value Search::alphaBeta(Board& board, int depth, int alpha, int beta, bool maximizingPlayer) {
     if (depth == 0 || isGameOver(board)) {
-        if (depth == 0) path = treeManager.getBoard().getPath();
+        if (depth == 0) monitor.setBestPath(treeManager.getBoard().getPath());
         return          evaluator.evaluate(board);
     }
 
@@ -94,7 +93,7 @@ bool Search::isTargetTurn() {
 }
 
 Pos Search::findBestMove() {
-    path.clear();
+    monitor.getBestPath().clear();
 
     int bestValue = MIN_VALUE;
     Pos bestMove;
@@ -103,10 +102,10 @@ Pos Search::findBestMove() {
 
     for (Pos move : moves) {
         treeManager.move(move);
-        path.push_back(move);
-        int moveValue = alphaBeta(treeManager.getBoard(), maxDepth - 1, MIN_VALUE, MAX_VALUE, false);
+        monitor.getBestPath().push_back(move);
+        int moveValue = alphaBeta(treeManager.getBoard(), monitor.getMaxDepth() - 1, MIN_VALUE, MAX_VALUE, false);
         treeManager.undo();
-        path.pop_back();
+        monitor.getBestPath().pop_back();
 
         if (moveValue > bestValue) {
             bestValue = moveValue;
@@ -118,10 +117,10 @@ Pos Search::findBestMove() {
 }
 
 Pos Search::iterativeDeepeningSearch() {
-    int depthLimit = maxDepth;
+    int depthLimit = monitor.getMaxDepth();
     return findBestMove();
 }
 
 MoveList Search::getPath() {
-    return path;
+    return monitor.getBestPath();
 }

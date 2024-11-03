@@ -3,16 +3,13 @@
 #include "line.h"
 #include "pos.h"
 #include "zobrist.h"
+#include "move_catalog.h"
 #include "../test/test.h"
 #include <array>
-#include <vector>
 
-#define BOARD_SIZE 15
 #define STATIC_WALL &cells[0][0];
 
-using namespace std;
 using CellArray = array<array<Cell, BOARD_SIZE + 2>, BOARD_SIZE + 2>;
-using MoveList = vector<Pos>;
 
 class Board {
 
@@ -209,7 +206,6 @@ void Board::setPatterns(Pos& p) {
             if (!(p + (i - (LINE_LENGTH / 2)))) {
                 continue;
             }
-
             if (getCell(p).getPiece() == EMPTY) {
                 Line line = getLine(p);
                 getCell(p).setPiece(BLACK);
@@ -218,8 +214,9 @@ void Board::setPatterns(Pos& p) {
                 getCell(p).setPattern(WHITE, dir, getPattern(line, COLOR_WHITE));
                 getCell(p).setPiece(EMPTY);
             }
+            getCell(p).setScore();
             p - (i - (LINE_LENGTH / 2));
-        }
+        }   
     }
 }
 
