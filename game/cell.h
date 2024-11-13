@@ -14,16 +14,17 @@ class Cell {
 private:
     Piece piece;
     Pattern patterns[2][DIRECTION_SIZE];
-
-    Score blackScore;
-    Score whiteScore;
+    CompositePattern cPattern[2];
+    Score score[2];
 
 public:
     Cell();
     Piece getPiece() const;
     void setPiece(const Piece& piece);
     Pattern getPattern(Piece piece, Direction dir);
+    CompositePattern getCompositePattern(Piece piece);
     void setPattern(Piece piece, Direction dir, Pattern pattern);
+    void setCompositePattern();
     void setScore();
     
 };
@@ -34,8 +35,8 @@ Cell::Cell() {
         setPattern(BLACK, dir, NONE);
         setPattern(WHITE, dir, NONE);
     }
-    blackScore = 0;
-    whiteScore = 0;
+    score[BLACK] = 0;
+    score[WHITE] = 0;
 }
 
 Piece Cell::getPiece() const {
@@ -50,8 +51,82 @@ Pattern Cell::getPattern(Piece piece, Direction dir) {
     return patterns[piece][dir];
 }
 
+CompositePattern Cell::getCompositePattern(Piece piece) {
+    return cPattern[piece];
+}
+
 void Cell::setPattern(Piece piece, Direction dir, Pattern pattern) {
     this->patterns[piece][dir] = pattern;
+}
+
+void Cell::setCompositePattern() {
+    int bpc[PATTERN_SIZE] = {0};
+    int wpc[PATTERN_SIZE] = {0};
+
+    for (Direction dir = DIRECTION_START; dir < DIRECTION_SIZE; dir++) {
+        Pattern p = patterns[BLACK][dir];
+        bpc[p]++;
+        p = patterns[WHITE][dir];
+        wpc[p]++;
+    }
+
+    if (bpc[FIVE] > 0) {
+        cPattern[BLACK] = WINNING;
+    } else if (bpc[OVERLINE] > 0 || bpc[FREE_4] + bpc[BLOCKED_4] >= 2) {
+        cPattern[BLACK] = FORBID;
+    } else if (bpc[FREE_3] + bpc[FREE_3A] >= 2) {
+        cPattern[BLACK] = F3_2X;
+    } else if (bpc[FREE_4] > 0 || bpc[BLOCKED_4] >= 2) {
+        cPattern[BLACK] = MATE;
+    } else if (bpc[BLOCKED_4] > 0 && bpc[FREE_3] + bpc[FREE_3A] > 0) {
+        cPattern[BLACK] = B4_F3;
+    } else if (bpc[BLOCKED_4] > 0 && bpc[FREE_2] + bpc[FREE_2A] + bpc[FREE_2B] + bpc[BLOCKED_3] > 0) {
+        cPattern[BLACK] = B4_PLUS;
+    } else if (bpc[BLOCKED_4] > 0) {
+        cPattern[BLACK] = B4_ANY;
+    } else if (bpc[FREE_3] + bpc[FREE_3A] > 0 && bpc[FREE_2] + bpc[FREE_2A] + bpc[FREE_2B] + bpc[BLOCKED_3] > 0) {
+        cPattern[BLACK] = F3_PLUS;
+    } else if (bpc[FREE_3] + bpc[FREE_3A] > 0) {
+        cPattern[BLACK] = F3_ANY;
+    } else if (bpc[BLOCKED_3] > 0 && bpc[FREE_2] + bpc[FREE_2A] + bpc[FREE_2B] + bpc[BLOCKED_3] >= 2) {
+        cPattern[BLACK] = B3_PLUS;
+    } else if (bpc[BLOCKED_3] > 0) {
+        cPattern[BLACK] = B3_ANY;
+    } else if (bpc[FREE_2] + bpc[FREE_2A] + bpc[FREE_2B] >= 2) {
+        cPattern[BLACK] = F2_2X;
+    } else if (bpc[FREE_2] + bpc[FREE_2A] + bpc[FREE_2B] > 0) {
+        cPattern[BLACK] = F2_ANY;
+    } else {
+        cPattern[BLACK] = ETC;
+    }
+
+    if (wpc[FIVE] > 0) {
+        cPattern[WHITE] = WINNING;
+    } else if (wpc[FREE_4] > 0 || wpc[BLOCKED_4] >= 2) {
+        cPattern[WHITE] = MATE;
+    } else if (wpc[BLOCKED_4] > 0 && wpc[FREE_3] + wpc[FREE_3A] > 0) {
+        cPattern[WHITE] = B4_F3;
+    } else if (wpc[BLOCKED_4] > 0 && wpc[FREE_2] + wpc[FREE_2A] + wpc[FREE_2B] + wpc[BLOCKED_3] > 0) {
+        cPattern[WHITE] = B4_PLUS;
+    } else if (wpc[BLOCKED_4] > 0) {
+        cPattern[WHITE] = B4_ANY;
+    } else if (wpc[FREE_3] + wpc[FREE_3A] >= 2) {
+        cPattern[WHITE] = F3_2X;
+    } else if (wpc[FREE_3] + wpc[FREE_3A] > 0 && wpc[FREE_2] + wpc[FREE_2A] + wpc[FREE_2B] + wpc[BLOCKED_3] > 0) {
+        cPattern[WHITE] = F3_PLUS;
+    } else if (wpc[FREE_3] + wpc[FREE_3A] > 0) {
+        cPattern[WHITE] = F3_ANY;
+    } else if (wpc[BLOCKED_3] > 0 && wpc[FREE_2] + wpc[FREE_2A] + wpc[FREE_2B] + wpc[BLOCKED_3] >= 2) {
+        cPattern[WHITE] = B3_PLUS;
+    } else if (wpc[BLOCKED_3] > 0) {
+        cPattern[WHITE] = B3_ANY;
+    } else if (wpc[FREE_2] + wpc[FREE_2A] + wpc[FREE_2B] >= 2) {
+        cPattern[WHITE] = F2_2X;
+    } else if (wpc[FREE_2] + wpc[FREE_2A] + wpc[FREE_2B] > 0) {
+        cPattern[WHITE] = F2_ANY;
+    } else {
+        cPattern[WHITE] = ETC;
+    }
 }
 
 void Cell::setScore() {
@@ -63,6 +138,6 @@ void Cell::setScore() {
         ws += attackScore[patterns[WHITE][i]];
         ws += defendScore[patterns[BLACK][i]];
     }
-    blackScore = bs;
-    whiteScore = ws;
+    score[BLACK] = bs;
+    score[WHITE] = ws;
 }

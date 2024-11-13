@@ -109,8 +109,9 @@ Result Board::getResult() {
 bool Board::isForbidden(Pos p) {
     Cell c = getCell(p);
     if (c.getPiece() != EMPTY) return false;
+    if (c.getCompositePattern(BLACK) == FORBID) return true;
+    if (c.getCompositePattern(BLACK) != F3_2X) return false;
 
-    int winByFour = 0;
     int winByThree = 0;
     int pThreeCnt = 0;
 
@@ -118,14 +119,6 @@ bool Board::isForbidden(Pos p) {
     for (Direction dir = DIRECTION_START; dir < DIRECTION_SIZE; dir++) {
         p.dir = dir;
         Pattern pattern = c.getPattern(BLACK, p.dir);
-        if (pattern == FIVE)
-            return false;
-        else if (pattern == OVERLINE)
-            return true;
-        else if (pattern == BLOCKED_4 || pattern == FREE_4) {
-            if (++winByFour >= 2)
-                return true;
-        }
 
         if (pattern == FREE_3 || pattern == FREE_3A)
             pThreeCnt++;
@@ -215,6 +208,7 @@ void Board::setPatterns(Pos& p) {
                 getCell(p).setPiece(EMPTY);
             }
             getCell(p).setScore();
+            getCell(p).setCompositePattern();
             p - (i - (LINE_LENGTH / 2));
         }   
     }
