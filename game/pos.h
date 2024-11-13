@@ -71,3 +71,12 @@ public:
     }
     
 };
+
+namespace std {
+    template <>
+    struct hash<Pos> {
+        size_t operator()(const Pos& pos) const {
+            return hash<int>()(pos.getX()) ^ (hash<int>()(pos.getY()) << 1);
+        }
+    };
+}

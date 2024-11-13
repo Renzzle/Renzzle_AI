@@ -37,6 +37,8 @@ Cell::Cell() {
     }
     score[BLACK] = 0;
     score[WHITE] = 0;
+    cPattern[BLACK] = ETC;
+    cPattern[WHITE] = ETC;
 }
 
 Piece Cell::getPiece() const {

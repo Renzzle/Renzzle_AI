@@ -3,12 +3,16 @@
 #include "line.h"
 #include "pos.h"
 #include "zobrist.h"
-#include "move_catalog.h"
 #include "../test/test.h"
 #include <array>
+#include <vector>
+#include <unordered_set>
 
 #define STATIC_WALL &cells[0][0];
 
+using namespace std;
+using MoveList = vector<Pos>;
+using MoveSet = unordered_set<Pos>;
 using CellArray = array<array<Cell, BOARD_SIZE + 2>, BOARD_SIZE + 2>;
 
 class Board {
@@ -16,6 +20,7 @@ class Board {
 PRIVATE
     CellArray cells;
     MoveList path;
+    MoveSet tracker[2][COMPOSITE_PATTERN_SIZE];
     Result result;
     size_t currentHash;
 
@@ -34,7 +39,8 @@ PUBLIC
     void undo();
     Result getResult();
     bool isForbidden(Pos p);
-    MoveList getPath();
+    MoveList& getPath();
+    MoveSet& getTracker(Piece p, CompositePattern cp);
     size_t getCurrentHash() const;
     
 };
@@ -50,6 +56,8 @@ Board::Board() {
                 currentHash ^= getZobristValue(i, j, WALL);
             } else {
                 cells[i][j].setPiece(EMPTY);
+                tracker[BLACK][ETC].insert(Pos(i, j));
+                tracker[WHITE][ETC].insert(Pos(i, j));
             }
         }
     }
@@ -177,7 +185,11 @@ bool Board::isForbidden(Pos p) {
     return winByThree >= 2;
 }
 
-vector<Pos> Board::getPath() {
+MoveSet& Board::getTracker(Piece p, CompositePattern cp) {
+    return tracker[p][cp];
+}
+
+MoveList& Board::getPath() {
     return path;
 }
 
@@ -199,16 +211,22 @@ void Board::setPatterns(Pos& p) {
             if (!(p + (i - (LINE_LENGTH / 2)))) {
                 continue;
             }
-            if (getCell(p).getPiece() == EMPTY) {
+            Cell& c = getCell(p);
+            tracker[BLACK][c.getCompositePattern(BLACK)].erase(p);
+            tracker[WHITE][c.getCompositePattern(WHITE)].erase(p);
+            if (c.getPiece() == EMPTY) {
                 Line line = getLine(p);
-                getCell(p).setPiece(BLACK);
-                getCell(p).setPattern(BLACK, dir, getPattern(line, COLOR_BLACK));
-                getCell(p).setPiece(WHITE);
-                getCell(p).setPattern(WHITE, dir, getPattern(line, COLOR_WHITE));
-                getCell(p).setPiece(EMPTY);
+                c.setPiece(BLACK);
+                c.setPattern(BLACK, dir, getPattern(line, COLOR_BLACK));
+                c.setPiece(WHITE);
+                c.setPattern(WHITE, dir, getPattern(line, COLOR_WHITE));
+                c.setPiece(EMPTY);
             }
-            getCell(p).setScore();
-            getCell(p).setCompositePattern();
+            c.setScore();
+            c.setCompositePattern();
+            tracker[BLACK][c.getCompositePattern(BLACK)].insert(p);
+            tracker[WHITE][c.getCompositePattern(WHITE)].insert(p);
+
             p - (i - (LINE_LENGTH / 2));
         }   
     }
