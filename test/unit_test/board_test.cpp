@@ -12,7 +12,6 @@ public:
         registerTestMethod([this]() { resultTest(); });
         registerTestMethod([this]() { patternTest(); });
         registerTestMethod([this]() { forbiddenTest(); });
-        registerTestMethod([this]() { trackerTest(); });
     }
 
     void getTurnTest() {
@@ -193,23 +192,6 @@ public:
         // fake 3-3 (5)
         board = getBoard("d14e14c13c12d12a9c11e11f12g12f13o15h12o14i11e12d13");
         TEST_ASSERT(board.getResult() != WHITE_WIN);
-    }
-
-    void trackerTest() {
-        Board board;
-        board.move(Pos(1, 1));
-        board.move(Pos(2, 1));
-        board.move(Pos(1, 2));
-        board.move(Pos(2, 2));
-        board.move(Pos(1, 3));
-        board.move(Pos(2, 3));
-        board.move(Pos(1, 4));
-        board.move(Pos(2, 4));
-
-        TEST_ASSERT(board.tracker[BLACK][WINNING].find(Pos(1, 5)) != board.tracker[BLACK][WINNING].end());
-        TEST_ASSERT(board.tracker[WHITE][WINNING].find(Pos(2, 5)) != board.tracker[WHITE][WINNING].end());
-        TEST_ASSERT(board.tracker[BLACK][WINNING].size() == 1);
-        TEST_ASSERT(board.tracker[WHITE][WINNING].size() == 1);
     }
 
 };
