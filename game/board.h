@@ -6,13 +6,11 @@
 #include "../test/test.h"
 #include <array>
 #include <vector>
-#include <unordered_set>
 
 #define STATIC_WALL &cells[0][0];
 
 using namespace std;
 using MoveList = vector<Pos>;
-using MoveSet = unordered_set<Pos>;
 using CellArray = array<array<Cell, BOARD_SIZE + 2>, BOARD_SIZE + 2>;
 
 class Board {
@@ -20,7 +18,6 @@ class Board {
 PRIVATE
     CellArray cells;
     MoveList path;
-    MoveSet tracker[2][COMPOSITE_PATTERN_SIZE];
     Result result;
     size_t currentHash;
 
@@ -40,7 +37,6 @@ PUBLIC
     Result getResult();
     bool isForbidden(Pos p);
     MoveList& getPath();
-    MoveSet& getTracker(Piece p, CompositePattern cp);
     size_t getCurrentHash() const;
     
 };
@@ -56,8 +52,6 @@ Board::Board() {
                 currentHash ^= getZobristValue(i, j, WALL);
             } else {
                 cells[i][j].setPiece(EMPTY);
-                tracker[BLACK][ETC].insert(Pos(i, j));
-                tracker[WHITE][ETC].insert(Pos(i, j));
             }
         }
     }
@@ -89,14 +83,7 @@ bool Board::move(Pos p) {
     getCell(p).setPiece(piece);
 
     clearPattern(getCell(p));
-
-    // clear tracker
-    tracker[BLACK][getCell(p).getCompositePattern(BLACK)].erase(p);
-    tracker[WHITE][getCell(p).getCompositePattern(WHITE)].erase(p);
     getCell(p).clearCompositePattern();
-    tracker[BLACK][NOT_EMPTY].insert(p);
-    tracker[WHITE][NOT_EMPTY].insert(p);
-    
     setPatterns(p);
 
     return true;
@@ -193,10 +180,6 @@ bool Board::isForbidden(Pos p) {
     return winByThree >= 2;
 }
 
-MoveSet& Board::getTracker(Piece p, CompositePattern cp) {
-    return tracker[p][cp];
-}
-
 MoveList& Board::getPath() {
     return path;
 }
@@ -222,9 +205,6 @@ void Board::setPatterns(Pos& p) {
 
             Cell& c = getCell(p);
             if (c.getPiece() == EMPTY) {
-                tracker[BLACK][c.getCompositePattern(BLACK)].erase(p);
-                tracker[WHITE][c.getCompositePattern(WHITE)].erase(p);
-
                 Line line = getLine(p);
                 c.setPiece(BLACK);
                 c.setPattern(BLACK, dir, getPattern(line, COLOR_BLACK));
@@ -234,8 +214,6 @@ void Board::setPatterns(Pos& p) {
 
                 c.setScore();
                 c.setCompositePattern();
-                tracker[BLACK][c.getCompositePattern(BLACK)].insert(p);
-                tracker[WHITE][c.getCompositePattern(WHITE)].insert(p);
             }
 
             p - (i - (LINE_LENGTH / 2));

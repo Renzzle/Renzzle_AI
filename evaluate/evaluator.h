@@ -20,6 +20,8 @@ PRIVATE
     Piece self = BLACK;
     Piece oppo = WHITE;
 
+    MoveList patternMap[2][COMPOSITE_PATTERN_SIZE];
+
     // sure win candidates
     MoveList myFive;
 
@@ -71,6 +73,11 @@ PUBLIC
 }; 
 
 void Evaluator::init() {
+    for (int i = 0; i < COMPOSITE_PATTERN_SIZE; i++) {
+        patternMap[0][i].clear();
+        patternMap[1][i].clear();
+    }
+
     myFive.clear();
     myMate.clear();
     myFourThree.clear();
@@ -100,8 +107,13 @@ void Evaluator::classify(Board& board) {
 
     for (int i = 1; i <= BOARD_SIZE; i++) {
         for (int j = 1; j <= BOARD_SIZE; j++) {
-            if (board.getCell(Pos(i, j)).getPiece() == EMPTY)
+            Pos p = Pos(i, j);
+            Cell& c = board.getCell(p);
+            if (c.getPiece() == EMPTY) {
                 classify(board, Pos(i, j));
+                patternMap[BLACK][c.getCompositePattern(BLACK)].push_back(p);
+                patternMap[WHITE][c.getCompositePattern(WHITE)].push_back(p);
+            }
         }
     }
 }
@@ -226,67 +238,28 @@ MoveList Evaluator::getCandidates(Board& board) {
 }
 
 MoveList Evaluator::getFours(Board& board) {
-    self = board.isBlackTurn() ? BLACK : WHITE;
+    classify(board);
 
-    MoveList result;
-    if (board.getResult() != ONGOING) return result;
-
-    const auto& winningMoves = board.getTracker(self, WINNING);
-    if (!winningMoves.empty()) {
-        result.push_back(*winningMoves.begin());
+    vector<Pos> result;
+    if (!patternMap[self][WINNING].empty()) {
+        result.push_back(patternMap[self][WINNING].front()); 
         return result;
     }
-
-    const auto& mateMoves = board.getTracker(self, MATE);
-    if (!mateMoves.empty()) {
-        result.push_back(*mateMoves.begin());
+    if (!patternMap[self][MATE].empty()) {
+        result.push_back(patternMap[self][MATE].front());
         return result;
     }
-
-    const auto& b4f3 = board.getTracker(self, B4_F3);
-    if (!b4f3.empty()) {
-        result.insert(result.end(), b4f3.begin(), b4f3.end());
+    if (!patternMap[self][B4_F3].empty()) {
+        result.insert(result.end(), patternMap[self][B4_F3].begin(), patternMap[self][B4_F3].end());
     }
-
-    const auto& b4plus = board.getTracker(self, B4_PLUS);
-    if (!b4plus.empty()) {
-        result.insert(result.end(), b4plus.begin(), b4plus.end());
+    if (!patternMap[self][B4_PLUS].empty()) {
+        result.insert(result.end(), patternMap[self][B4_PLUS].begin(), patternMap[self][B4_PLUS].end());
     }
-
-    const auto& b4any = board.getTracker(self, B4_ANY);
-    if (!b4any.empty()) {
-        result.insert(result.end(), b4any.begin(), b4any.end());
+    if (!patternMap[self][B4_ANY].empty()) {
+        result.insert(result.end(), patternMap[self][B4_ANY].begin(), patternMap[self][B4_ANY].end());
     }
-
-    sort(result.begin(), result.end(), [&](const Pos& a, const Pos& b) {
-        return board.getCell(a).getScore(self) > board.getCell(b).getScore(self);
-    });
 
     return result;
-    // classify(board);
-
-    // vector<Pos> result;
-    // if (!myFive.empty()) {
-    //     result.push_back(myFive.front()); 
-    //     return result;
-    // }
-    // if (!myMate.empty()) {
-    //     result.push_back(myMate.front());
-    //     return result;
-    // }
-    // if (!myFourThree.empty()) {
-    //     result.insert(result.end(), myFourThree.begin(), myFourThree.end());
-    // }
-    // sort(myFour.begin(), myFour.end(), [](const tuple<Pos, Score>& a, const tuple<Pos, Score>& b) {
-    //     return get<1>(a) > get<1>(b); 
-    // });
-    // if (!myFour.empty()) {
-    //     for (const auto& four : myFour) {
-    //         result.push_back(get<0>(four)); 
-    //     }
-    // }
-
-    // return result;
 }
 
 MoveList Evaluator::getThreats(Board& board) {
