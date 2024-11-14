@@ -89,6 +89,14 @@ bool Board::move(Pos p) {
     getCell(p).setPiece(piece);
 
     clearPattern(getCell(p));
+
+    // clear tracker
+    tracker[BLACK][getCell(p).getCompositePattern(BLACK)].erase(p);
+    tracker[WHITE][getCell(p).getCompositePattern(WHITE)].erase(p);
+    getCell(p).clearCompositePattern();
+    tracker[BLACK][NOT_EMPTY].insert(p);
+    tracker[WHITE][NOT_EMPTY].insert(p);
+    
     setPatterns(p);
 
     return true;
@@ -211,21 +219,24 @@ void Board::setPatterns(Pos& p) {
             if (!(p + (i - (LINE_LENGTH / 2)))) {
                 continue;
             }
+
             Cell& c = getCell(p);
-            tracker[BLACK][c.getCompositePattern(BLACK)].erase(p);
-            tracker[WHITE][c.getCompositePattern(WHITE)].erase(p);
             if (c.getPiece() == EMPTY) {
+                tracker[BLACK][c.getCompositePattern(BLACK)].erase(p);
+                tracker[WHITE][c.getCompositePattern(WHITE)].erase(p);
+
                 Line line = getLine(p);
                 c.setPiece(BLACK);
                 c.setPattern(BLACK, dir, getPattern(line, COLOR_BLACK));
                 c.setPiece(WHITE);
                 c.setPattern(WHITE, dir, getPattern(line, COLOR_WHITE));
                 c.setPiece(EMPTY);
+
+                c.setScore();
+                c.setCompositePattern();
+                tracker[BLACK][c.getCompositePattern(BLACK)].insert(p);
+                tracker[WHITE][c.getCompositePattern(WHITE)].insert(p);
             }
-            c.setScore();
-            c.setCompositePattern();
-            tracker[BLACK][c.getCompositePattern(BLACK)].insert(p);
-            tracker[WHITE][c.getCompositePattern(WHITE)].insert(p);
 
             p - (i - (LINE_LENGTH / 2));
         }   

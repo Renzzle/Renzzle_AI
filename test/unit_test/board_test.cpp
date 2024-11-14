@@ -52,12 +52,14 @@ public:
 
         // move when board is full
         vector<pair<int, int>> v = processString("h8j8h15o12o14o10m9n9o6n8o5o4m4n4m5o2k1i2i3f4f3f8g7e8e11g14g11j11k13d15d14c15b15a12a14b9a10a8b12a6a5c6b5a2d4b1g1l8e5f6c5d5e3f2b6a7g3h3c3d3b2a1b4b3e1d2e4e2e7e6c4a4b8b7d6a3c7a9f7d7i7h7g9f10k5j6l5n5i5j5e9d8i6i4i9i8k11j10f9h9c9d9d10f12c11a13f11d11i11h11j12h10i13l10g15h14g8g10i10i12g5g6j4h2g2g4f5h5c1c2c10c8e10b10c13c12e13e12f1d1h4j2k3h6d12f14b14a15e14c14i1h1m1l2k2k4l1j1m3m2o1n1l3j3n3o3l4n2b13b11f13d13h13g13e15a11l7l6j7k6i15f15k15j15k14k12l14m15n14m14j14h12g12i14l12m11l13j13m13o15n13o13l11l15m6m7k8j9k10m12l9m10n7m8k9k7o7n6n12o11o9o8n11n10n15");
-        board = Board();
         TEST_TIME_START();
-        for (auto p : v) {
-            board.move(Pos(p.first, p.second));
+        for(int i = 0; i < 100; i++) {
+            board = Board();
+            for (auto p : v) {
+                board.move(Pos(p.first, p.second));
+            }
         }
-        TEST_TIME_END("board_test.cpp/moveTest/full board")
+        TEST_TIME_END("full board(x100)")
         result = board.move(Pos(1, 1));
         TEST_ASSERT(!result);
     }

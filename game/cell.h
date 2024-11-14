@@ -23,7 +23,9 @@ public:
     void setPiece(const Piece& piece);
     Pattern getPattern(Piece piece, Direction dir);
     CompositePattern getCompositePattern(Piece piece);
+    Score getScore(Piece piece);
     void setPattern(Piece piece, Direction dir, Pattern pattern);
+    void clearCompositePattern();
     void setCompositePattern();
     void setScore();
     
@@ -57,8 +59,17 @@ CompositePattern Cell::getCompositePattern(Piece piece) {
     return cPattern[piece];
 }
 
+Score Cell::getScore(Piece piece) {
+    return score[piece];
+}
+
 void Cell::setPattern(Piece piece, Direction dir, Pattern pattern) {
     this->patterns[piece][dir] = pattern;
+}
+
+void Cell::clearCompositePattern() {
+    cPattern[BLACK] = NOT_EMPTY;
+    cPattern[WHITE] = NOT_EMPTY;
 }
 
 void Cell::setCompositePattern() {

@@ -226,30 +226,67 @@ MoveList Evaluator::getCandidates(Board& board) {
 }
 
 MoveList Evaluator::getFours(Board& board) {
-    classify(board);
+    self = board.isBlackTurn() ? BLACK : WHITE;
 
     MoveList result;
-    if (!myFive.empty()) {
-        result.push_back(myFive.front()); 
+    if (board.getResult() != ONGOING) return result;
+
+    const auto& winningMoves = board.getTracker(self, WINNING);
+    if (!winningMoves.empty()) {
+        result.push_back(*winningMoves.begin());
         return result;
-    }
-    if (!myMate.empty()) {
-        result.push_back(myMate.front());
-        return result;
-    }
-    if (!myFourThree.empty()) {
-        result.insert(result.end(), myFourThree.begin(), myFourThree.end());
-    }
-    sort(myFour.begin(), myFour.end(), [](const tuple<Pos, Score>& a, const tuple<Pos, Score>& b) {
-        return get<1>(a) > get<1>(b); 
-    });
-    if (!myFour.empty()) {
-        for (const auto& four : myFour) {
-            result.push_back(get<0>(four)); 
-        }
     }
 
+    const auto& mateMoves = board.getTracker(self, MATE);
+    if (!mateMoves.empty()) {
+        result.push_back(*mateMoves.begin());
+        return result;
+    }
+
+    const auto& b4f3 = board.getTracker(self, B4_F3);
+    if (!b4f3.empty()) {
+        result.insert(result.end(), b4f3.begin(), b4f3.end());
+    }
+
+    const auto& b4plus = board.getTracker(self, B4_PLUS);
+    if (!b4plus.empty()) {
+        result.insert(result.end(), b4plus.begin(), b4plus.end());
+    }
+
+    const auto& b4any = board.getTracker(self, B4_ANY);
+    if (!b4any.empty()) {
+        result.insert(result.end(), b4any.begin(), b4any.end());
+    }
+
+    sort(result.begin(), result.end(), [&](const Pos& a, const Pos& b) {
+        return board.getCell(a).getScore(self) > board.getCell(b).getScore(self);
+    });
+
     return result;
+    // classify(board);
+
+    // vector<Pos> result;
+    // if (!myFive.empty()) {
+    //     result.push_back(myFive.front()); 
+    //     return result;
+    // }
+    // if (!myMate.empty()) {
+    //     result.push_back(myMate.front());
+    //     return result;
+    // }
+    // if (!myFourThree.empty()) {
+    //     result.insert(result.end(), myFourThree.begin(), myFourThree.end());
+    // }
+    // sort(myFour.begin(), myFour.end(), [](const tuple<Pos, Score>& a, const tuple<Pos, Score>& b) {
+    //     return get<1>(a) > get<1>(b); 
+    // });
+    // if (!myFour.empty()) {
+    //     for (const auto& four : myFour) {
+    //         result.push_back(get<0>(four)); 
+    //     }
+    // }
+
+    // return result;
 }
 
 MoveList Evaluator::getThreats(Board& board) {
