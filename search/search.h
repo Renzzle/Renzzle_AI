@@ -132,6 +132,8 @@ Pos Search::findBestMove() {
 }
 
 Pos Search::findNextMove(Board board) {
+    if (board.getResult() != ONGOING) return Pos();
+
     Evaluator evaluator(board);
     Pos sureMove = evaluator.getSureMove();
     if (!sureMove.isDefault()) {
@@ -139,8 +141,9 @@ Pos Search::findNextMove(Board board) {
     }
 
     SearchMonitor vcfMonitor;
-    VCFSearch vcfSearcher(board, monitor);
+    VCFSearch vcfSearcher(board, vcfMonitor);
     if (vcfSearcher.findVCF()) {
+        printPath(vcfMonitor.getBestPath());
         return vcfMonitor.getBestPath()[board.getPath().size()];
     }
 
@@ -152,7 +155,7 @@ Pos Search::findNextMove(Board board) {
             Board tmpBoard = board;
             SearchMonitor vctMonitor;
             VCFSearch vctSearcher(tmpBoard, vctMonitor);
-            if (!vctSearcher.findVCT(9)) {
+            if (!vctSearcher.findVCT(5)) {
                 candidates.push_back(move);
             }
             board.undo();
@@ -172,7 +175,10 @@ Pos Search::findNextMove(Board board) {
     }
 
     MoveList candidates = evaluator.getCandidates();
-    return candidates.front();
+    if (!candidates.empty())
+        return candidates.front();
+    
+    return Pos();
 }
 
 Pos Search::iterativeDeepeningSearch() {

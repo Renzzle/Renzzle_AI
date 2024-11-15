@@ -37,7 +37,8 @@ PRIVATE
 PUBLIC
     SearchTest() {
         //registerTestMethod([this]() { testAlphaBetaSearch(); });
-        registerTestMethod([this]() { testFindNextMove(); });
+        //registerTestMethod([this]() { testFindNextMove(); });
+        registerTestMethod([this]() { playAlone(); });
     }
 
     void testAlphaBetaSearch() {
@@ -71,6 +72,22 @@ PUBLIC
             TEST_PRINT("<result>");
             printBoard(board);
         }
+    }
+
+    void playAlone() {
+        const string process = "h8h9i9i8";
+
+        Board board = getBoard(process);
+        printBoard(board);
+        SearchMonitor monitor;
+        Search search(board, monitor);
+        for (int i = 0; i < 40; i++) {
+            Pos move = search.findNextMove(board);
+            if (move.isDefault()) break;
+            board.move(move);
+            printBoard(board);
+        }
+        TEST_PRINT("finish play alone");
     }
 
 };
