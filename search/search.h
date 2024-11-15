@@ -155,7 +155,7 @@ Pos Search::findNextMove(Board board) {
             Board tmpBoard = board;
             SearchMonitor vctMonitor;
             VCFSearch vctSearcher(tmpBoard, vctMonitor);
-            if (!vctSearcher.findVCT(5)) {
+            if (!vctSearcher.findVCT(7)) {
                 candidates.push_back(move);
             }
             board.undo();
