@@ -77,7 +77,7 @@ void printBoard(Board& board) {
 }
 
 void printPatternCells(CellArray& cells, Piece p, Direction k) {
-    const char* patternNames[] = { " N", " D", "OL", "B1", " 1", "B2", " 2", "2A", "2B", "B3", " 3", "3A", "B4", " 4", " 5", " P" };
+    const char* patternNames[] = { "─┼", " D", "OL", "B1", " 1", "B2", " 2", "2A", "2B", "B3", " 3", "3A", "B4", " 4", " 5", " P" };
     for (int i = BOARD_SIZE + 1; i >= 0; i--) {
         for (int j = 0; j < BOARD_SIZE + 2; j++) {
             if (cells[i][j].getPiece() != EMPTY) {

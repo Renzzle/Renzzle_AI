@@ -9,7 +9,6 @@ class VCFSearch {
 
 PRIVATE
     TreeManager treeManager;
-    Evaluator evaluator;
     SearchMonitor& monitor;
     Color targetColor;
     bool isInitTime = false;
@@ -21,6 +20,7 @@ PUBLIC
     VCFSearch(Board& board, SearchMonitor& monitor);
     bool findVCF();
     bool findVCT();
+    bool findVCT(int limit);
 
 };
 
@@ -36,16 +36,16 @@ bool VCFSearch::findVCF() {
     monitor.incVisitCnt();
     monitor.updateElapsedTime();
     if (isWin()) return true;
+    if (treeManager.getBoard().getResult() != ONGOING) return false;
     
     // find candidates
+    Evaluator evaluator(treeManager.getBoard());
     MoveList moves;
 
     if (isTargetTurn())
-        moves = evaluator.getFours(treeManager.getBoard());
+        moves = evaluator.getFours();
     else 
-        moves = evaluator.getCandidates(treeManager.getBoard());
-
-    if (moves.empty()) return false;
+        moves = evaluator.getCandidates();
 
     // dfs
     for (auto move : moves) {
@@ -75,30 +75,77 @@ bool VCFSearch::findVCF() {
     return false;
 }
 
+bool VCFSearch::findVCT(int limit) {
+    //printBoard(treeManager.getBoard());
+    // update monitor info
+    monitor.incVisitCnt();
+    monitor.updateElapsedTime();
+
+    // ending condtion
+    if (isWin()) return true;
+    if (limit == 0) return false;
+    if (treeManager.getBoard().getResult() != ONGOING) return false;
+
+    Evaluator evaluator(treeManager.getBoard());
+    // if there is no threat, return false
+    if (isTargetTurn() && evaluator.getThreats().empty()) return false;
+    MoveList moves;
+
+    // if only move, just move
+    Pos sureMove = evaluator.getSureMove();
+    if (!sureMove.isDefault()) {
+        treeManager.move(sureMove);
+        bool result = findVCT(limit - 1);
+        treeManager.undo();
+        return result;
+    }
+
+    if (isTargetTurn()) {
+        moves = evaluator.getThreats();
+        for (auto move : moves) {
+            treeManager.move(move);
+            if (findVCT(limit - 1)) {
+                treeManager.undo();
+                return true;
+            }
+            treeManager.undo();
+        }
+        return false;
+    } else {
+        if (!evaluator.isOppoMateExist()) return false;
+        SearchMonitor vcfMonitor;
+        VCFSearch vcfSearch(treeManager.getBoard(), vcfMonitor);
+        if (vcfSearch.findVCF()) return false;
+
+        MoveList defend = evaluator.getThreatDefend();
+        moves.insert(moves.end(), defend.begin(), defend.end());
+        MoveList fours = evaluator.getFours();
+        moves.insert(moves.end(), fours.begin(), fours.end());
+        
+        for (auto move : moves) {
+            treeManager.move(move);
+            if (!findVCT(limit - 1)) {
+                treeManager.undo();    
+                return false;
+            }
+            treeManager.undo();
+        }
+        return true;
+    }
+}
+
 bool VCFSearch::findVCT() {
+    // set monitor
     if (!isInitTime) {
         monitor.initStartTime();
         isInitTime = true;
     }
-    monitor.incVisitCnt();
-    monitor.updateElapsedTime();
-    if (isWin()) return true;
 
-    MoveList moves;
-    moves = evaluator.getSureMove(treeManager.getBoard());
-    if (!moves.empty()) {
-        treeManager.move(moves.front());
-        return findVCT();
-    }
+    // for (int i = 5; i <= 21; i += 4) {
+    //     if (findVCT(i)) return true;
+    // }
 
-    if (isTargetTurn()) {
-        moves = evaluator.getThreats(treeManager.getBoard());
-    } else {
-        SearchMonitor vcfMonitor;
-        VCFSearch vcfSearch(treeManager.getBoard(), vcfMonitor);
-        if (vcfSearch.findVCF()) return false;
-        
-    }
+    return findVCT(9);
 }
 
 bool VCFSearch::isWin() {

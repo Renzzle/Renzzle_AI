@@ -50,11 +50,55 @@ private:
         TEST_PRINT("==================================");
     }
 
+    void vctTest(string process) {
+        Board board = getBoard(process);
+        SearchMonitor monitor;
+        VCFSearch vctSearcher(board, monitor);
+
+        // do not use previous search data
+        vctSearcher.treeManager.cleanCache();
+
+        // print status every 10sec
+        static double lastTriggerTime = 0.0;
+        monitor.setTrigger([](SearchMonitor& monitor) {
+            if (monitor.getElapsedTime() - lastTriggerTime >= 10.0) {
+                lastTriggerTime = monitor.getElapsedTime();
+                return true;
+            }
+            return false;
+        });
+
+        monitor.setSearchListener([](SearchMonitor& monitor) {
+            TEST_PRINT("Time: " << monitor.getElapsedTime() << "sec, Node: " << monitor.getVisitCnt());
+            printPath(monitor.getBestPath());
+        });
+
+        TEST_PRINT("==================================");
+        printBoard(board);
+        TEST_PRINT("");
+
+        TEST_TIME_START();
+        bool result = vctSearcher.findVCT();
+        TEST_TIME_END("vct search");
+
+        if(!result) {
+            TEST_PRINT("There is no VCT");
+            return;
+        }
+
+        MoveList resultPath = monitor.getBestPath();
+        int depth = resultPath.size() - board.getPath().size();
+        size_t node = monitor.getVisitCnt();
+        TEST_PRINT("Find VCT. Depth: " << depth << ", Node: " << node);
+        printPath(resultPath);
+        TEST_PRINT("==================================");
+    }
 
 public:
     VCFSearchTest() {
         registerTestMethod([this]() { findExistBlackVCFs(); });
         registerTestMethod([this]() { findExistWhiteVCFs(); });
+        registerTestMethod([this]() { findExistVCTs(); });
     }
  
     void findExistBlackVCFs() {
@@ -81,6 +125,16 @@ public:
 
         for (auto process : processArr) {
             vcfTest(process);
+        }
+    }
+
+    void findExistVCTs() {
+        const string processArr[] = {
+            "h8h9i8g8i10i9j9h7k8l7j8l8j10j11"
+        };
+
+        for (auto process : processArr) {
+            vctTest(process);
         }
     }
 

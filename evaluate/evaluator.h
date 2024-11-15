@@ -17,35 +17,31 @@ using Value = int;
 class Evaluator {
 
 PRIVATE
+    Board& board;
     Piece self = BLACK;
     Piece oppo = WHITE;
 
     MoveList patternMap[2][COMPOSITE_PATTERN_SIZE];
 
-    void init();
-    void classify(Board& board);
+    void classify();
     
 PUBLIC
-    MoveList getCandidates(Board& board);
-    MoveList getSureMove(Board& board);
-    MoveList getFours(Board& board);
-    MoveList getThreats(Board& board);
-    MoveList getThreatDefend(Board& board);
-    bool isQuiescence(Board& board, Piece piece);
-    Value evaluate(Board& board);
+    Evaluator(Board& board);
+    MoveList getCandidates();
+    Pos getSureMove();
+    MoveList getFours();
+    MoveList getThreats();
+    MoveList getThreatDefend();
+    bool isOppoMateExist();
+    Value evaluate();
 
 }; 
 
-void Evaluator::init() {
-    for (int i = 0; i < COMPOSITE_PATTERN_SIZE; i++) {
-        patternMap[0][i].clear();
-        patternMap[1][i].clear();
-    }
-    return;
+Evaluator::Evaluator(Board& board) : board(board) {
+    classify();
 }
 
-void Evaluator::classify(Board& board) {
-    init();
+void Evaluator::classify() {
     if (board.getResult() != ONGOING) return;
 
     self = board.isBlackTurn() ? BLACK : WHITE;
@@ -63,9 +59,7 @@ void Evaluator::classify(Board& board) {
     }
 }
 
-MoveList Evaluator::getCandidates(Board& board) {
-    classify(board);
-
+MoveList Evaluator::getCandidates() {
     MoveList result;
     if (!patternMap[self][WINNING].empty()) {
         result.push_back(patternMap[self][WINNING].front());
@@ -98,29 +92,21 @@ MoveList Evaluator::getCandidates(Board& board) {
     return result;
 }
 
-MoveList Evaluator::getSureMove(Board& board) {
-    classify(board);
-
-    MoveList result;
+Pos Evaluator::getSureMove() {
     if (!patternMap[self][WINNING].empty()) {
-        result.push_back(patternMap[self][WINNING].front());
-        return result;
+        return patternMap[self][WINNING].front();
     }
     if (!patternMap[oppo][WINNING].empty()) {
-        result.push_back(patternMap[oppo][WINNING].front());
-        return result;
+        return patternMap[oppo][WINNING].front();
     }
     if (!patternMap[self][MATE].empty()) {
-        result.push_back(patternMap[self][MATE].front());
-        return result;
+        return patternMap[self][MATE].front();
     }
 
-    return result;
+    return Pos();
 }
 
-MoveList Evaluator::getFours(Board& board) {
-    classify(board);
-
+MoveList Evaluator::getFours() {
     MoveList result;
     if (!patternMap[self][WINNING].empty()) {
         result.push_back(patternMap[self][WINNING].front()); 
@@ -146,9 +132,7 @@ MoveList Evaluator::getFours(Board& board) {
     return result;
 }
 
-MoveList Evaluator::getThreats(Board& board) {
-    classify(board);
-
+MoveList Evaluator::getThreats() {
     MoveList result;
     if (!patternMap[self][WINNING].empty()) {
         result.push_back(patternMap[self][WINNING].front()); 
@@ -160,32 +144,27 @@ MoveList Evaluator::getThreats(Board& board) {
     }
     if (!patternMap[self][B4_F3].empty()) {
         result.insert(result.end(), patternMap[self][B4_F3].begin(), patternMap[self][B4_F3].end());
-    }
-    if (!patternMap[self][B4_PLUS].empty()) {
-        result.insert(result.end(), patternMap[self][B4_PLUS].begin(), patternMap[self][B4_PLUS].end());
-    }
-    if (!patternMap[self][B4_ANY].empty()) {
-        result.insert(result.end(), patternMap[self][B4_ANY].begin(), patternMap[self][B4_ANY].end());
     }
     if (!patternMap[self][F3_2X].empty()) {
-        result.insert(result.end(), patternMap[self][B4_F3].begin(), patternMap[self][B4_F3].end());
+        result.insert(result.end(), patternMap[self][F3_2X].begin(), patternMap[self][F3_2X].end());
     }
     if (!patternMap[self][F3_PLUS].empty()) {
-        result.insert(result.end(), patternMap[self][B4_PLUS].begin(), patternMap[self][B4_PLUS].end());
+        result.insert(result.end(), patternMap[self][F3_PLUS].begin(), patternMap[self][F3_PLUS].end());
     }
     if (!patternMap[self][F3_ANY].empty()) {
+        result.insert(result.end(), patternMap[self][F3_ANY].begin(), patternMap[self][F3_ANY].end());
+    }
+    if (!patternMap[self][B4_PLUS].empty()) {
+        result.insert(result.end(), patternMap[self][B4_PLUS].begin(), patternMap[self][B4_PLUS].end());
+    }
+    if (!patternMap[self][B4_ANY].empty()) {
         result.insert(result.end(), patternMap[self][B4_ANY].begin(), patternMap[self][B4_ANY].end());
     }
-    sort(result.begin(), result.end(), [&](const Pos& a, const Pos& b) {
-        return board.getCell(a).getScore(self) > board.getCell(b).getScore(self);
-    });
 
     return result;
 }
 
-MoveList Evaluator::getThreatDefend(Board& board) {
-    classify(board);
-
+MoveList Evaluator::getThreatDefend() {
     MoveList result;
     if (!patternMap[oppo][WINNING].empty()) {
         result.push_back(patternMap[oppo][WINNING].front());
@@ -225,26 +204,13 @@ MoveList Evaluator::getThreatDefend(Board& board) {
     return result;
 }
 
-bool Evaluator::isQuiescence(Board& board, Piece piece) {
-    classify(board);
-
-    if (!patternMap[piece][WINNING].empty()) return false;
-    if (!patternMap[piece][MATE].empty()) return false;
-    if (!patternMap[piece][B4_F3].empty()) return false;
-    if (!patternMap[piece][B4_PLUS].empty()) return false;
-    if (!patternMap[piece][F3_2X].empty()) return false;
-    if (!patternMap[piece][F3_PLUS].empty()) return false;
-
-    Piece oppoPiece = (piece == BLACK) ? WHITE : BLACK;
-    if (!patternMap[oppoPiece][WINNING].empty()) return true;
-    if (!patternMap[oppoPiece][MATE].empty()) return true;
-
-    return true;
+bool Evaluator::isOppoMateExist() {
+    if (!patternMap[oppo][WINNING].empty()) return true;
+    if (!patternMap[oppo][MATE].empty()) return true;
+    return false;
 }
 
-Value Evaluator::evaluate(Board& board) {
-    classify(board);
-
+Value Evaluator::evaluate() {
     // case 1: finish
     Result result = board.getResult();
     if (result != ONGOING) {
@@ -265,7 +231,7 @@ Value Evaluator::evaluate(Board& board) {
         return MAX_VALUE - 1;
     }
     // 1 step before lose
-    if (!patternMap[oppo][WINNING].size() > 1) {
+    if (patternMap[oppo][WINNING].size() > 1) {
         return MIN_VALUE + 1;
     }
     // 3 step before win

@@ -18,12 +18,16 @@ private:
 
 public:
     Pos() {
-        x = 0; y = 0; dir = HORIZONTAL;
+        x = -1; y = -1; dir = HORIZONTAL;
     };
 
     Pos(int x, int y) {
         this->x = x;
         this->y = y;
+        if (!isValid()) {
+            this->x = -1;
+            this->y = -1;
+        }
         dir = HORIZONTAL;
     }
 
@@ -31,6 +35,10 @@ public:
         this->x = x;
         this->y = y;
         this->dir = dir;
+        if (!isValid()) {
+            this->x = -1;
+            this->y = -1;
+        }
     }
     
     int getX() const {
@@ -72,6 +80,10 @@ public:
 
     bool operator==(const Pos& other) const {
         return x == other.x && y == other.y;
+    }
+
+    bool isDefault() {
+        return (x == -1) && (y == -1);
     }
     
 };
