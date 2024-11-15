@@ -37,8 +37,8 @@ PRIVATE
 PUBLIC
     SearchTest() {
         //registerTestMethod([this]() { testAlphaBetaSearch(); });
-        //registerTestMethod([this]() { testFindNextMove(); });
-        registerTestMethod([this]() { playAlone(); });
+        registerTestMethod([this]() { testFindNextMove(); });
+        //registerTestMethod([this]() { playAlone(); });
     }
 
     void testAlphaBetaSearch() {
@@ -58,7 +58,8 @@ PUBLIC
             "h8h9i8g8i10i9j9h7k8l7j8l8j10j11l10k10m11",
             "h8h9i8g8i10i9j9h7k8l7j8l8j10j11j7",
             "h8h9i8g8i10i9j9h7k8l7j8l8j10j11",
-            "h8h9i8g8i10i9j9h7j10k10j11k11g7"
+            "h8h9i8g8i10i9j9h7j10k10j11k11g7",
+            "h8h9i8g8i10i9j9g9g7h7i6f11g11g12h10j5j6k6j7k10i7j11d9h6h5"
         };
 
         for (auto process : processArr) {

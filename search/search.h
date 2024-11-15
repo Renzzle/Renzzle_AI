@@ -143,7 +143,6 @@ Pos Search::findNextMove(Board board) {
     SearchMonitor vcfMonitor;
     VCFSearch vcfSearcher(board, vcfMonitor);
     if (vcfSearcher.findVCF()) {
-        printPath(vcfMonitor.getBestPath());
         return vcfMonitor.getBestPath()[board.getPath().size()];
     }
 
