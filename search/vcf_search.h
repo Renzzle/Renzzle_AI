@@ -141,11 +141,11 @@ bool VCFSearch::findVCT() {
         isInitTime = true;
     }
 
-    // for (int i = 5; i <= 21; i += 4) {
-    //     if (findVCT(i)) return true;
-    // }
+    for (int i = 3; i <= 11; i += 2) {
+        if (findVCT(i)) return true;
+    }
 
-    return findVCT(9);
+    return false;
 }
 
 bool VCFSearch::isWin() {

@@ -11,7 +11,6 @@ class Search {
 
 PRIVATE
     TreeManager treeManager;
-    Evaluator evaluator;
     Color targetColor;
     SearchMonitor& monitor;
 
@@ -24,7 +23,7 @@ PUBLIC
     Search(Board& board, SearchMonitor& monitor);
     Pos findBestMove();
     Pos iterativeDeepeningSearch();
-    Pos findNextMove(Board& board);
+    Pos findNextMove(Board board);
     MoveList getPath();
     MoveList getSimulatedPath();
 
@@ -37,11 +36,11 @@ Search::Search(Board& board, SearchMonitor& monitor) : treeManager(board), monit
 Value Search::alphaBeta(Board& board, int depth, int alpha, int beta, bool maximizingPlayer) {
     monitor.incVisitCnt();
 
-    printBoard(treeManager.getBoard());
+    Evaluator evaluator(treeManager.getBoard());
 
     // end condition
     if (depth <= 0 || isGameOver(board)) {
-        Value val = evaluator.evaluate(board);
+        Value val = evaluator.evaluate();
         if (!maximizingPlayer) {
             val = -val;
         }
@@ -52,9 +51,9 @@ Value Search::alphaBeta(Board& board, int depth, int alpha, int beta, bool maxim
         return val;
     }
 
-    MoveList moves = evaluator.getCandidates(treeManager.getBoard());
+    MoveList moves = evaluator.getCandidates();
 
-    if (moves.empty()) return evaluator.evaluate(board);
+    if (moves.empty()) return evaluator.evaluate();
 
     if (maximizingPlayer) {
         int maxEval = MIN_VALUE;
@@ -90,7 +89,8 @@ int Search::ids(Board& board, int depthLimit) {
     for (int depth = 1; depth <= depthLimit; depth++) {
         bestMove = findBestMove();
     }
-    return evaluator.evaluate(treeManager.getBoard());
+    Evaluator evaluator(treeManager.getBoard());
+    return evaluator.evaluate();
 }
 
 bool Search::isGameOver(Board& board) {
@@ -112,7 +112,8 @@ Pos Search::findBestMove() {
     int bestValue = MIN_VALUE;
     Pos bestMove;
 
-    vector<Pos> moves = evaluator.getCandidates(treeManager.getBoard());
+    Evaluator evaluator(treeManager.getBoard());
+    vector<Pos> moves = evaluator.getCandidates();
 
     for (Pos move : moves) {
         treeManager.move(move);
@@ -130,14 +131,48 @@ Pos Search::findBestMove() {
     return bestMove;
 }
 
-Pos Search::findNextMove(Board& board) {
-    MoveList sureMove = evaluator.getSureMove(board);
-    if (!sureMove.empty()) {
-        return sureMove.front();
+Pos Search::findNextMove(Board board) {
+    Evaluator evaluator(board);
+    Pos sureMove = evaluator.getSureMove();
+    if (!sureMove.isDefault()) {
+        return sureMove;
     }
 
-    VCFSearch vcfSearch(board, monitor);
-    
+    SearchMonitor vcfMonitor;
+    VCFSearch vcfSearcher(board, monitor);
+    if (vcfSearcher.findVCF()) {
+        return vcfMonitor.getBestPath()[board.getPath().size()];
+    }
+
+    if (evaluator.isOppoMateExist()) {
+        MoveList defends = evaluator.getThreatDefend();
+        MoveList candidates;
+        for (auto move : defends) {
+            board.move(move);
+            Board tmpBoard = board;
+            SearchMonitor vctMonitor;
+            VCFSearch vctSearcher(tmpBoard, vctMonitor);
+            if (!vctSearcher.findVCT(9)) {
+                candidates.push_back(move);
+            }
+            board.undo();
+        }
+        if (candidates.empty()) {
+            return defends.front();
+        }
+        else {
+            return candidates.front();
+        }
+    }
+
+    SearchMonitor vctMonitor;
+    VCFSearch vctSearcher(board, vctMonitor);
+    if (vctSearcher.findVCT(9)) {
+        return vctMonitor.getBestPath()[board.getPath().size()];
+    }
+
+    MoveList candidates = evaluator.getCandidates();
+    return candidates.front();
 }
 
 Pos Search::iterativeDeepeningSearch() {

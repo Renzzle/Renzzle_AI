@@ -36,7 +36,8 @@ PRIVATE
 
 PUBLIC
     SearchTest() {
-        registerTestMethod([this]() { testAlphaBetaSearch(); });
+        //registerTestMethod([this]() { testAlphaBetaSearch(); });
+        registerTestMethod([this]() { testFindNextMove(); });
     }
 
     void testAlphaBetaSearch() {
@@ -47,6 +48,28 @@ PUBLIC
         for (auto process : processArr) {
             TEST_PRINT("=================================");
             searchTest(process);
+        }
+    }
+
+    void testFindNextMove() {
+        const string processArr[] = {
+            "h8h9i8g8i10i9j9h7k8l7j8l8j10j11l10",
+            "h8h9i8g8i10i9j9h7k8l7j8l8j10j11l10k10m11",
+            "h8h9i8g8i10i9j9h7k8l7j8l8j10j11j7",
+            "h8h9i8g8i10i9j9h7k8l7j8l8j10j11",
+            "h8h9i8g8i10i9j9h7j10k10j11k11g7"
+        };
+
+        for (auto process : processArr) {
+            TEST_PRINT("=================================");
+            Board board = getBoard(process);
+            printBoard(board);
+            SearchMonitor monitor;
+            Search search(board, monitor);
+            Pos move = search.findNextMove(board);
+            board.move(move);
+            TEST_PRINT("<result>");
+            printBoard(board);
         }
     }
 
