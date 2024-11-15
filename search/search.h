@@ -3,6 +3,7 @@
 #include "../evaluate/evaluator.h"
 #include "../tree/tree_manager.h"
 #include "../test/test.h"
+#include "vcf_search.h"
 #include "search_monitor.h"
 #include <limits>
 
@@ -23,6 +24,7 @@ PUBLIC
     Search(Board& board, SearchMonitor& monitor);
     Pos findBestMove();
     Pos iterativeDeepeningSearch();
+    Pos findNextMove(Board& board);
     MoveList getPath();
     MoveList getSimulatedPath();
 
@@ -33,9 +35,21 @@ Search::Search(Board& board, SearchMonitor& monitor) : treeManager(board), monit
 }
 
 Value Search::alphaBeta(Board& board, int depth, int alpha, int beta, bool maximizingPlayer) {
-    if (depth == 0 || isGameOver(board)) {
-        if (depth == 0) monitor.setBestPath(treeManager.getBoard().getPath());
-        return          evaluator.evaluate(board);
+    monitor.incVisitCnt();
+
+    printBoard(treeManager.getBoard());
+
+    // end condition
+    if (depth <= 0 || isGameOver(board)) {
+        Value val = evaluator.evaluate(board);
+        if (!maximizingPlayer) {
+            val = -val;
+        }
+        if (val > monitor.getBestValue()) {
+            monitor.setBestValue(val);
+            monitor.setBestPath(treeManager.getBoard().getPath());
+        }
+        return val;
     }
 
     MoveList moves = evaluator.getCandidates(treeManager.getBoard());
@@ -114,6 +128,16 @@ Pos Search::findBestMove() {
     }
 
     return bestMove;
+}
+
+Pos Search::findNextMove(Board& board) {
+    MoveList sureMove = evaluator.getSureMove(board);
+    if (!sureMove.empty()) {
+        return sureMove.front();
+    }
+
+    VCFSearch vcfSearch(board, monitor);
+    
 }
 
 Pos Search::iterativeDeepeningSearch() {

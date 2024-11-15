@@ -20,6 +20,7 @@ PRIVATE
 PUBLIC
     VCFSearch(Board& board, SearchMonitor& monitor);
     bool findVCF();
+    bool findVCT();
 
 };
 
@@ -72,6 +73,32 @@ bool VCFSearch::findVCF() {
     }
 
     return false;
+}
+
+bool VCFSearch::findVCT() {
+    if (!isInitTime) {
+        monitor.initStartTime();
+        isInitTime = true;
+    }
+    monitor.incVisitCnt();
+    monitor.updateElapsedTime();
+    if (isWin()) return true;
+
+    MoveList moves;
+    moves = evaluator.getSureMove(treeManager.getBoard());
+    if (!moves.empty()) {
+        treeManager.move(moves.front());
+        return findVCT();
+    }
+
+    if (isTargetTurn()) {
+        moves = evaluator.getThreats(treeManager.getBoard());
+    } else {
+        SearchMonitor vcfMonitor;
+        VCFSearch vcfSearch(treeManager.getBoard(), vcfMonitor);
+        if (vcfSearch.findVCF()) return false;
+        
+    }
 }
 
 bool VCFSearch::isWin() {

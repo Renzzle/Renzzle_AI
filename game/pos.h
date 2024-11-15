@@ -40,6 +40,10 @@ public:
     int getY() const {
         return y;
     }
+
+    void setDirection(Direction dir) {
+        this->dir = dir;
+    }
     
     bool operator+(const int n) {
         this->x += inc[dir][0] * n;
@@ -71,12 +75,3 @@ public:
     }
     
 };
-
-namespace std {
-    template <>
-    struct hash<Pos> {
-        size_t operator()(const Pos& pos) const {
-            return hash<int>()(pos.getX()) ^ (hash<int>()(pos.getY()) << 1);
-        }
-    };
-}

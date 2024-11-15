@@ -40,6 +40,7 @@ PUBLIC
         executeTrigger();
     }
     void setBestPath(MoveList path) { bestPath = path; executeTrigger(); };
+    void setBestValue(Value val) { bestValue = val; executeTrigger(); };
 
     // getter
     double getElapsedTime() { return elapsedTime; }

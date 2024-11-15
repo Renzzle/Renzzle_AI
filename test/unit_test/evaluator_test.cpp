@@ -7,6 +7,7 @@ class EvaluatorTest : public TestBase {
 public:
     EvaluatorTest() {
         registerTestMethod([this]() { checkTime(); });
+        registerTestMethod([this]() { threatDefendTest(); });
     }
 
     void checkTime() {
@@ -34,6 +35,16 @@ public:
             }
             TEST_TIME_END("getFours(x100,000)");
         }
+    }
+
+    void threatDefendTest() {
+        Evaluator evaluator;
+        Board board = getBoard("h8h9i8i9k8h6j6h5k6i5l6h12h11i12i11j12j11");
+        MoveList denfends = evaluator.getThreatDefend(board);
+
+        printBoard(board);
+        TEST_PRINT("<Defend move>");
+        printPath(denfends);
     }
 
 };
