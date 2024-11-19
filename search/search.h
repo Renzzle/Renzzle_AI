@@ -3,7 +3,7 @@
 #include "../evaluate/evaluator.h"
 #include "../tree/tree_manager.h"
 #include "../test/test.h"
-#include "vcf_search.h"
+#include "search_win.h"
 #include "search_monitor.h"
 #include <limits>
 
@@ -141,7 +141,7 @@ Pos Search::findNextMove(Board board) {
     }
 
     SearchMonitor vcfMonitor;
-    VCFSearch vcfSearcher(board, vcfMonitor);
+    SearchWin vcfSearcher(board, vcfMonitor);
     if (vcfSearcher.findVCF()) {
         return vcfMonitor.getBestPath()[board.getPath().size()];
     }
@@ -153,7 +153,7 @@ Pos Search::findNextMove(Board board) {
             board.move(move);
             Board tmpBoard = board;
             SearchMonitor vctMonitor;
-            VCFSearch vctSearcher(tmpBoard, vctMonitor);
+            SearchWin vctSearcher(tmpBoard, vctMonitor);
             if (!vctSearcher.findVCT(7)) {
                 candidates.push_back(move);
             }
@@ -168,7 +168,7 @@ Pos Search::findNextMove(Board board) {
     }
 
     SearchMonitor vctMonitor;
-    VCFSearch vctSearcher(board, vctMonitor);
+    SearchWin vctSearcher(board, vctMonitor);
     if (vctSearcher.findVCT(9)) {
         return vctMonitor.getBestPath()[board.getPath().size()];
     }

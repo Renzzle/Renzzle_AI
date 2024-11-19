@@ -1,6 +1,6 @@
 #include "../test.h"
 #include "../util.h"
-#include "../../search/vcf_search.h"
+#include "../../search/search_win.h"
 #include <cmath>
 
 class VCFSearchTest : public TestBase {
@@ -9,7 +9,7 @@ private:
     void vcfTest(string process) {
         Board board = getBoard(process);
         SearchMonitor monitor;
-        VCFSearch vcfSearcher(board, monitor);
+        SearchWin vcfSearcher(board, monitor);
 
         // do not use previous search data
         vcfSearcher.treeManager.cleanCache();
@@ -53,7 +53,7 @@ private:
     void vctTest(string process) {
         Board board = getBoard(process);
         SearchMonitor monitor;
-        VCFSearch vctSearcher(board, monitor);
+        SearchWin vctSearcher(board, monitor);
 
         // do not use previous search data
         vctSearcher.treeManager.cleanCache();

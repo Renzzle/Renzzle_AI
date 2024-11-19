@@ -5,7 +5,7 @@
 #include "../test/test.h"
 #include "search_monitor.h"
 
-class VCFSearch {
+class SearchWin {
 
 PRIVATE
     TreeManager treeManager;
@@ -17,18 +17,18 @@ PRIVATE
     bool isTargetTurn();
 
 PUBLIC
-    VCFSearch(Board& board, SearchMonitor& monitor);
+    SearchWin(Board& board, SearchMonitor& monitor);
     bool findVCF();
     bool findVCT();
     bool findVCT(int limit);
 
 };
 
-VCFSearch::VCFSearch(Board& board, SearchMonitor& monitor) : treeManager(board), monitor(monitor) {
+SearchWin::SearchWin(Board& board, SearchMonitor& monitor) : treeManager(board), monitor(monitor) {
     targetColor = board.isBlackTurn() ? COLOR_BLACK : COLOR_WHITE;
 }
 
-bool VCFSearch::findVCF() {
+bool SearchWin::findVCF() {
     if (!isInitTime) {
         monitor.initStartTime();
         isInitTime = true;
@@ -75,7 +75,7 @@ bool VCFSearch::findVCF() {
     return false;
 }
 
-bool VCFSearch::findVCT(int limit) {
+bool SearchWin::findVCT(int limit) {
     //printBoard(treeManager.getBoard());
     // update monitor info
     monitor.incVisitCnt();
@@ -114,7 +114,7 @@ bool VCFSearch::findVCT(int limit) {
     } else {
         if (!evaluator.isOppoMateExist()) return false;
         SearchMonitor vcfMonitor;
-        VCFSearch vcfSearch(treeManager.getBoard(), vcfMonitor);
+        SearchWin vcfSearch(treeManager.getBoard(), vcfMonitor);
         if (vcfSearch.findVCF()) return false;
 
         MoveList defend = evaluator.getThreatDefend();
@@ -134,7 +134,7 @@ bool VCFSearch::findVCT(int limit) {
     }
 }
 
-bool VCFSearch::findVCT() {
+bool SearchWin::findVCT() {
     // set monitor
     if (!isInitTime) {
         monitor.initStartTime();
@@ -148,7 +148,7 @@ bool VCFSearch::findVCT() {
     return false;
 }
 
-bool VCFSearch::isWin() {
+bool SearchWin::isWin() {
     Result result = treeManager.getBoard().getResult();;
     bool isWin = false;
     
@@ -166,7 +166,7 @@ bool VCFSearch::isWin() {
     return isWin;
 }
 
-bool VCFSearch::isTargetTurn() {
+bool SearchWin::isTargetTurn() {
     if (treeManager.getBoard().isBlackTurn()) {
         if (targetColor == COLOR_BLACK) return true;
         else return false;
