@@ -89,15 +89,15 @@ private:
         MoveList resultPath = monitor.getBestPath();
         int depth = resultPath.size() - board.getPath().size();
         size_t node = monitor.getVisitCnt();
-        TEST_PRINT("Find VCT. Depth: " << depth << ", Node: " << node);
+        TEST_PRINT("\033[31mFind WIN. Depth: " << depth << ", Node: " << node << "\033[0m");
         printPath(resultPath);
         TEST_PRINT("==================================");
     }
 
 public:
     VCFSearchTest() {
-        registerTestMethod([this]() { findExistBlackVCFs(); });
-        registerTestMethod([this]() { findExistWhiteVCFs(); });
+        //registerTestMethod([this]() { findExistBlackVCFs(); });
+        //registerTestMethod([this]() { findExistWhiteVCFs(); });
         registerTestMethod([this]() { findExistVCTs(); });
     }
  
@@ -130,11 +130,18 @@ public:
 
     void findExistVCTs() {
         const string processArr[] = {
-            "h8h9i8g8i10i9j9h7k8l7j8l8j10j11"
+            "h8h9i8g8i10i9j9h7k8l7j8l8j10j11",
+            //"h8i9i7g9j7k7j8i8j9j10h6k9j6j5g5f4k6l6",
+            //"h8i9i7g9j7k7j8i8j9j10h6g5h5h7",
+            //"h8i9i7g9j7k7j8i8j9j10",
+            "h8i9i7g9j7k7j8h6i8k8",
+            "h8h9i8j8f8g8g7j11i10"
+            //"h8h9i7g9g8f8i9i8h10j8g10j9e10i10h7f9e9k8l7j10j7k7"
         };
 
         for (auto process : processArr) {
             vctTest(process);
+            Sleep(1000);
         }
     }
 

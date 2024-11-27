@@ -12,9 +12,9 @@ struct Node {
     Value evaluatedValue;
     Result result;
     unordered_map<size_t, shared_ptr<Node>> childNodes;
-    int height;
+    int visitedCnt;
 
-    Node(Board b) : board(b), actualValue(INITIAL_VALUE), evaluatedValue(INITIAL_VALUE), result(ONGOING), height(0) {}
+    Node(Board b) : board(b), actualValue(INITIAL_VALUE), evaluatedValue(INITIAL_VALUE), result(ONGOING), visitedCnt(0) {}
 };
 
 class Tree {

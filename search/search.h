@@ -154,7 +154,7 @@ Pos Search::findNextMove(Board board) {
             Board tmpBoard = board;
             SearchMonitor vctMonitor;
             SearchWin vctSearcher(tmpBoard, vctMonitor);
-            if (!vctSearcher.findVCT(7)) {
+            if (!vctSearcher.findVCT()) {
                 candidates.push_back(move);
             }
             board.undo();
@@ -169,7 +169,7 @@ Pos Search::findNextMove(Board board) {
 
     SearchMonitor vctMonitor;
     SearchWin vctSearcher(board, vctMonitor);
-    if (vctSearcher.findVCT(9)) {
+    if (vctSearcher.findVCT()) {
         return vctMonitor.getBestPath()[board.getPath().size()];
     }
 

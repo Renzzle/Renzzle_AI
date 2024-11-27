@@ -240,25 +240,22 @@ Value Evaluator::evaluate() {
     }
 
     Value val = 0;
-    val += patternMap[self][WINNING].size() * 100;
-    val += patternMap[self][MATE].size() * 100;
-
-    val += patternMap[self][B4_F3].size() * 20;
+    val += patternMap[self][B4_F3].size() * 150;
     val += patternMap[self][B4_PLUS].size() * 20;
-    val += patternMap[self][F3_2X].size() * 20;
+    val += patternMap[self][F3_2X].size() * 30;
     val += patternMap[self][F3_PLUS].size() * 20;
 
-    val += patternMap[self][B4_ANY].size() * 13;
-    val += patternMap[self][F3_ANY].size() * 12;
+    val += patternMap[self][B4_ANY].size() * 20;
+    val += patternMap[self][F3_ANY].size() * 20;
     val += patternMap[self][B3_PLUS].size() * 10;
     val += patternMap[self][F2_2X].size() * 9;
     val += patternMap[self][B3_ANY].size() * 5;
     val += patternMap[self][F2_ANY].size() * 4;
 
-    val -= patternMap[oppo][WINNING].size() * 100;
-    val -= patternMap[oppo][MATE].size() * 100;
+    val -= patternMap[oppo][WINNING].size() * 200;
+    val -= patternMap[oppo][MATE].size() * 200;
 
-    val -= patternMap[oppo][B4_F3].size() * 20;
+    val -= patternMap[oppo][B4_F3].size() * 130;
     val -= patternMap[oppo][B4_PLUS].size() * 20;
     val -= patternMap[oppo][B4_ANY].size() * 20;
     val -= patternMap[oppo][F3_2X].size() * 20;
