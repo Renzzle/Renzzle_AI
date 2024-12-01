@@ -73,6 +73,10 @@ MoveList Evaluator::getCandidates() {
         result.push_back(patternMap[self][MATE].front());
         return result;
     }
+
+    if (isOppoMateExist()) {
+        return getThreatDefend();
+    }
     
     result.insert(result.end(), patternMap[self][B4_F3].begin(), patternMap[self][B4_F3].end());
     result.insert(result.end(), patternMap[oppo][MATE].begin(), patternMap[oppo][MATE].end());
@@ -241,12 +245,12 @@ Value Evaluator::evaluate() {
 
     Value val = 0;
     val += patternMap[self][B4_F3].size() * 150;
-    val += patternMap[self][B4_PLUS].size() * 20;
-    val += patternMap[self][F3_2X].size() * 30;
-    val += patternMap[self][F3_PLUS].size() * 20;
+    val += patternMap[self][B4_PLUS].size() * 25;
+    val += patternMap[self][F3_2X].size() * 35;
+    val += patternMap[self][F3_PLUS].size() * 25;
 
-    val += patternMap[self][B4_ANY].size() * 20;
-    val += patternMap[self][F3_ANY].size() * 20;
+    val += patternMap[self][B4_ANY].size() * 25;
+    val += patternMap[self][F3_ANY].size() * 25;
     val += patternMap[self][B3_PLUS].size() * 10;
     val += patternMap[self][F2_2X].size() * 9;
     val += patternMap[self][B3_ANY].size() * 5;

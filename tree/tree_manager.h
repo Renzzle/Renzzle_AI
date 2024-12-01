@@ -7,7 +7,7 @@
 class TreeManager {
 
 PRIVATE
-    static Tree tree;
+    Tree tree;
     shared_ptr<Node> currentNode;
     stack<shared_ptr<Node>> nodeHistory;
 
@@ -21,8 +21,6 @@ PUBLIC
     shared_ptr<Node> getNode();
 
 };
-
-Tree TreeManager::tree;
 
 TreeManager::TreeManager(Board initialBoard) {
     auto rootNode = tree.createNode(initialBoard);

@@ -12,7 +12,7 @@ PRIVATE
     SearchMonitor& monitor;
     Color targetColor;
     Result targetResult;
-    bool isInitTime = false;
+    bool isRunning = false;
     
     bool isWin();
     bool isTargetTurn();
@@ -24,6 +24,7 @@ PUBLIC
     bool findVCF();
     bool findVCT();
     bool findVCT(int limit);
+    void stop();
 
 };
 
@@ -33,13 +34,14 @@ SearchWin::SearchWin(Board& board, SearchMonitor& monitor) : treeManager(board),
 }
 
 bool SearchWin::findVCF() {
-    if (!isInitTime) {
+    if (!isRunning) {
         monitor.initStartTime();
-        isInitTime = true;
+        isRunning = true;
     }
     monitor.incVisitCnt();
     monitor.updateElapsedTime();
     if (isWin()) return true;
+    if (!isRunning) return false;
     if (treeManager.getBoard().getResult() != ONGOING) return false;
     
     // find candidates
@@ -73,6 +75,7 @@ bool SearchWin::findVCF() {
         }
         
         treeManager.undo();
+        if (!isRunning) break;
     }
 
     return false;
@@ -85,6 +88,7 @@ bool SearchWin::findVCT(int limit) {
 
     // ending condtion
     if (isWin()) return true;
+    if (!isRunning) return false;
     if (limit == 0) return false;
     if (treeManager.getBoard().getResult() != ONGOING) return false;
 
@@ -132,6 +136,7 @@ bool SearchWin::findVCT(int limit) {
                 return true;
             }
             treeManager.undo();
+            if (!isRunning) break;
         }
         treeManager.getNode()->actualValue = minVal * -1;
         return false;
@@ -171,6 +176,7 @@ bool SearchWin::findVCT(int limit) {
                 return false;
             }
             treeManager.undo();
+            if (!isRunning) break;
         }
         treeManager.getNode()->actualValue = childVal - 1;
         treeManager.getNode()->result = targetResult;
@@ -180,19 +186,20 @@ bool SearchWin::findVCT(int limit) {
 
 bool SearchWin::findVCT() {
     // set monitor
-    if (!isInitTime) {
+    if (!isRunning) {
         monitor.initStartTime();
-        isInitTime = true;
+        isRunning = true;
     }
 
     for (int i = 3; i <= 31; i += 2) {
         if (findVCT(i)) return true;
-        TEST_PRINT("Depth: " << i << ", Time: " << monitor.getElapsedTime() << "sec, Node: " << monitor.getVisitCnt());
+        //TEST_PRINT("Depth: " << i << ", Time: " << monitor.getElapsedTime() << "sec, Node: " << monitor.getVisitCnt());
         // for (const auto& pair : treeManager.getNode()->childNodes) {
         //     shared_ptr<Node> node = pair.second;
         //     printBoard(node->board);
         //     TEST_PRINT("Value: " << node->actualValue << " Visit: " << node->visitedCnt);
         // }
+        if (!isRunning) return false;
     }
 
     return false;
@@ -253,4 +260,8 @@ void SearchWin::sortChildNodes(MoveList& moves, bool isTarget) {
             else return aNode->actualValue < bNode->actualValue;
         });
     }   
+}
+
+void SearchWin::stop() {
+    isRunning = false;
 }
