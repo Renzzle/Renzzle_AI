@@ -142,6 +142,18 @@ Pos Search::findNextMove(Board board) {
 
     SearchMonitor vcfMonitor;
     SearchWin vcfSearcher(board, vcfMonitor);
+
+    double lastTriggerTime = 0.0;
+    vcfMonitor.setTrigger([&lastTriggerTime](SearchMonitor& monitor) {
+        if (monitor.getElapsedTime() - lastTriggerTime >= 5.0) {
+            return true;
+        }
+        return false;
+    });
+    vcfMonitor.setSearchListener([&vcfSearcher](SearchMonitor& monitor) {
+        vcfSearcher.stop();
+    });
+
     if (vcfSearcher.findVCF()) {
         return vcfMonitor.getBestPath()[board.getPath().size()];
     }
@@ -154,6 +166,18 @@ Pos Search::findNextMove(Board board) {
             Board tmpBoard = board;
             SearchMonitor vctMonitor;
             SearchWin vctSearcher(tmpBoard, vctMonitor);
+
+            lastTriggerTime = 0.0;
+            vcfMonitor.setTrigger([&lastTriggerTime](SearchMonitor& monitor) {
+                if (monitor.getElapsedTime() - lastTriggerTime >= 5.0) {
+                    return true;
+                }
+                return false;
+            });
+            vcfMonitor.setSearchListener([&vcfSearcher](SearchMonitor& monitor) {
+                vcfSearcher.stop();
+            });
+
             if (!vctSearcher.findVCT()) {
                 candidates.push_back(move);
             }
@@ -169,6 +193,18 @@ Pos Search::findNextMove(Board board) {
 
     SearchMonitor vctMonitor;
     SearchWin vctSearcher(board, vctMonitor);
+
+    lastTriggerTime = 0.0;
+    vcfMonitor.setTrigger([&lastTriggerTime](SearchMonitor& monitor) {
+        if (monitor.getElapsedTime() - lastTriggerTime >= 5.0) {
+            return true;
+        }
+        return false;
+    });
+    vcfMonitor.setSearchListener([&vcfSearcher](SearchMonitor& monitor) {
+        vcfSearcher.stop();
+    });
+
     if (vctSearcher.findVCT()) {
         return vctMonitor.getBestPath()[board.getPath().size()];
     }
