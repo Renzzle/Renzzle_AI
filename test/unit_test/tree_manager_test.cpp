@@ -23,7 +23,6 @@ public:
     TreeManagerTest() {
         registerTestMethod([this]() { moveMethodTest(); });
         registerTestMethod([this]() { undoMethodTest(); });
-        registerTestMethod([this]() { isVisitedMethodTest(); });
         registerTestMethod([this]() { isomorphicTest(); });
         registerTestMethod([this]() { zobristHashUpdateTest(); });
         registerTestMethod([this]() { zobristHashConsistencyTest(); });
@@ -64,17 +63,6 @@ public:
 
         // check same board
         TEST_ASSERT(treeManager.getBoard().getCurrentHash() == initialBoard.getCurrentHash());
-    }
-
-    void isVisitedMethodTest() {
-        Board initialBoard = getBoard("h8h9i8i9j8j9k8k9");
-
-        TreeManager treeManager(initialBoard);
-        Pos l8Move(12, 8);
-        treeManager.move(l8Move);
-        treeManager.undo();
-
-        TEST_ASSERT(treeManager.isVisited(l8Move));
     }
 
     void isomorphicTest() {

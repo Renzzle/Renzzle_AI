@@ -7,12 +7,11 @@
 #include <array>
 #include <vector>
 
-#define BOARD_SIZE 15
 #define STATIC_WALL &cells[0][0];
 
 using namespace std;
-using CellArray = array<array<Cell, BOARD_SIZE + 2>, BOARD_SIZE + 2>;
 using MoveList = vector<Pos>;
+using CellArray = array<array<Cell, BOARD_SIZE + 2>, BOARD_SIZE + 2>;
 
 class Board {
 
@@ -37,7 +36,7 @@ PUBLIC
     void undo();
     Result getResult();
     bool isForbidden(Pos p);
-    MoveList getPath();
+    MoveList& getPath();
     size_t getCurrentHash() const;
     
 };
@@ -84,6 +83,7 @@ bool Board::move(Pos p) {
     getCell(p).setPiece(piece);
 
     clearPattern(getCell(p));
+    getCell(p).clearCompositePattern();
     setPatterns(p);
 
     return true;
@@ -112,6 +112,7 @@ Result Board::getResult() {
 bool Board::isForbidden(Pos p) {
     Cell c = getCell(p);
     if (c.getPiece() != EMPTY) return false;
+    if (c.getCompositePattern(BLACK) != FORBID) return false;
 
     int winByFour = 0;
     int winByThree = 0;
@@ -187,7 +188,7 @@ bool Board::isForbidden(Pos p) {
     return winByThree >= 2;
 }
 
-vector<Pos> Board::getPath() {
+MoveList& Board::getPath() {
     return path;
 }
 
@@ -210,16 +211,21 @@ void Board::setPatterns(Pos& p) {
                 continue;
             }
 
-            if (getCell(p).getPiece() == EMPTY) {
+            Cell& c = getCell(p);
+            if (c.getPiece() == EMPTY) {
                 Line line = getLine(p);
-                getCell(p).setPiece(BLACK);
-                getCell(p).setPattern(BLACK, dir, getPattern(line, COLOR_BLACK));
-                getCell(p).setPiece(WHITE);
-                getCell(p).setPattern(WHITE, dir, getPattern(line, COLOR_WHITE));
-                getCell(p).setPiece(EMPTY);
+                c.setPiece(BLACK);
+                c.setPattern(BLACK, dir, getPattern(line, COLOR_BLACK));
+                c.setPiece(WHITE);
+                c.setPattern(WHITE, dir, getPattern(line, COLOR_WHITE));
+                c.setPiece(EMPTY);
+
+                c.setScore();
+                c.setCompositePattern();
             }
+
             p - (i - (LINE_LENGTH / 2));
-        }
+        }   
     }
 }
 

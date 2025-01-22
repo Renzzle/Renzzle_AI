@@ -77,7 +77,11 @@ void printBoard(Board& board) {
 }
 
 void printPatternCells(CellArray& cells, Piece p, Direction k) {
-    const char* patternNames[] = { " N", " D", "OL", "B1", " 1", "B2", " 2", "2A", "2B", "B3", " 3", "3A", "B4", " 4", " 5", " P" };
+    #ifdef _WIN32
+    SetConsoleOutputCP(CP_UTF8);
+    #endif
+
+    const char* patternNames[] = { "─┼", " D", "OL", "B1", " 1", "B2", " 2", "2A", "2B", "B3", " 3", "3A", "B4", " 4", " 5", " P" };
     for (int i = BOARD_SIZE + 1; i >= 0; i--) {
         for (int j = 0; j < BOARD_SIZE + 2; j++) {
             if (cells[i][j].getPiece() != EMPTY) {
@@ -109,9 +113,10 @@ void printBoardPattern(Board& board, Piece p) {
     const char* directionName[] = {"Horizontal", "Vertical", "Upward", "Downward"};
     const char* pieceName[] = {"Black", "White"};
     for (int k = 0; k < 4; k++) {
-        cout << pieceName[p] << ": " << directionName[k];
+        cout << pieceName[p] << " " << directionName[k];
         printPatternCells(cells, p, static_cast<Direction>(k));
         cout << "---------------------------------------" << endl;
+        Sleep(1000);
     }
 }
 
@@ -120,4 +125,8 @@ void printPath(MoveList path) {
         cout << (char)(pos.getY() + 96) << pos.getX();
     }
     cout << endl;
+}
+
+void printPos(Pos pos) {
+    cout << (char)(pos.getY() + 96) << pos.getX();
 }
