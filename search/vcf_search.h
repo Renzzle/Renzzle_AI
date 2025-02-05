@@ -64,6 +64,7 @@ bool VCFSearch::findVCFMultiThreaded() {    // 작업 큐 기반 멀티스레드
     MoveList finalSolution;         // 최종 승리 경로 저장 변수
     queue<Board> workQueue;         // 탐색할 보드 상태 저장 큐
     mutex queueMutex;               // 작업 큐 보호 뮤텍스
+    condition_variable cv;          // 작업 큐 상태 알림 조건변수
     
     {
         lock_guard<mutex> lock(queueMutex);
@@ -86,20 +87,20 @@ bool VCFSearch::findVCFMultiThreaded() {    // 작업 큐 기반 멀티스레드
             Board currentBoard;
             {
                 unique_lock<mutex> lock(queueMutex);
-                if (workQueue.empty()) {            // 작업 큐가 비었으면, CPU 양보
-                    lock.unlock();
-                    this_thread::yield();
-                    continue;
-                }
+                cv.wait(lock, [&]() {   // 작업 큐가 비어있지 않거나, 승리 여부가 발생할 때까지 wait
+                    return !workQueue.empty() || solved.load();
+                });
+                if (solved.load()) break;
                 currentBoard = workQueue.front();   // 작업 큐로부터 보드 상태 가져옴
                 workQueue.pop();
             }
             processedNodes++;       // 처리한 노드 개수 증가
             
             VCFSearch localSearch(currentBoard, targetColor);   // 로컬 DFS 탐색 객체 생성
-            if (localSearch.findVCF()) {    // 승리 경로 발견 시, 승리 여부 설정 후 종료
+            if (localSearch.findVCF()) {    // 승리 경로 발견 시, 승리 여부 설정하고, 다른 스레드 깨운 후 종료
                 solved.store(true);
                 finalSolution = localSearch.getVCFPath();
+                cv.notify_all();
                 break;
             } else {                        // 승리 경로 미발견 시, 후보에 대한 자식 상태를 생성하여 작업 큐에 추가
                 MoveList moves;
@@ -113,6 +114,7 @@ bool VCFSearch::findVCFMultiThreaded() {    // 작업 큐 기반 멀티스레드
                     if (childBoard.move(move)) {
                         lock_guard<mutex> lock(queueMutex);
                         workQueue.push(childBoard);
+                        cv.notify_one();    // 새 작업 생성 알림
                     }
                 }
             }
