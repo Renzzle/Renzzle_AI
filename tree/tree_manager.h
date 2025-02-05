@@ -48,6 +48,7 @@ bool TreeManager::move(Pos p) {
     if(!result) return result; // move failed
 
     currentNode = tree.createNode(newBoard);
+    currentNode->height = previousNode->height + 1;
     tree.addNode(previousNode, currentNode);
     nodeHistory.push(currentNode);
     return result;

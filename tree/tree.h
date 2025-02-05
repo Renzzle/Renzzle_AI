@@ -11,8 +11,9 @@ struct Node {
     Value value;
     Result result;
     unordered_map<size_t, shared_ptr<Node>> childNodes;
+    int height;
 
-    Node(Board b) : board(b), value(INITIAL_VALUE), result(ONGOING) {}
+    Node(Board b) : board(b), value(INITIAL_VALUE), result(ONGOING), height(0) {}
 };
 
 class Tree {

@@ -16,7 +16,7 @@
     auto end_time = std::chrono::high_resolution_clock::now(); \
     auto duration = std::chrono::duration_cast<std::chrono::nanoseconds>(end_time - start_time); \
     double seconds = duration.count() / 1e9; \
-    std::cout << message << " is taken " << seconds  << " sec" << std::endl;
+    std::cout << message << " is taken " << seconds << " sec" << std::endl;
 
 #define TEST_ASSERT(expr) TestBase::assertState((expr), #expr, __FILE__, __LINE__)
 

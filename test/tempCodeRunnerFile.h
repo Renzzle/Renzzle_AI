@@ -1,0 +1,1 @@
+double seconds = duration.count() / 1e9;

@@ -5,6 +5,7 @@
 #include "../test/test.h"
 #include <vector>
 #include <limits>
+#include <unordered_map>
 
 class Search {
 
@@ -18,6 +19,7 @@ private:
     int ids(Board& board, int depthLimit);
     bool isGameOver(Board& board);
     bool isTargetTurn();
+    unordered_map<size_t, int> transpositionTable;  // 탐색 결과 캐싱 테이블
 
 public:
     Search(Board& board, int maxDepth);
@@ -33,14 +35,28 @@ Search::Search(Board& board, int maxDepth) : treeManager(board), maxDepth(maxDep
 }
 
 int Search::alphaBeta(Board& board, int depth, int alpha, int beta, bool maximizingPlayer) {
+    size_t boardHash = board.getCurrentHash();
+
+    // 이미 탐색한 보드 상태라면, 해당 보드 상태에 캐시된 값을 반환
+    if (transpositionTable.find(boardHash) != transpositionTable.end()) {
+        return transpositionTable[boardHash];
+    }
+
+    // 탐색 트리의 terminal node에 도달하거나, 게임 종료 시, 해당 보드 상태에 대한 평가 값 캐싱 후 리턴
     if (depth == 0 || isGameOver(board)) {
         if (depth == 0) path = treeManager.getBoard().getPath();
-        return          evaluator.evaluate(board);
+
+        transpositionTable[boardHash] = evaluator.evaluate(board);
+        return evaluator.evaluate(board);
     }
 
     vector<Pos> moves = evaluator.getCandidates(treeManager.getBoard());
 
-    if (moves.empty()) return evaluator.evaluate(board);
+    // 더 이상 탐색할 후보지가 없는 경우, 해당 보드 상태에 대한 평가 값 캐싱 후 리턴
+    if (moves.empty()) {
+        transpositionTable[boardHash] = evaluator.evaluate(board);
+        return evaluator.evaluate(board);
+    }
 
     if (maximizingPlayer) {
         int maxEval = MIN_VALUE;
@@ -53,7 +69,7 @@ int Search::alphaBeta(Board& board, int depth, int alpha, int beta, bool maximiz
             alpha = max(alpha, eval);
             if (beta <= alpha) break;
         }
-
+        transpositionTable[boardHash] = maxEval;
         return maxEval;
     } else {
         int minEval = MAX_VALUE;
@@ -66,7 +82,7 @@ int Search::alphaBeta(Board& board, int depth, int alpha, int beta, bool maximiz
             beta = min(beta, eval);
             if (beta <= alpha) break;
         }
-
+        transpositionTable[boardHash] = minEval;
         return minEval;
     }
 }
