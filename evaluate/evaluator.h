@@ -9,8 +9,6 @@
 #define MIN_VALUE -50000
 #define INITIAL_VALUE -99999
 
-// for sort positions value
-using Score = int;
 // evaluate value
 using Value = int;
 
@@ -129,9 +127,6 @@ MoveList Evaluator::getFours() {
     if (!patternMap[self][B4_ANY].empty()) {
         result.insert(result.end(), patternMap[self][B4_ANY].begin(), patternMap[self][B4_ANY].end());
     }
-    sort(result.begin(), result.end(), [&](const Pos& a, const Pos& b) {
-        return board.getCell(a).getScore(self) > board.getCell(b).getScore(self);
-    });
 
     return result;
 }
@@ -219,13 +214,13 @@ Value Evaluator::evaluate() {
     Result result = board.getResult();
     if (result != ONGOING) {
         if (result == DRAW) return 0;
-        if (self == BLACK && result == BLACK_WIN)
-            return MAX_VALUE;
         if (self == BLACK && result == WHITE_WIN)
             return MIN_VALUE;
         if (self == WHITE && result == BLACK_WIN)
             return MIN_VALUE;
         if (self == WHITE && result == WHITE_WIN)
+            return MAX_VALUE;
+        if (self == BLACK && result == BLACK_WIN)
             return MAX_VALUE;
     }
     
@@ -239,7 +234,7 @@ Value Evaluator::evaluate() {
         return MIN_VALUE + 1;
     }
     // 3 step before win
-    if (!patternMap[self][MATE].empty()) {
+    if (!patternMap[self][MATE].empty() && patternMap[oppo][WINNING].empty()) {
         return MAX_VALUE - 3;
     }
 
