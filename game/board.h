@@ -34,6 +34,7 @@ PUBLIC
     Cell& getCell(const Pos p);
     bool move(Pos p);
     void undo();
+    bool pass();
     Result getResult();
     bool isForbidden(Pos p);
     MoveList& getPath();
@@ -93,6 +94,12 @@ void Board::undo() {
     if (path.empty()) return;
     Pos p = path.back();
 
+    // if passed
+    if (p.isDefault()) {
+        path.pop_back();
+        return;
+    }
+
     Piece piece = getCell(p).getPiece();
     currentHash ^= getZobristValue(p.x, p.y, piece);
     
@@ -103,6 +110,15 @@ void Board::undo() {
     setPatterns(p);
 
     result = ONGOING;
+}
+
+bool Board::pass() {
+    if (result != ONGOING) return false;
+    if (path.size() == BOARD_SIZE * BOARD_SIZE) return false;
+
+    Pos p;
+    path.push_back(p);
+    return true;    
 }
 
 Result Board::getResult() {
