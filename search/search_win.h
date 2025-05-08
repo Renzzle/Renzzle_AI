@@ -55,7 +55,7 @@ bool SearchWin::findVCF() {
 
     // dfs
     for (auto move : moves) {
-        shared_ptr<Node> childNode = treeManager.getChildNode(move);
+        Node* childNode = treeManager.getChildNode(move);
         if (childNode != nullptr) { // child node exist
             // prune except win path
             if (childNode->result != targetResult) continue;
@@ -113,7 +113,7 @@ bool SearchWin::findVCT(int limit) {
 
         int minVisitedCnt = INT32_MAX;
         for (const auto& pair : treeManager.getNode()->childNodes) {
-            shared_ptr<Node> node = pair.second;
+            Node* node = pair.second;
             if (node->visitedCnt < minVisitedCnt)
                 minVisitedCnt = node->visitedCnt;
         }
@@ -121,7 +121,7 @@ bool SearchWin::findVCT(int limit) {
         Value childVal;
         Value minVal = INT32_MAX;
         for (auto move : moves) {
-            shared_ptr<Node> childNode = treeManager.getChildNode(move);
+            Node* childNode = treeManager.getChildNode(move);
             if (childNode != nullptr && minVisitedCnt < childNode->visitedCnt) {
                 if (childNode->result == targetResult) return true;
                 else continue;
@@ -156,14 +156,14 @@ bool SearchWin::findVCT(int limit) {
 
         int minVisitedCnt = INT32_MAX;
         for (const auto& pair : treeManager.getNode()->childNodes) {
-            shared_ptr<Node> node = pair.second;
+            Node* node = pair.second;
             if (node->visitedCnt < minVisitedCnt)
                 minVisitedCnt = node->visitedCnt;
         }
         
         Value childVal;
         for (auto move : moves) {
-            shared_ptr<Node> childNode = treeManager.getChildNode(move);
+            Node* childNode = treeManager.getChildNode(move);
             if (childNode != nullptr && minVisitedCnt < childNode->visitedCnt) {
                 if (childNode->result != targetResult) return false;
                 else continue;
@@ -195,7 +195,7 @@ bool SearchWin::findVCT() {
         if (findVCT(i)) return true;
         //TEST_PRINT("Depth: " << i << ", Time: " << monitor.getElapsedTime() << "sec, Node: " << monitor.getVisitCnt());
         // for (const auto& pair : treeManager.getNode()->childNodes) {
-        //     shared_ptr<Node> node = pair.second;
+        //     Node* node = pair.second.get();
         //     printBoard(node->board);
         //     TEST_PRINT("Value: " << node->actualValue << " Visit: " << node->visitedCnt);
         // }
@@ -235,7 +235,7 @@ bool SearchWin::isTargetTurn() {
 
 void SearchWin::visit(Pos& p) {
     treeManager.move(p);
-    shared_ptr<Node> currentNode = treeManager.getNode();
+    Node* currentNode = treeManager.getNode();
 
     // initialize evaluated value
     if (currentNode->evaluatedValue == INITIAL_VALUE) {
@@ -252,8 +252,8 @@ void SearchWin::visit(Pos& p) {
 void SearchWin::sortChildNodes(MoveList& moves, bool isTarget) {
     if (!treeManager.getNode()->childNodes.empty()) {
         sort(moves.begin(), moves.end(), [&](const Pos& a, const Pos& b) {
-            shared_ptr<Node> aNode = treeManager.getChildNode(a);
-            shared_ptr<Node> bNode = treeManager.getChildNode(b);
+            Node* aNode = treeManager.getChildNode(a);
+            Node* bNode = treeManager.getChildNode(b);
             if (aNode == nullptr || bNode == nullptr) return true;
 
             if(isTarget) return aNode->actualValue > bNode->actualValue;

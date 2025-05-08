@@ -8,8 +8,8 @@ class TreeManager {
 
 PRIVATE
     Tree tree;
-    shared_ptr<Node> currentNode;
-    stack<shared_ptr<Node>> nodeHistory;
+    Node* currentNode;
+    stack<Node*> nodeHistory;
 
 PUBLIC
     TreeManager(Board initialBoard);
@@ -17,24 +17,23 @@ PUBLIC
     void undo();
     void cleanCache();
     Board& getBoard();
-    shared_ptr<Node> getChildNode(Pos p);
-    shared_ptr<Node> getNode();
+    Node* getChildNode(Pos p);
+    Node* getNode();
 
 };
 
 TreeManager::TreeManager(Board initialBoard) {
-    auto rootNode = tree.createNode(initialBoard);
-    tree.addNodeAsRoot(rootNode);
+    auto rootNode = tree.addNodeAsRoot(initialBoard);
     currentNode = rootNode;
     nodeHistory.push(currentNode);
 }
 
 bool TreeManager::move(Pos p) {
-    shared_ptr<Node> previousNode = currentNode;
+    Node* previousNode = currentNode;
 
     // if child node exist
     for (const auto& pair : previousNode->childNodes) {
-        shared_ptr<Node> node = pair.second;
+        Node* node = pair.second;
         if (node->board.getPath().back() == p) {
             currentNode = node;
             nodeHistory.push(currentNode);
@@ -47,8 +46,7 @@ bool TreeManager::move(Pos p) {
     bool result = newBoard.move(p);
     if (!result) return result; // move failed
 
-    currentNode = tree.createNode(newBoard);
-    tree.addNode(previousNode, currentNode);
+    currentNode = tree.addNode(previousNode, newBoard);
     nodeHistory.push(currentNode);
     return result;
 }
@@ -69,9 +67,9 @@ Board& TreeManager::getBoard() {
     return currentNode->board;
 }
 
-shared_ptr<Node> TreeManager::getChildNode(Pos p) {
+Node* TreeManager::getChildNode(Pos p) {
     for (const auto& pair : currentNode->childNodes) {
-        shared_ptr<Node> node = pair.second;
+        Node* node = pair.second;
         if (node->board.getPath().back() == p) {
             return node;
         }
@@ -79,6 +77,6 @@ shared_ptr<Node> TreeManager::getChildNode(Pos p) {
     return nullptr; // if cannot find
 }
 
-shared_ptr<Node> TreeManager::getNode() {
+Node* TreeManager::getNode() {
     return currentNode;
 }

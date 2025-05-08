@@ -229,9 +229,9 @@ Value Evaluator::evaluate() {
     if (!patternMap[self][WINNING].empty()) {
         return MAX_VALUE - 1;
     }
-    // 1 step before lose
+    // 2 step before lose
     if (patternMap[oppo][WINNING].size() > 1) {
-        return MIN_VALUE + 1;
+        return MIN_VALUE + 2;
     }
     // 3 step before win
     if (!patternMap[self][MATE].empty() && patternMap[oppo][WINNING].empty()) {
@@ -251,10 +251,6 @@ Value Evaluator::evaluate() {
     val += patternMap[self][B3_ANY].size() * 5;
     val += patternMap[self][F2_ANY].size() * 4;
 
-    val -= patternMap[oppo][WINNING].size() * 200;
-    val -= patternMap[oppo][MATE].size() * 200;
-
-    val -= patternMap[oppo][B4_F3].size() * 130;
     val -= patternMap[oppo][B4_PLUS].size() * 20;
     val -= patternMap[oppo][B4_ANY].size() * 20;
     val -= patternMap[oppo][F3_2X].size() * 20;

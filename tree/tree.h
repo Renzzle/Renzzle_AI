@@ -11,7 +11,7 @@ struct Node {
     Value actualValue;
     Value evaluatedValue;
     Result result;
-    unordered_map<size_t, shared_ptr<Node>> childNodes;
+    unordered_map<size_t, Node*> childNodes;
     int visitedCnt;
 
     Node(Board b) : board(b), actualValue(INITIAL_VALUE), evaluatedValue(INITIAL_VALUE), result(ONGOING), visitedCnt(0) {}
@@ -20,40 +20,38 @@ struct Node {
 class Tree {
 
 PRIVATE
-    unordered_map<size_t, shared_ptr<Node>> nodeMap;
+    unordered_map<size_t, unique_ptr<Node>> nodeMap;
 
 PUBLIC
-    void addNodeAsRoot(shared_ptr<Node> node);
-    void addNode(shared_ptr<Node> parentNode, shared_ptr<Node> node);
+    Node* addNodeAsRoot(Board& board);
+    Node* addNode(Node* parentNode, Board& newNode);
     void cleanTree();
-    shared_ptr<Node> createNode(Board board);
     bool exist(Board& board);
 
 };
 
-void Tree::addNodeAsRoot(shared_ptr<Node> root) {
-    size_t key = root->board.getCurrentHash();
-    nodeMap[key] = root;
+Node* Tree::addNodeAsRoot(Board& board) {
+    size_t key = board.getCurrentHash();
+    nodeMap[key] = unique_ptr<Node>(new Node(board));
+    return nodeMap[key].get();
 }
 
-void Tree::addNode(shared_ptr<Node> parentNode, shared_ptr<Node> node) {
-    size_t key = node->board.getCurrentHash();
-    nodeMap[key] = node;
-    parentNode->childNodes[key] = node;
+Node* Tree::addNode(Node* parentNode, Board& newNode) {
+    size_t key = newNode.getCurrentHash();
+
+    auto it = nodeMap.find(key);
+    if (it != nodeMap.end()) { // node already exists
+        parentNode->childNodes[key] = it->second.get();
+        return it->second.get();
+    }
+
+    nodeMap[key] = unique_ptr<Node>(new Node(newNode));
+    parentNode->childNodes[key] = nodeMap[key].get();
+    return parentNode->childNodes[key];
 }
 
 void Tree::cleanTree() {
     nodeMap.clear();
-}
-
-shared_ptr<Node> Tree::createNode(Board board) {
-    size_t key = board.getCurrentHash();
-    auto it = nodeMap.find(key);
-    if (it != nodeMap.end()) {
-        return it->second; // node already exists
-    }
-    auto newNode = make_shared<Node>(board);
-    return newNode;
 }
 
 bool Tree::exist(Board& board) {

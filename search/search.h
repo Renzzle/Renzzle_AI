@@ -14,7 +14,8 @@ PRIVATE
     Color targetColor;
     SearchMonitor& monitor;
 
-    Value alphaBeta(Board& board, int depth, int alpha, int beta, bool maximizingPlayer);
+    Value alphaBetaLegacy(Board& board, int depth, int alpha, int beta, bool maximizingPlayer);
+    Value alphaBeta(Board& board, int depth, Value alpha, Value beta, bool isMax);
     int ids(Board& board, int depthLimit);
     bool isGameOver(Board& board);
     bool isTargetTurn();
@@ -33,7 +34,7 @@ Search::Search(Board& board, SearchMonitor& monitor) : treeManager(board), monit
     targetColor = board.isBlackTurn() ? COLOR_BLACK : COLOR_WHITE;
 }
 
-Value Search::alphaBeta(Board& board, int depth, int alpha, int beta, bool maximizingPlayer) {
+Value Search::alphaBetaLegacy(Board& board, int depth, int alpha, int beta, bool maximizingPlayer) {
     monitor.incVisitCnt();
 
     Evaluator evaluator(treeManager.getBoard());
@@ -60,7 +61,7 @@ Value Search::alphaBeta(Board& board, int depth, int alpha, int beta, bool maxim
 
         for (Pos move : moves) {
             treeManager.move(move);
-            Value eval = alphaBeta(treeManager.getBoard(), depth - 1, alpha, beta, false);
+            Value eval = alphaBetaLegacy(treeManager.getBoard(), depth - 1, alpha, beta, false);
             treeManager.undo();
             maxEval = max(maxEval, eval);
             alpha = max(alpha, eval);
@@ -73,7 +74,7 @@ Value Search::alphaBeta(Board& board, int depth, int alpha, int beta, bool maxim
 
         for (Pos move : moves) {
             treeManager.move(move);
-            Value eval = alphaBeta(treeManager.getBoard(), depth - 1, alpha, beta, true);
+            Value eval = alphaBetaLegacy(treeManager.getBoard(), depth - 1, alpha, beta, true);
             treeManager.undo();
             minEval = min(minEval, eval);
             beta = min(beta, eval);
@@ -82,6 +83,25 @@ Value Search::alphaBeta(Board& board, int depth, int alpha, int beta, bool maxim
 
         return minEval;
     }
+}
+
+Value Search::alphaBeta(Board& board, int depth, Value alpha, Value beta, bool isMax) {
+    // 종료 조건
+    // 후보 산출
+    /*
+    이동 
+        1. max 경우: 
+            [모든 후보지에게 반복]
+            이동 (move)
+            eval = 새 알파베타 재귀 호출 (depth -1, 알파, 베타)
+            뒤로가기 (undo)
+            maxEval = maxEval과 eval 중 큰값으로 설정
+            알파 = 알파와 eval중 큰값으로 설정
+            만약 베타가 알파보다 작으면 break
+
+            최종적으로 다 이동하면 maxEval을 반환
+        2. min 경우:
+    */
 }
 
 int Search::ids(Board& board, int depthLimit) {
@@ -224,3 +244,104 @@ Pos Search::iterativeDeepeningSearch() {
 MoveList Search::getPath() {
     return monitor.getBestPath();
 }
+
+
+/*
+
+#include <vector>
+#include <stack>
+#include <iostream>
+#include <limits>
+
+constexpr int INF = std::numeric_limits<int>::max();
+constexpr int NEG_INF = std::numeric_limits<int>::min();
+
+struct Node {
+    int depth;
+    bool maximizingPlayer;
+    int alpha;
+    int beta;
+    int boardState;  // 예제용: 실제 오목 엔진이라면 보드 전체 상태가 들어가야 함
+    int childIndex;  // 몇 번째 자식을 보는 중인지 기록
+};
+
+// 예제용: 어떤 상태에서 가능한 다음 상태를 반환하는 함수
+std::vector<int> generateMoves(int boardState) {
+    return {boardState + 1, boardState + 2};  // 더미
+}
+
+// 예제용: 리프 노드 평가 함수
+int evaluate(int boardState) {
+    return boardState;  // 더미
+}
+
+int alphaBetaIterative(int rootState, int maxDepth) {
+    std::stack<Node> stk;
+    int bestValue = NEG_INF;
+
+    stk.push(Node{maxDepth, true, NEG_INF, INF, rootState, 0});
+
+    while (!stk.empty()) {
+        Node &curr = stk.top();
+
+        // 리프 노드이거나 깊이 0이면 평가
+        if (curr.depth == 0 || generateMoves(curr.boardState).empty()) {
+            int val = evaluate(curr.boardState);
+            stk.pop();
+
+            if (!stk.empty()) {
+                Node &parent = stk.top();
+                if (parent.maximizingPlayer) {
+                    parent.alpha = std::max(parent.alpha, val);
+                } else {
+                    parent.beta = std::min(parent.beta, val);
+                }
+
+                // Alpha-Beta 컷
+                if (parent.beta <= parent.alpha) {
+                    stk.pop();  // 부모 노드도 중단
+                }
+            } else {
+                bestValue = val;
+            }
+            continue;
+        }
+
+        // 자식 노드 생성
+        std::vector<int> moves = generateMoves(curr.boardState);
+
+        if (curr.childIndex < moves.size()) {
+            int nextState = moves[curr.childIndex++];
+            stk.push(Node{curr.depth - 1, !curr.maximizingPlayer, curr.alpha, curr.beta, nextState, 0});
+        } else {
+            // 모든 자식을 탐색 완료했으면 결과 계산
+            int result = curr.maximizingPlayer ? curr.alpha : curr.beta;
+            stk.pop();
+
+            if (!stk.empty()) {
+                Node &parent = stk.top();
+                if (parent.maximizingPlayer) {
+                    parent.alpha = std::max(parent.alpha, result);
+                } else {
+                    parent.beta = std::min(parent.beta, result);
+                }
+
+                // Alpha-Beta 컷
+                if (parent.beta <= parent.alpha) {
+                    stk.pop();  // 부모 노드도 중단
+                }
+            } else {
+                bestValue = result;
+            }
+        }
+    }
+
+    return bestValue;
+}
+
+int main() {
+    int result = alphaBetaIterative(0, 4);
+    std::cout << "Best value: " << result << std::endl;
+}
+
+*/

@@ -12,7 +12,7 @@ private:
         SearchWin vcfSearcher(board, monitor);
 
         // do not use previous search data
-        vcfSearcher.treeManager.cleanCache();
+        // vcfSearcher.treeManager.cleanCache();
 
         // print status every 10sec
         double lastTriggerTime = 0.0;
@@ -40,6 +40,8 @@ private:
 
         if(!result) {
             TEST_PRINT("There is no VCF");
+            size_t node = monitor.getVisitCnt();
+            TEST_PRINT("Node: " << node);
             return;
         }
 
@@ -57,7 +59,7 @@ private:
         SearchWin vctSearcher(board, monitor);
 
         // do not use previous search data
-        vctSearcher.treeManager.cleanCache();
+        // vctSearcher.treeManager.cleanCache();
 
         // print status every 10sec
         double lastTriggerTime = 0.0;
