@@ -8,13 +8,13 @@
 
 struct Node {
     Board board;
-    Value actualValue;
-    Value evaluatedValue;
+    Value value;
     Result result;
     unordered_map<size_t, Node*> childNodes;
+    Pos bestMove;
     int visitedCnt;
 
-    Node(Board b) : board(b), actualValue(INITIAL_VALUE), evaluatedValue(INITIAL_VALUE), result(ONGOING), visitedCnt(0) {}
+    Node(Board b) : board(b), value(INITIAL_VALUE), result(ONGOING), visitedCnt(0) {}
 };
 
 class Tree {

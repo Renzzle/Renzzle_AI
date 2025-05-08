@@ -16,14 +16,10 @@ PRIVATE
     
     bool isWin();
     bool isTargetTurn();
-    void visit(Pos& p);
-    void sortChildNodes(MoveList& moves, bool isTarget);
 
 PUBLIC
     SearchWin(Board& board, SearchMonitor& monitor);
     bool findVCF();
-    bool findVCT();
-    bool findVCT(int limit);
     void stop();
 
 };
@@ -81,130 +77,6 @@ bool SearchWin::findVCF() {
     return false;
 }
 
-bool SearchWin::findVCT(int limit) {
-    // update monitor info
-    monitor.incVisitCnt();
-    monitor.updateElapsedTime();
-
-    // ending condtion
-    if (isWin()) return true;
-    if (!isRunning) return false;
-    if (limit == 0) return false;
-    if (treeManager.getBoard().getResult() != ONGOING) return false;
-
-    Evaluator evaluator(treeManager.getBoard());
-    // if there is no threat, return false
-    if (isTargetTurn() && evaluator.getThreats().empty()) return false;
-    MoveList moves;
-
-    // if only move, just move
-    Pos sureMove = evaluator.getSureMove();
-    if (!sureMove.isDefault()) {
-        visit(sureMove);
-        bool result = findVCT(limit - 1);
-        treeManager.undo();
-        return result;
-    }
-
-    // target turn
-    if (isTargetTurn()) {
-        moves = evaluator.getThreats();
-        sortChildNodes(moves, true);
-
-        int minVisitedCnt = INT32_MAX;
-        for (const auto& pair : treeManager.getNode()->childNodes) {
-            Node* node = pair.second;
-            if (node->visitedCnt < minVisitedCnt)
-                minVisitedCnt = node->visitedCnt;
-        }
-
-        Value childVal;
-        Value minVal = INT32_MAX;
-        for (auto move : moves) {
-            Node* childNode = treeManager.getChildNode(move);
-            if (childNode != nullptr && minVisitedCnt < childNode->visitedCnt) {
-                if (childNode->result == targetResult) return true;
-                else continue;
-            }
-            visit(move);
-            childVal = treeManager.getNode()->actualValue;
-            if (minVal > childVal) minVal = childVal;
-            if (findVCT(limit - 1)) {
-                treeManager.undo();
-                treeManager.getNode()->actualValue = childVal - 1;
-                treeManager.getNode()->result = targetResult;
-                return true;
-            }
-            treeManager.undo();
-            if (!isRunning) break;
-        }
-        treeManager.getNode()->actualValue = minVal * -1;
-        return false;
-    }
-    // opponent turn 
-    else {
-        if (!evaluator.isOppoMateExist()) return false;
-        SearchMonitor vcfMonitor;
-        SearchWin vcfSearch(treeManager.getBoard(), vcfMonitor);
-        if (vcfSearch.findVCF()) return false;
-
-        MoveList defend = evaluator.getThreatDefend();
-        moves.insert(moves.end(), defend.begin(), defend.end());
-        MoveList fours = evaluator.getFours();
-        moves.insert(moves.end(), fours.begin(), fours.end());
-        sortChildNodes(moves, false);
-
-        int minVisitedCnt = INT32_MAX;
-        for (const auto& pair : treeManager.getNode()->childNodes) {
-            Node* node = pair.second;
-            if (node->visitedCnt < minVisitedCnt)
-                minVisitedCnt = node->visitedCnt;
-        }
-        
-        Value childVal;
-        for (auto move : moves) {
-            Node* childNode = treeManager.getChildNode(move);
-            if (childNode != nullptr && minVisitedCnt < childNode->visitedCnt) {
-                if (childNode->result != targetResult) return false;
-                else continue;
-            }
-            visit(move);
-            childVal = treeManager.getNode()->actualValue;
-            if (!findVCT(limit - 1)) {
-                treeManager.undo();
-                treeManager.getNode()->actualValue = childVal;
-                return false;
-            }
-            treeManager.undo();
-            if (!isRunning) break;
-        }
-        treeManager.getNode()->actualValue = childVal - 1;
-        treeManager.getNode()->result = targetResult;
-        return true;
-    }
-}
-
-bool SearchWin::findVCT() {
-    // set monitor
-    if (!isRunning) {
-        monitor.initStartTime();
-        isRunning = true;
-    }
-
-    for (int i = 3; i <= 31; i += 2) {
-        if (findVCT(i)) return true;
-        //TEST_PRINT("Depth: " << i << ", Time: " << monitor.getElapsedTime() << "sec, Node: " << monitor.getVisitCnt());
-        // for (const auto& pair : treeManager.getNode()->childNodes) {
-        //     Node* node = pair.second.get();
-        //     printBoard(node->board);
-        //     TEST_PRINT("Value: " << node->actualValue << " Visit: " << node->visitedCnt);
-        // }
-        if (!isRunning) return false;
-    }
-
-    return false;
-}
-
 bool SearchWin::isWin() {
     Result result = treeManager.getBoard().getResult();;
     bool isWin = false;
@@ -231,35 +103,6 @@ bool SearchWin::isTargetTurn() {
         if (targetColor == COLOR_BLACK) return false;
         else return true;
     }
-}
-
-void SearchWin::visit(Pos& p) {
-    treeManager.move(p);
-    Node* currentNode = treeManager.getNode();
-
-    // initialize evaluated value
-    if (currentNode->evaluatedValue == INITIAL_VALUE) {
-        Evaluator evaluator(treeManager.getBoard());
-        currentNode->evaluatedValue = evaluator.evaluate();
-        if (currentNode->actualValue == INITIAL_VALUE) 
-            currentNode->actualValue = currentNode->evaluatedValue;
-    }
-
-    currentNode->result = treeManager.getBoard().getResult();
-    currentNode->visitedCnt++;
-}
-
-void SearchWin::sortChildNodes(MoveList& moves, bool isTarget) {
-    if (!treeManager.getNode()->childNodes.empty()) {
-        sort(moves.begin(), moves.end(), [&](const Pos& a, const Pos& b) {
-            Node* aNode = treeManager.getChildNode(a);
-            Node* bNode = treeManager.getChildNode(b);
-            if (aNode == nullptr || bNode == nullptr) return true;
-
-            if(isTarget) return aNode->actualValue > bNode->actualValue;
-            else return aNode->actualValue < bNode->actualValue;
-        });
-    }   
 }
 
 void SearchWin::stop() {

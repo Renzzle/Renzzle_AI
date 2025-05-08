@@ -81,7 +81,7 @@ private:
         TEST_PRINT("");
 
         TEST_TIME_START();
-        bool result = vctSearcher.findVCT();
+        bool result = vctSearcher.findVCF();
         TEST_TIME_END("vct search");
 
         if(!result) {
