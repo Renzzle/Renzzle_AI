@@ -152,6 +152,7 @@ MoveList Search::alphaBeta(int depth) {
         Node* currentNode = treeManager.getNode();
         printBoard(currentNode->board);
         TEST_PRINT(cur.depth << ", " << cur.isMax << ", " << cur.childMoves.size());
+        TEST_STOP();
 
         if (cur.depth == 0 || isGameOver(currentNode->board)) {
             Evaluator evaluator(currentNode->board);
