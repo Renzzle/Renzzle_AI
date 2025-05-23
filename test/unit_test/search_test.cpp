@@ -29,7 +29,7 @@ PRIVATE
 
         TEST_TIME_START();
         MoveList bestPath = searcher.alphaBeta(7);
-        TEST_TIME_END("∙ alpha-beta search");
+        TEST_TIME_END("alpha-beta search");
 
         printPath(bestPath);
     }
