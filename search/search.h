@@ -29,7 +29,7 @@ PRIVATE
     Value evaluateNode(Evaluator& evaluator);
     MoveList getCandidates(Evaluator& evaluator, bool isMax);
     void sortChildNodes(MoveList& moves, bool isTarget);
-    void pruning(stack<ABPNode>& stk, Value val);
+    void updateParent(stack<ABPNode>& stk, Value val);
     MoveList getBestPathFromRoot();
     bool isGameOver(Board& board);
     bool isTargetTurn();
@@ -45,14 +45,16 @@ Search::Search(Board& board, SearchMonitor& monitor) : treeManager(board), monit
 
 MoveList Search::alphaBeta(int depth) {
     stack<ABPNode> stk;
-    stk.push({depth, true, MIN_VALUE - 1, MAX_VALUE + 1, 0, {}});
+    stk.push({depth, true, MIN_VALUE, MAX_VALUE, 0, {}});
 
     while (!stk.empty()) {
         ABPNode &cur = stk.top();
         Node* currentNode = treeManager.getNode();
         printBoard(currentNode->board);
+        printPath(currentNode->board.getPath());
         TEST_PRINT("depth: " << cur.depth << " isMax: " << cur.isMax);
 
+        // calculate child nodes
         if (cur.childMoves.empty()) {
             Evaluator evaluator(currentNode->board);
             cur.childMoves = getCandidates(evaluator, cur.isMax);
@@ -60,17 +62,22 @@ MoveList Search::alphaBeta(int depth) {
         }
         
         // if current node is leaf node
-        if (cur.depth == 0 || isGameOver(currentNode->board) || cur.childMoves.empty()) {
+        if (cur.depth == 0 || 
+            isGameOver(currentNode->board) || 
+            cur.childMoves.empty()) {
+            // evaluate leaf node value
             Evaluator evaluator(currentNode->board);
             Value val = evaluateNode(evaluator);
+            TEST_PRINT("leaf node original value: " << val);
             if (!cur.isMax) val *= -1;
             currentNode->value = val;
+            TEST_PRINT("leaf node value: " << val);
 
             treeManager.undo();
             stk.pop();
 
             if (!stk.empty()) {
-                pruning(stk, val);
+                updateParent(stk, val);
             }
 
             continue;
@@ -79,13 +86,13 @@ MoveList Search::alphaBeta(int depth) {
         TEST_PRINT("<Candidates>");
         printPath(cur.childMoves);
         TEST_PRINT("total childs: " << cur.childMoves.size() << " child index: " << cur.childIdx);
-        //TEST_STOP();
+        TEST_STOP();
 
         if (cur.childIdx < cur.childMoves.size()) {
             Pos move = cur.childMoves[cur.childIdx++];
             treeManager.move(move);
             stk.push({cur.depth - 1, !cur.isMax, cur.alpha, cur.beta, 0, {}});
-        } else {
+        } else { // if search every child nodes
             Value result = cur.isMax ? cur.alpha : cur.beta;
             currentNode->value = result;
             
@@ -93,7 +100,7 @@ MoveList Search::alphaBeta(int depth) {
             stk.pop();
 
             if (!stk.empty()) {
-                pruning(stk, result);
+                updateParent(stk, result);
             }
         }
     }
@@ -101,38 +108,8 @@ MoveList Search::alphaBeta(int depth) {
     return getBestPathFromRoot();
 }
 
-MoveList Search::getBestPathFromRoot() {
-    MoveList path;
-    Node* node = treeManager.getNode();
-
-    while (node != nullptr && !node->bestMove.isDefault()) {
-        if (node->bestMove == path.back()) break;
-        path.push_back(node->bestMove);
-        node = treeManager.getChildNode(node->bestMove);
-    }
-
-    return path;
-}
-
-
-Value Search::evaluateNode(Evaluator& evaluator) {
-    treeManager.getNode()->value = evaluator.evaluate();
-    return treeManager.getNode()->value;
-}
-
-MoveList Search::getCandidates(Evaluator& evaluator, bool isMax) {
-    MoveList moves;
-    if (isMax) {
-        moves = evaluator.getThreats();
-    } else {
-        moves = evaluator.getThreatDefend();
-    }
-    sortChildNodes(moves, isMax);
-    return moves;
-}
-
-void Search::pruning(stack<ABPNode>& stk, Value val) {
-    TEST_PRINT("in pruning method.");
+void Search::updateParent(stack<ABPNode>& stk, Value val) {
+    TEST_PRINT("in updateParent method.");
     ABPNode& parent = stk.top();
     Node* parentNode = treeManager.getNode();
     Pos lastMove;
@@ -160,26 +137,48 @@ void Search::pruning(stack<ABPNode>& stk, Value val) {
 
     if (parent.beta <= parent.alpha) {
         TEST_PRINT("\npruning -> " << "alpha: " << parent.alpha << " beta: " << parent.beta);
+        // pruning
         treeManager.undo();
-        stk.pop();  // pruning
-        
-        // parent = stk.top();
-        // parentNode = treeManager.getNode();
-        // lastMove;
-        // if (parent.childIdx > 0 && parent.childIdx - 1 < parent.childMoves.size()) {
-        //     lastMove = parent.childMoves[parent.childIdx - 1];
-        // }
-
-        // if (parent.isMax) {
-        //     parent.alpha = val;
-        // } else {
-        //     parent.beta = val;
-        // }
-        // parentNode->value = val;
-        // parentNode->bestMove = lastMove;
-        // TEST_PRINT("update best: ");
-        // printPos(parentNode->bestMove);
+        stk.pop();
     }
+}
+
+MoveList Search::getBestPathFromRoot() {
+    MoveList path;
+    Node* node = treeManager.getNode();
+    TEST_PRINT(node->value);
+
+    while (node != nullptr && !node->bestMove.isDefault()) {
+        path.push_back(node->bestMove);
+        treeManager.move(node->bestMove);
+        node = treeManager.getNode();
+    }
+
+    return path;
+}
+
+
+Value Search::evaluateNode(Evaluator& evaluator) {
+    treeManager.getNode()->value = evaluator.evaluate();
+    return treeManager.getNode()->value;
+}
+
+MoveList Search::getCandidates(Evaluator& evaluator, bool isMax) {
+    MoveList moves;
+    
+    Pos sureMove = evaluator.getSureMove();
+    if (!sureMove.isDefault()) {
+        moves.push_back(sureMove);
+        return moves;
+    }
+
+    if (isMax) {
+        moves = evaluator.getThreats();
+    } else {
+        moves = evaluator.getThreatDefend();
+    }
+    sortChildNodes(moves, isMax);
+    return moves;
 }
 
 void Search::sortChildNodes(MoveList& moves, bool isTarget) {

@@ -40,10 +40,10 @@ Evaluator::Evaluator(Board& board) : board(board) {
 }
 
 void Evaluator::classify() {
-    if (board.getResult() != ONGOING) return;
-
     self = board.isBlackTurn() ? BLACK : WHITE;
     oppo = !board.isBlackTurn() ? BLACK : WHITE;
+
+    if (board.getResult() != ONGOING) return;
 
     for (int i = 1; i <= BOARD_SIZE; i++) {
         for (int j = 1; j <= BOARD_SIZE; j++) {
@@ -212,15 +212,19 @@ bool Evaluator::isOppoMateExist() {
 Value Evaluator::evaluate() {
     // case 1: finish
     Result result = board.getResult();
+    printPath(board.getPath());
+    TEST_PRINT("board result: " << result << " self: " << self);
     if (result != ONGOING) {
         if (result == DRAW) return 0;
+        
+        // black turn & white win = white 5
         if (self == BLACK && result == WHITE_WIN)
             return MIN_VALUE;
+        // white turn & black win = black 5
         if (self == WHITE && result == BLACK_WIN)
             return MIN_VALUE;
+        // white turn & white win = black forbidden
         if (self == WHITE && result == WHITE_WIN)
-            return MAX_VALUE;
-        if (self == BLACK && result == BLACK_WIN)
             return MAX_VALUE;
     }
     

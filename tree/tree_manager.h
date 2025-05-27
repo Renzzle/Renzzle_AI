@@ -35,6 +35,10 @@ bool TreeManager::move(Pos p) {
     for (const auto& pair : previousNode->childNodes) {
         Node* node = pair.second;
         if (node->board.getPath().back() == p) {
+            // but if child node is forbidden move
+            if (previousNode->board.isForbidden(p))
+                break;
+
             currentNode = node;
             nodeHistory.push(currentNode);
             return true;
