@@ -38,13 +38,6 @@ Node* Tree::addNodeAsRoot(Board& board) {
 
 Node* Tree::addNode(Node* parentNode, Board& newNode) {
     size_t key = newNode.getCurrentHash();
-
-    auto it = nodeMap.find(key);
-    if (it != nodeMap.end()) { // node already exists
-        parentNode->childNodes[key] = it->second.get();
-        return it->second.get();
-    }
-
     nodeMap[key] = unique_ptr<Node>(new Node(newNode));
     parentNode->childNodes[key] = nodeMap[key].get();
     return parentNode->childNodes[key];

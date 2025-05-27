@@ -50,9 +50,9 @@ MoveList Search::alphaBeta(int depth) {
     while (!stk.empty()) {
         ABPNode &cur = stk.top();
         Node* currentNode = treeManager.getNode();
-        printBoard(currentNode->board);
-        printPath(currentNode->board.getPath());
-        TEST_PRINT("depth: " << cur.depth << " isMax: " << cur.isMax);
+        // printBoard(currentNode->board);
+        // printPath(currentNode->board.getPath());
+        // TEST_PRINT("depth: " << cur.depth << " isMax: " << cur.isMax);
 
         // calculate child nodes
         if (cur.childMoves.empty()) {
@@ -68,10 +68,10 @@ MoveList Search::alphaBeta(int depth) {
             // evaluate leaf node value
             Evaluator evaluator(currentNode->board);
             Value val = evaluateNode(evaluator);
-            TEST_PRINT("leaf node original value: " << val);
+            //TEST_PRINT("leaf node original value: " << val);
             if (!cur.isMax) val *= -1;
             currentNode->value = val;
-            TEST_PRINT("leaf node value: " << val);
+            //TEST_PRINT("leaf node value: " << val);
 
             treeManager.undo();
             stk.pop();
@@ -83,10 +83,10 @@ MoveList Search::alphaBeta(int depth) {
             continue;
         }
 
-        TEST_PRINT("<Candidates>");
-        printPath(cur.childMoves);
-        TEST_PRINT("total childs: " << cur.childMoves.size() << " child index: " << cur.childIdx);
-        TEST_STOP();
+        // TEST_PRINT("<Candidates>");
+        // printPath(cur.childMoves);
+        // TEST_PRINT("total childs: " << cur.childMoves.size() << " child index: " << cur.childIdx);
+        // TEST_STOP();
 
         if (cur.childIdx < cur.childMoves.size()) {
             Pos move = cur.childMoves[cur.childIdx++];
@@ -109,7 +109,7 @@ MoveList Search::alphaBeta(int depth) {
 }
 
 void Search::updateParent(stack<ABPNode>& stk, Value val) {
-    TEST_PRINT("in updateParent method.");
+    //TEST_PRINT("in updateParent method.");
     ABPNode& parent = stk.top();
     Node* parentNode = treeManager.getNode();
     Pos lastMove;
@@ -122,21 +122,21 @@ void Search::updateParent(stack<ABPNode>& stk, Value val) {
             parent.alpha = val;
             parentNode->value = val;
             parentNode->bestMove = lastMove;
-            TEST_PRINT("update best: ");
-            printPos(parentNode->bestMove);
+            // TEST_PRINT("update best: ");
+            // printPos(parentNode->bestMove);
         }
     } else {
         if (val < parent.beta) {
             parent.beta = val;
             parentNode->value = val;
             parentNode->bestMove = lastMove;
-            TEST_PRINT("update best: ");
-            printPos(parentNode->bestMove);
+            // TEST_PRINT("update best: ");
+            // printPos(parentNode->bestMove);
         }
     }
 
     if (parent.beta <= parent.alpha) {
-        TEST_PRINT("\npruning -> " << "alpha: " << parent.alpha << " beta: " << parent.beta);
+        //TEST_PRINT("\npruning -> " << "alpha: " << parent.alpha << " beta: " << parent.beta);
         // pruning
         treeManager.undo();
         stk.pop();

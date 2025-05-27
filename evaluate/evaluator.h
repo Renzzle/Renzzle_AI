@@ -212,8 +212,8 @@ bool Evaluator::isOppoMateExist() {
 Value Evaluator::evaluate() {
     // case 1: finish
     Result result = board.getResult();
-    printPath(board.getPath());
-    TEST_PRINT("board result: " << result << " self: " << self);
+    // printPath(board.getPath());
+    // TEST_PRINT("board result: " << result << " self: " << self);
     if (result != ONGOING) {
         if (result == DRAW) return 0;
         

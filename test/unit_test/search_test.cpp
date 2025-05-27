@@ -28,7 +28,7 @@ PRIVATE
         printBoard(board);
 
         TEST_TIME_START();
-        MoveList bestPath = searcher.alphaBeta(6);
+        MoveList bestPath = searcher.alphaBeta(7);
         TEST_TIME_END("alpha-beta search");
 
         printPath(bestPath);
@@ -43,9 +43,9 @@ PUBLIC
 
     void testAlphaBetaSearch() {
         const string processArr[] = {
-            //"h8h9i8g8i10i9j9k10j7i7",
+            "h8h9i8g8i10i9j9k10j7i7",
             //"h8h9i8g8i10i9j9k8k10l11i7j6",
-            "h8h9j9g8j10g7i10g10g9j7k6"
+            //"h8h9j9g8j10g7i10"
         };
 
         for (auto process : processArr) {
