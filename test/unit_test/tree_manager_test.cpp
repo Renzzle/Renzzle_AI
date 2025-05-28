@@ -41,7 +41,7 @@ public:
         treeManager.move(l8Move);
         
         // check that the node is added
-        TEST_ASSERT(treeManager.tree.exist(treeManager.getBoard()));
+        TEST_ASSERT(treeManager.tree.findNode(treeManager.getBoard().getCurrentHash()) != nullptr);
         
         // check if the board state is correctly updated
         TEST_ASSERT(treeManager.currentNode->board.getCell(l8Move).getPiece() == BLACK);

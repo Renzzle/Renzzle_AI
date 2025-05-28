@@ -39,6 +39,7 @@ PUBLIC
     bool isForbidden(Pos p);
     MoveList& getPath();
     size_t getCurrentHash() const;
+    size_t getChildHash(Pos p);
     
 };
 
@@ -210,6 +211,13 @@ MoveList& Board::getPath() {
 
 size_t Board::getCurrentHash() const {
     return currentHash;
+}
+
+size_t Board::getChildHash(Pos p) {
+    size_t result = currentHash;
+    Piece piece = isBlackTurn() ? WHITE : BLACK;
+    result ^= getZobristValue(p.x, p.y, piece);
+    return result;
 }
 
 void Board::clearPattern(Cell& cell) {

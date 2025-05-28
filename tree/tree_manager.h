@@ -20,6 +20,7 @@ PUBLIC
     Node* getChildNode(Pos p);
     Node* getNode();
     Node* getRootNode();
+    MoveList getBestLine(int i);
 
 };
 
@@ -33,14 +34,10 @@ bool TreeManager::move(Pos p) {
     Node* previousNode = currentNode;
 
     // if child node exist
-    for (const auto& pair : previousNode->childNodes) {
-        Node* node = pair.second;
-        if (node->board.getPath().back() == p) {
-            // but if child node is forbidden move
-            if (previousNode->board.isForbidden(p))
-                break;
-
-            currentNode = node;
+    Node* childNode = getChildNode(p);
+    if (childNode != nullptr) {
+        if (!previousNode->board.isForbidden(p)) {
+            currentNode = childNode;
             nodeHistory.push(currentNode);
             return true;
         }
@@ -69,13 +66,8 @@ Board& TreeManager::getBoard() {
 }
 
 Node* TreeManager::getChildNode(Pos p) {
-    for (const auto& pair : currentNode->childNodes) {
-        Node* node = pair.second;
-        if (node->board.getPath().back() == p) {
-            return node;
-        }
-    }
-    return nullptr; // if cannot find
+    size_t childHash = currentNode->board.getChildHash(p);
+    return tree.findNode(childHash);
 }
 
 Node* TreeManager::getNode() {
@@ -84,4 +76,36 @@ Node* TreeManager::getNode() {
 
 Node* TreeManager::getRootNode() {
     return rootNode;
+}
+
+MoveList TreeManager::getBestLine(int i) {
+    MoveList result;
+    if (!rootNode || rootNode->childNodes.empty()) 
+        return result;
+
+    std::vector<std::pair<Pos, Node*>> rankedChildren;
+    for (const auto& entry : rootNode->childNodes) {
+        Node* child = entry.second;
+        if (child) {
+            rankedChildren.emplace_back(child->board.getPath().back(), child);
+        }
+    }
+
+    // sort by descending value
+    std::sort(rankedChildren.begin(), rankedChildren.end(),
+        [](const auto& a, const auto& b) {
+            return a.second->value > b.second->value;
+        });
+
+    if (i < 0 || i >= static_cast<int>(rankedChildren.size())) 
+        return result;
+
+    Node* node = rankedChildren[i].second;
+    result.push_back(rankedChildren[i].first);
+    while (node != nullptr && !node->bestMove.isDefault()) {
+        result.push_back(node->bestMove);
+        node = tree.findNode(node->board.getChildHash(node->bestMove));
+    }
+
+    return result;
 }
