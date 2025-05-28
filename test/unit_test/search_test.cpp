@@ -11,20 +11,6 @@ PRIVATE
         SearchMonitor monitor;
         Search searcher(board, monitor);
 
-        static Value lastBestValue = -9999999;
-        monitor.setTrigger([](SearchMonitor& monitor) {
-            if (monitor.bestValue != lastBestValue) {
-                lastBestValue = monitor.getBestValue();
-                return true;
-            }
-            return false;
-        });
-
-        monitor.setSearchListener([](SearchMonitor& monitor) {
-            TEST_PRINT("Value: " << monitor.getBestValue() << ", Node: " << monitor.getVisitCnt());
-            printPath(monitor.getBestPath());
-        });
-
         printBoard(board);
 
         TEST_TIME_START();

@@ -39,6 +39,7 @@ PUBLIC
     int getDepth() { return depth; }
     size_t getVisitCnt() { return visitCnt; }
     MoveList getBestPath() { return bestPath; }
+    MoveList getBestPath(TreeManager& treeManager);
 
 };
 
@@ -62,4 +63,8 @@ void SearchMonitor::executeTrigger() {
     if(trigger(*this)) {
         searchListener(*this);
     }
+}
+
+MoveList SearchMonitor::getBestPath(TreeManager& treeManager) {
+    
 }
