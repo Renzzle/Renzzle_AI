@@ -8,6 +8,7 @@ class TreeManager {
 
 PRIVATE
     Tree tree;
+    Node* rootNode;
     Node* currentNode;
     stack<Node*> nodeHistory;
 
@@ -15,15 +16,15 @@ PUBLIC
     TreeManager(Board initialBoard);
     bool move(Pos p);
     void undo();
-    void cleanCache();
     Board& getBoard();
     Node* getChildNode(Pos p);
     Node* getNode();
+    Node* getRootNode();
 
 };
 
 TreeManager::TreeManager(Board initialBoard) {
-    auto rootNode = tree.addNodeAsRoot(initialBoard);
+    rootNode = tree.addNodeAsRoot(initialBoard);
     currentNode = rootNode;
     nodeHistory.push(currentNode);
 }
@@ -63,10 +64,6 @@ void TreeManager::undo() {
     }
 }
 
-void TreeManager::cleanCache() {
-    tree.cleanTree();
-}
-
 Board& TreeManager::getBoard() {
     return currentNode->board;
 }
@@ -83,4 +80,8 @@ Node* TreeManager::getChildNode(Pos p) {
 
 Node* TreeManager::getNode() {
     return currentNode;
+}
+
+Node* TreeManager::getRootNode() {
+    return rootNode;
 }

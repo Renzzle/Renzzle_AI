@@ -54,19 +54,13 @@ bool SearchWin::findVCF() {
         Node* childNode = treeManager.getChildNode(move);
         if (childNode != nullptr) { // child node exist
             // prune except win path
-            if (childNode->result != targetResult) continue;
-        } else {
-            // if a winning path exists, skip searching other nodes
-            if (treeManager.currentNode->result != ONGOING) continue;
+            continue;
         }
 
         treeManager.move(move);
         
         if (findVCF()) {
             // if find vcf, update parent node result
-            Result result = treeManager.getNode()->result;
-            treeManager.undo();
-            treeManager.getNode()->result = result;
             return true;
         }
         
@@ -87,9 +81,16 @@ bool SearchWin::isWin() {
         isWin = true;
 
     // if win, update current node result & set vcf path
-    if (isWin) {
-        treeManager.getNode()->result = result;
-        monitor.setBestPath(treeManager.getNode()->board.getPath());
+    if (isWin) {        
+        const auto& fullPath = treeManager.getNode()->board.getPath();
+        const auto& rootPath = treeManager.getRootNode()->board.getPath();
+
+        int rootSize = static_cast<int>(rootPath.size());
+        int totalSize = static_cast<int>(fullPath.size());
+
+        MoveList bestPath(fullPath.begin() + rootSize, fullPath.end());
+
+        monitor.setBestPath(bestPath);
     }
 
     return isWin;

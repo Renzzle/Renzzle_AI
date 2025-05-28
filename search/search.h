@@ -25,17 +25,17 @@ PRIVATE
     Color targetColor;
     SearchMonitor& monitor;
 
-    MoveList alphaBeta(int depth);
+    Value abp(int depth);
     Value evaluateNode(Evaluator& evaluator);
     MoveList getCandidates(Evaluator& evaluator, bool isMax);
     void sortChildNodes(MoveList& moves, bool isTarget);
     void updateParent(stack<ABPNode>& stk, Value val);
-    MoveList getBestPathFromRoot();
     bool isGameOver(Board& board);
     bool isTargetTurn();
 
 PUBLIC
     Search(Board& board, SearchMonitor& monitor);
+    void ids();
 
 };
 
@@ -43,16 +43,14 @@ Search::Search(Board& board, SearchMonitor& monitor) : treeManager(board), monit
     targetColor = board.isBlackTurn() ? COLOR_BLACK : COLOR_WHITE;
 }
 
-MoveList Search::alphaBeta(int depth) {
+Value Search::abp(int depth) {
     stack<ABPNode> stk;
     stk.push({depth, true, MIN_VALUE, MAX_VALUE, 0, {}});
 
     while (!stk.empty()) {
+        monitor.updateElapsedTime();
         ABPNode &cur = stk.top();
         Node* currentNode = treeManager.getNode();
-        // printBoard(currentNode->board);
-        // printPath(currentNode->board.getPath());
-        // TEST_PRINT("depth: " << cur.depth << " isMax: " << cur.isMax);
 
         // calculate child nodes
         if (cur.childMoves.empty()) {
@@ -68,10 +66,8 @@ MoveList Search::alphaBeta(int depth) {
             // evaluate leaf node value
             Evaluator evaluator(currentNode->board);
             Value val = evaluateNode(evaluator);
-            //TEST_PRINT("leaf node original value: " << val);
             if (!cur.isMax) val *= -1;
             currentNode->value = val;
-            //TEST_PRINT("leaf node value: " << val);
 
             treeManager.undo();
             stk.pop();
@@ -83,15 +79,11 @@ MoveList Search::alphaBeta(int depth) {
             continue;
         }
 
-        // TEST_PRINT("<Candidates>");
-        // printPath(cur.childMoves);
-        // TEST_PRINT("total childs: " << cur.childMoves.size() << " child index: " << cur.childIdx);
-        // TEST_STOP();
-
         if (cur.childIdx < cur.childMoves.size()) {
             Pos move = cur.childMoves[cur.childIdx++];
             treeManager.move(move);
             stk.push({cur.depth - 1, !cur.isMax, cur.alpha, cur.beta, 0, {}});
+            monitor.incVisitCnt();
         } else { // if search every child nodes
             Value result = cur.isMax ? cur.alpha : cur.beta;
             currentNode->value = result;
@@ -105,11 +97,10 @@ MoveList Search::alphaBeta(int depth) {
         }
     }
 
-    return getBestPathFromRoot();
+    return treeManager.getNode()->value;
 }
 
 void Search::updateParent(stack<ABPNode>& stk, Value val) {
-    //TEST_PRINT("in updateParent method.");
     ABPNode& parent = stk.top();
     Node* parentNode = treeManager.getNode();
     Pos lastMove;
@@ -122,41 +113,21 @@ void Search::updateParent(stack<ABPNode>& stk, Value val) {
             parent.alpha = val;
             parentNode->value = val;
             parentNode->bestMove = lastMove;
-            // TEST_PRINT("update best: ");
-            // printPos(parentNode->bestMove);
         }
     } else {
-        if (val < parent.beta) {
+        if (val <= parent.beta) {
             parent.beta = val;
             parentNode->value = val;
             parentNode->bestMove = lastMove;
-            // TEST_PRINT("update best: ");
-            // printPos(parentNode->bestMove);
         }
     }
 
     if (parent.beta <= parent.alpha) {
-        //TEST_PRINT("\npruning -> " << "alpha: " << parent.alpha << " beta: " << parent.beta);
         // pruning
         treeManager.undo();
         stk.pop();
     }
 }
-
-MoveList Search::getBestPathFromRoot() {
-    MoveList path;
-    Node* node = treeManager.getNode();
-    TEST_PRINT(node->value);
-
-    while (node != nullptr && !node->bestMove.isDefault()) {
-        path.push_back(node->bestMove);
-        treeManager.move(node->bestMove);
-        node = treeManager.getNode();
-    }
-
-    return path;
-}
-
 
 Value Search::evaluateNode(Evaluator& evaluator) {
     treeManager.getNode()->value = evaluator.evaluate();
@@ -204,5 +175,16 @@ bool Search::isTargetTurn() {
         return targetColor == COLOR_BLACK;
     } else {
         return targetColor == COLOR_WHITE;
+    }
+}
+
+void Search::ids() {
+    monitor.incDepth(5);
+    monitor.initStartTime();
+
+    while (true) {
+        Value result = abp(monitor.getDepth());
+        if (result == MAX_VALUE) break;
+        monitor.incDepth(2);
     }
 }

@@ -12,9 +12,8 @@ struct Node {
     Result result;
     unordered_map<size_t, Node*> childNodes;
     Pos bestMove;
-    int visitedCnt;
 
-    Node(Board b) : board(b), value(INITIAL_VALUE), result(ONGOING), visitedCnt(0) {}
+    Node(Board b) : board(b), value(INITIAL_VALUE), result(ONGOING) {}
 };
 
 class Tree {

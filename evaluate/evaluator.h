@@ -9,7 +9,6 @@
 #define MIN_VALUE -50000
 #define INITIAL_VALUE -99999
 
-// evaluate value
 using Value = int;
 
 class Evaluator {
@@ -212,8 +211,6 @@ bool Evaluator::isOppoMateExist() {
 Value Evaluator::evaluate() {
     // case 1: finish
     Result result = board.getResult();
-    // printPath(board.getPath());
-    // TEST_PRINT("board result: " << result << " self: " << self);
     if (result != ONGOING) {
         if (result == DRAW) return 0;
         

@@ -11,9 +11,6 @@ private:
         SearchMonitor monitor;
         SearchWin vcfSearcher(board, monitor);
 
-        // do not use previous search data
-        // vcfSearcher.treeManager.cleanCache();
-
         // print status every 10sec
         double lastTriggerTime = 0.0;
         monitor.setTrigger([&lastTriggerTime](SearchMonitor& monitor) {
@@ -27,7 +24,7 @@ private:
         monitor.setSearchListener([&vcfSearcher](SearchMonitor& monitor) {
             TEST_PRINT("Time: " << monitor.getElapsedTime() << "sec, Node: " << monitor.getVisitCnt());
             printPath(monitor.getBestPath());
-            vcfSearcher.stop();
+            //vcfSearcher.stop();
         });
 
         TEST_PRINT("==================================");
@@ -46,53 +43,9 @@ private:
         }
 
         MoveList resultPath = monitor.getBestPath();
-        int depth = resultPath.size() - board.getPath().size();
+        int depth = resultPath.size();
         size_t node = monitor.getVisitCnt();
         TEST_PRINT("Find VCF. Depth: " << depth << ", Node: " << node);
-        printPath(resultPath);
-        TEST_PRINT("==================================");
-    }
-
-    void vctTest(string process) {
-        Board board = getBoard(process);
-        SearchMonitor monitor;
-        SearchWin vctSearcher(board, monitor);
-
-        // do not use previous search data
-        // vctSearcher.treeManager.cleanCache();
-
-        // print status every 10sec
-        double lastTriggerTime = 0.0;
-        monitor.setTrigger([&lastTriggerTime](SearchMonitor& monitor) {
-            if (monitor.getElapsedTime() - lastTriggerTime >= 10.0) {
-                lastTriggerTime = monitor.getElapsedTime();
-                return true;
-            }
-            return false;
-        });
-
-        monitor.setSearchListener([](SearchMonitor& monitor) {
-            TEST_PRINT("Time: " << monitor.getElapsedTime() << "sec, Node: " << monitor.getVisitCnt());
-            printPath(monitor.getBestPath());
-        });
-
-        TEST_PRINT("==================================");
-        printBoard(board);
-        TEST_PRINT("");
-
-        TEST_TIME_START();
-        bool result = vctSearcher.findVCF();
-        TEST_TIME_END("vct search");
-
-        if(!result) {
-            TEST_PRINT("There is no VCT");
-            return;
-        }
-
-        MoveList resultPath = monitor.getBestPath();
-        int depth = resultPath.size() - board.getPath().size();
-        size_t node = monitor.getVisitCnt();
-        TEST_PRINT("\033[31mFind WIN. Depth: " << depth << ", Node: " << node << "\033[0m");
         printPath(resultPath);
         TEST_PRINT("==================================");
     }
@@ -101,7 +54,6 @@ public:
     VCFSearchTest() {
         registerTestMethod([this]() { findExistBlackVCFs(); });
         registerTestMethod([this]() { findExistWhiteVCFs(); });
-        //registerTestMethod([this]() { findExistVCTs(); });
     }
  
     void findExistBlackVCFs() {
@@ -129,23 +81,6 @@ public:
 
         for (auto process : processArr) {
             vcfTest(process);
-        }
-    }
-
-    void findExistVCTs() {
-        const string processArr[] = {
-            "h8h9i8g8i10i9j9h7k8l7j8l8j10j11",
-            //"h8i9i7g9j7k7j8i8j9j10h6k9j6j5g5f4k6l6",
-            //"h8i9i7g9j7k7j8i8j9j10h6g5h5h7",
-            //"h8i9i7g9j7k7j8i8j9j10",
-            "h8i9i7g9j7k7j8h6i8k8",
-            "h8h9i8j8f8g8g7j11i10"
-            //"h8h9i7g9g8f8i9i8h10j8g10j9e10i10h7f9e9k8l7j10j7k7"
-        };
-
-        for (auto process : processArr) {
-            vctTest(process);
-            Sleep(1000);
         }
     }
 

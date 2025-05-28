@@ -28,24 +28,21 @@ PRIVATE
         printBoard(board);
 
         TEST_TIME_START();
-        MoveList bestPath = searcher.alphaBeta(7);
+        Value result = searcher.abp(13);
         TEST_TIME_END("alpha-beta search");
-
-        printPath(bestPath);
+        TEST_PRINT("value: " << result);
     }
 
 PUBLIC
     SearchTest() {
         registerTestMethod([this]() { testAlphaBetaSearch(); });
-        //registerTestMethod([this]() { testFindNextMove(); });
-        //registerTestMethod([this]() { playAlone(); });
     }
 
     void testAlphaBetaSearch() {
         const string processArr[] = {
-            "h8h9i8g8i10i9j9k10j7i7",
+            //"h8h9i8g8i10i9j9k10j7i7",
             //"h8h9i8g8i10i9j9k8k10l11i7j6",
-            //"h8h9j9g8j10g7i10"
+            "h8h9j9g8j10g7i10"
         };
 
         for (auto process : processArr) {
@@ -53,45 +50,6 @@ PUBLIC
             searchTest(process);
         }
     }
-
-    // void testFindNextMove() {
-    //     const string processArr[] = {
-    //         "h8h9i8g8i10i9j9h7k8l7j8l8j10j11l10",
-    //         "h8h9i8g8i10i9j9h7k8l7j8l8j10j11l10k10m11",
-    //         "h8h9i8g8i10i9j9h7k8l7j8l8j10j11j7",
-    //         "h8h9i8g8i10i9j9h7k8l7j8l8j10j11",
-    //         "h8h9i8g8i10i9j9h7j10k10j11k11g7",
-    //         "h8h9i8g8i10i9j9g9g7h7i6f11g11g12h10j5j6k6j7k10i7j11d9h6h5"
-    //     };
-
-    //     for (auto process : processArr) {
-    //         TEST_PRINT("=================================");
-    //         Board board = getBoard(process);
-    //         printBoard(board);
-    //         SearchMonitor monitor;
-    //         Search search(board, monitor);
-    //         Pos move = search.findNextMove(board);
-    //         board.move(move);
-    //         TEST_PRINT("<result>");
-    //         printBoard(board);
-    //     }
-    // }
-
-    // void playAlone() {
-    //     const string process = "h8h9i9i8";
-
-    //     Board board = getBoard(process);
-    //     printBoard(board);
-    //     SearchMonitor monitor;
-    //     Search search(board, monitor);
-    //     for (int i = 0; i < 40; i++) {
-    //         Pos move = search.findNextMove(board);
-    //         if (move.isDefault()) break;
-    //         board.move(move);
-    //         printBoard(board);
-    //     }
-    //     TEST_PRINT("finish play alone");
-    // }
 
 };
 

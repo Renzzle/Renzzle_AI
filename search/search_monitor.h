@@ -14,9 +14,7 @@ PRIVATE
     Timestamp startTime;
     double elapsedTime;
     MoveList bestPath;
-    Value bestValue;
     int depth;
-    int maxDepth;
     size_t visitCnt;
     function<bool(SearchMonitor&)> trigger;
     function<void(SearchMonitor&)> searchListener;
@@ -31,32 +29,22 @@ PUBLIC
     
     // update data function, executeTrigger function execute
     void updateElapsedTime();
-    void incDepth() { depth++; executeTrigger(); };
-    void decDepth() { depth--; executeTrigger(); };
+    void incDepth(int val) { depth += val; executeTrigger(); };
+    void decDepth(int val) { depth -= val; executeTrigger(); };
     void incVisitCnt() { visitCnt++; executeTrigger(); };
-    void updateMaxDepth(int maxDepth) {
-        if (this->maxDepth < maxDepth)
-            this->maxDepth = maxDepth;
-        executeTrigger();
-    }
     void setBestPath(MoveList path) { bestPath = path; executeTrigger(); };
-    void setBestValue(Value val) { bestValue = val; executeTrigger(); };
 
     // getter
     double getElapsedTime() { return elapsedTime; }
     int getDepth() { return depth; }
-    int getMaxDepth() { return maxDepth; }
     size_t getVisitCnt() { return visitCnt; }
     MoveList getBestPath() { return bestPath; }
-    Value getBestValue() { return bestValue; }
 
 };
 
 SearchMonitor::SearchMonitor() {
     elapsedTime = 0.0;
-    bestValue = INITIAL_VALUE;
     depth = 0;
-    maxDepth = 0;
     visitCnt = 0;
 
     trigger = [](SearchMonitor monitor) { return false; };
