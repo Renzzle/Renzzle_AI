@@ -13,11 +13,13 @@ class SearchMonitor {
 PRIVATE
     Timestamp startTime;
     double elapsedTime;
-    MoveList bestPath;
+    MoveList bestPath; // final best path determined after one complete search iteration
+    MoveList bestLine; // best line, updated when getBestLine() is explicitly called
     int depth;
     size_t visitCnt;
     function<bool(SearchMonitor&)> trigger;
     function<void(SearchMonitor&)> searchListener;
+    function<MoveList(int)> bestLineProvider;
 
 PUBLIC
     SearchMonitor();
@@ -26,6 +28,7 @@ PUBLIC
     void setTrigger(function<bool(SearchMonitor&)> newTrigger) { trigger = newTrigger; };
     void setSearchListener(function<void(SearchMonitor&)> newSearchListener) { searchListener = newSearchListener; };
     void executeTrigger();
+    void setBestLineProvider(std::function<MoveList(int)> provider) { bestLineProvider = provider; }
     
     // update data function, executeTrigger function execute
     void updateElapsedTime();
@@ -39,6 +42,7 @@ PUBLIC
     int getDepth() { return depth; }
     size_t getVisitCnt() { return visitCnt; }
     MoveList getBestPath() { return bestPath; }
+    MoveList getBestLine(int i) { return bestLineProvider ? bestLineProvider(i) : MoveList(); }
 
 };
 

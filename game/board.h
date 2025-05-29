@@ -215,7 +215,7 @@ size_t Board::getCurrentHash() const {
 
 size_t Board::getChildHash(Pos p) {
     size_t result = currentHash;
-    Piece piece = isBlackTurn() ? WHITE : BLACK;
+    Piece piece = isBlackTurn() ? BLACK : WHITE;
     result ^= getZobristValue(p.x, p.y, piece);
     return result;
 }

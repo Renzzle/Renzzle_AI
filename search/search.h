@@ -41,11 +41,14 @@ PUBLIC
 
 Search::Search(Board& board, SearchMonitor& monitor) : treeManager(board), monitor(monitor) {
     targetColor = board.isBlackTurn() ? COLOR_BLACK : COLOR_WHITE;
+    monitor.setBestLineProvider([this](int i) {
+        return treeManager.getBestLine(i);
+    });
 }
 
 Value Search::abp(int depth) {
     stack<ABPNode> stk;
-    stk.push({depth, true, MIN_VALUE, MAX_VALUE, 0, {}});
+    stk.push({depth, true, MIN_VALUE - 1, MAX_VALUE + 1, 0, {}});
 
     while (!stk.empty()) {
         monitor.updateElapsedTime();
@@ -184,6 +187,8 @@ void Search::ids() {
 
     while (true) {
         Value result = abp(monitor.getDepth());
+        monitor.setBestPath(treeManager.getBestLine(0));
+        
         if (result == MAX_VALUE) break;
         monitor.incDepth(2);
     }
