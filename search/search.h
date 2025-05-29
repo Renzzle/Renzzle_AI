@@ -112,36 +112,23 @@ void Search::updateParent(stack<ABPNode>& stk, Value val) {
         lastMove = parent.childMoves[parent.childIdx - 1];
     }
 
-    // print for debug
-    // TEST_PRINT("<updateParent>");
-    // printBoard(parentNode->board);
-    // MoveList tmp; tmp.push_back(lastMove);
-    // TEST_PRINT("Last move is...(" << (parent.isMax ? "black)" : "white)"));
-    // printPath(tmp);
-    // TEST_PRINT("alpha: " << parent.alpha << ", beta: " << parent.beta << ", parent value: " << parent.bestVal << ", result value: " << val);
-    // ---------------------
-
     if (parent.isMax) {
         if (val > parent.bestVal) {
             parent.bestVal = val;
             parentNode->value = val;
             parentNode->bestMove = lastMove;
-            //TEST_PRINT("update best value"); // debug
         }
         if (val > parent.alpha) {
             parent.alpha = val;
-            //TEST_PRINT("update alpha"); // debug
         }
     } else {
         if (val < parent.bestVal) {
             parent.bestVal = val;
             parentNode->value = val;
             parentNode->bestMove = lastMove;
-            //TEST_PRINT("update best value"); // debug
         }
         if (val < parent.beta) {
             parent.beta = val;
-            //TEST_PRINT("update beta"); // debug
         }
     }
 
@@ -149,9 +136,7 @@ void Search::updateParent(stack<ABPNode>& stk, Value val) {
         // pruning
         treeManager.undo();
         stk.pop();
-        //TEST_PRINT("pruning!!"); // debug
     }
-    //TEST_STOP(); // debug
 }
 
 Value Search::evaluateNode(Evaluator& evaluator) {

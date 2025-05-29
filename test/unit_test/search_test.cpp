@@ -11,27 +11,27 @@ PRIVATE
         SearchMonitor monitor;
         Search searcher(board, monitor);
 
-        // monitor.setTrigger([](SearchMonitor& monitor) {
-        //     static int depth = 0;
-        //     const int curDepth = monitor.getDepth();
-        //     if (depth != curDepth) {
-        //         depth = curDepth;
-        //         return true;
-        //     }
-        //     return false;
-        // });
+        monitor.setTrigger([](SearchMonitor& monitor) {
+            static int depth = 0;
+            const int curDepth = monitor.getDepth();
+            if (depth != curDepth) {
+                depth = curDepth;
+                return true;
+            }
+            return false;
+        });
 
-        // monitor.setSearchListener([&searcher](SearchMonitor& monitor) {
-        //     TEST_PRINT("Depth: " << monitor.getDepth() << ", Time: " << monitor.getElapsedTime() << "sec, Node: " << monitor.getVisitCnt());
-        //     printPath(monitor.getBestPath());
-        // });
+        monitor.setSearchListener([&searcher](SearchMonitor& monitor) {
+            TEST_PRINT("Depth: " << monitor.getDepth() << ", Time: " << monitor.getElapsedTime() << "sec, Node: " << monitor.getVisitCnt());
+            printPath(monitor.getBestPath());
+        });
 
         printBoard(board);
 
         TEST_TIME_START();
-        Value val = searcher.abp(7);
+        searcher.ids();
         TEST_TIME_END("alpha-beta search");
-        TEST_PRINT("Value: " << val << ", Node: " << monitor.getVisitCnt());
+        TEST_PRINT("Final visited node: " << monitor.getVisitCnt());
         printPath(monitor.getBestLine(0));
     }
 
@@ -43,8 +43,8 @@ PUBLIC
     void testAlphaBetaSearch() {
         const string processArr[] = {
             "h8h9i8g8i10i9j9k10j7i7",
-            //"h8h9i8g8i10i9j9k8k10l11i7j6",
-            //"h8h9j9g8j10g7i10"
+            "h8h9i8g8i10i9j9k8k10l11i7j6",
+            "h8h9j9g8j10g7i10"
         };
 
         for (auto process : processArr) {

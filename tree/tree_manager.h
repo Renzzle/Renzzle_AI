@@ -99,11 +99,6 @@ MoveList TreeManager::getBestLine(int i) {
     if (i < 0 || i >= static_cast<int>(rankedChildren.size())) 
         return result;
 
-    for (const auto& child : rankedChildren) {
-        printBoard(child.second->board);
-        TEST_PRINT("Value: " << child.second->value);
-    }
-
     Node* node = rankedChildren[i].second;
     result.push_back(rankedChildren[i].first);
     while (node != nullptr && !node->bestMove.isDefault()) {
