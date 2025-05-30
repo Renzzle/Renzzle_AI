@@ -199,6 +199,6 @@ void Search::ids() {
         monitor.setBestPath(treeManager.getBestLine(0));
         
         if (result == MAX_VALUE) break;
-        monitor.incDepth(1);
+        monitor.incDepth(2);
     }
 }

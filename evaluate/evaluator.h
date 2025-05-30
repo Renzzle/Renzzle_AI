@@ -30,6 +30,7 @@ PUBLIC
     MoveList getThreats();
     MoveList getThreatDefend();
     bool isOppoMateExist();
+    bool isMoveForbidden(const Pos& p);
     Value evaluate();
 
 }; 
@@ -58,16 +59,10 @@ void Evaluator::classify() {
 
 MoveList Evaluator::getCandidates() {
     MoveList result;
-    if (!patternMap[self][WINNING].empty()) {
-        result.push_back(patternMap[self][WINNING].front());
-        return result;
-    }
-    if (!patternMap[oppo][WINNING].empty()) {
-        result.push_back(patternMap[oppo][WINNING].front());
-        return result;
-    }
-    if (!patternMap[self][MATE].empty()) {
-        result.push_back(patternMap[self][MATE].front());
+
+    Pos sureMove = getSureMove();
+    if (!sureMove.isDefault()) {
+        result.push_back(sureMove);
         return result;
     }
 
@@ -76,7 +71,9 @@ MoveList Evaluator::getCandidates() {
     }
     
     result.insert(result.end(), patternMap[self][B4_F3].begin(), patternMap[self][B4_F3].end());
-    result.insert(result.end(), patternMap[oppo][MATE].begin(), patternMap[oppo][MATE].end());
+    for (const auto& p : patternMap[oppo][MATE]) {
+        if (!isMoveForbidden(p)) result.push_back(p);
+    }
     result.insert(result.end(), patternMap[self][F3_2X].begin(), patternMap[self][F3_2X].end());
     result.insert(result.end(), patternMap[self][B4_PLUS].begin(), patternMap[self][B4_PLUS].end());
     result.insert(result.end(), patternMap[self][B4_ANY].begin(), patternMap[self][B4_ANY].end());
@@ -98,7 +95,21 @@ Pos Evaluator::getSureMove() {
         return patternMap[self][WINNING].front();
     }
     if (!patternMap[oppo][WINNING].empty()) {
-        return patternMap[oppo][WINNING].front();
+        MoveList result;
+        for (const auto& p : patternMap[oppo][WINNING]) {
+            if (!isMoveForbidden(p)) result.push_back(p);
+        }
+        
+        if (!result.empty()) return result.front();
+        
+        for (int r = 1; r <= BOARD_SIZE; ++r) {
+            for (int c = 1; c <= BOARD_SIZE; ++c) {
+                Pos cp(r, c);
+                if (board.getCell(cp).getPiece() == EMPTY && !isMoveForbidden(cp)) {
+                    return cp;
+                }
+            }
+        }
     }
     if (!patternMap[self][MATE].empty()) {
         return patternMap[self][MATE].front();
@@ -164,12 +175,18 @@ MoveList Evaluator::getThreats() {
 
 MoveList Evaluator::getThreatDefend() {
     MoveList result;
+
     if (!patternMap[oppo][WINNING].empty()) {
-        result.push_back(patternMap[oppo][WINNING].front());
-        return result;
+        for (const auto& p : patternMap[oppo][WINNING]) {
+            if (!isMoveForbidden(p)) result.push_back(p);
+        }
     }
- 
-    result.insert(result.end(), patternMap[oppo][MATE].begin(), patternMap[oppo][MATE].end());
+
+    if (!patternMap[oppo][MATE].empty()) {
+        for (const auto& p : patternMap[oppo][MATE]) {
+            if (!isMoveForbidden(p)) result.push_back(p);
+        }
+    }
 
     // check every mate move (free 3)
     for (auto p : patternMap[oppo][MATE]) {
@@ -193,8 +210,24 @@ MoveList Evaluator::getThreatDefend() {
                 }
 
                 if (f4Cnt == 1) {
-                    result.insert(result.end(), defendB4.begin(), defendB4.end());
+                    if (!defendB4.empty()) {
+                        for (const auto& p : defendB4) {
+                            if (!isMoveForbidden(p)) result.push_back(p);
+                        }
+                    }
                 } 
+            }
+        }
+    }
+
+    if (result.empty()) {
+        for (int r = 1; r <= BOARD_SIZE; ++r) {
+            for (int c = 1; c <= BOARD_SIZE; ++c) {
+                Pos cp(r, c);
+                if (board.getCell(cp).getPiece() == EMPTY && !isMoveForbidden(cp)) {
+                    result.push_back(cp);
+                    return result;
+                }
             }
         }
     }
@@ -205,6 +238,13 @@ MoveList Evaluator::getThreatDefend() {
 bool Evaluator::isOppoMateExist() {
     if (!patternMap[oppo][WINNING].empty()) return true;
     if (!patternMap[oppo][MATE].empty()) return true;
+    return false;
+}
+
+bool Evaluator::isMoveForbidden(const Pos& p) {
+    if (self == BLACK) {
+        return board.isForbidden(p);
+    }
     return false;
 }
 
