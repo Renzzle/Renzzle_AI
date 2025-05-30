@@ -176,6 +176,8 @@ MoveList Evaluator::getThreats() {
 MoveList Evaluator::getThreatDefend() {
     MoveList result;
 
+    if (!isOppoMateExist()) return result;
+
     if (!patternMap[oppo][WINNING].empty()) {
         for (const auto& p : patternMap[oppo][WINNING]) {
             if (!isMoveForbidden(p)) result.push_back(p);
