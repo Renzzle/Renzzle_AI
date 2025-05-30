@@ -155,7 +155,8 @@ MoveList Search::getCandidates(Evaluator& evaluator, bool isMax) {
         moves = evaluator.getThreats();
     } else {
         moves = evaluator.getThreatDefend();
-        moves.emplace_back(evaluator.getFours());
+        MoveList fours = evaluator.getFours();
+        moves.insert(moves.end(), fours.begin(), fours.end());
     }
     sortChildNodes(moves, isMax);
     return moves;
