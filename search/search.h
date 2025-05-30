@@ -5,7 +5,19 @@
 #include "../test/test.h"
 #include "search_win.h"
 #include "search_monitor.h"
+#include "../test/util.h"
 #include <limits>
+#include <stack>
+
+struct ABPNode {
+    int depth;
+    bool isMax;
+    Value alpha;
+    Value beta;
+    Value bestVal;
+    int childIdx;
+    MoveList childMoves;
+};
 
 class Search {
 
@@ -14,83 +26,153 @@ PRIVATE
     Color targetColor;
     SearchMonitor& monitor;
 
-    Value alphaBeta(Board& board, int depth, int alpha, int beta, bool maximizingPlayer);
-    int ids(Board& board, int depthLimit);
+    Value abp(int depth);
+    Value evaluateNode(Evaluator& evaluator);
+    MoveList getCandidates(Evaluator& evaluator, bool isMax);
+    void sortChildNodes(MoveList& moves, bool isTarget);
+    void updateParent(stack<ABPNode>& stk, Value val);
     bool isGameOver(Board& board);
     bool isTargetTurn();
 
 PUBLIC
     Search(Board& board, SearchMonitor& monitor);
-    Pos findBestMove();
-    Pos iterativeDeepeningSearch();
-    Pos findNextMove(Board board);
-    MoveList getPath();
-    MoveList getSimulatedPath();
+    void ids();
 
 };
 
 Search::Search(Board& board, SearchMonitor& monitor) : treeManager(board), monitor(monitor) {
     targetColor = board.isBlackTurn() ? COLOR_BLACK : COLOR_WHITE;
+    monitor.setBestLineProvider([this](int i) {
+        return treeManager.getBestLine(i);
+    });
 }
 
-Value Search::alphaBeta(Board& board, int depth, int alpha, int beta, bool maximizingPlayer) {
-    monitor.incVisitCnt();
+Value Search::abp(int depth) {
+    stack<ABPNode> stk;
+    stk.push({depth, true, MIN_VALUE - 1, MAX_VALUE + 1, 0, {}});
 
-    Evaluator evaluator(treeManager.getBoard());
+    while (!stk.empty()) {
+        monitor.updateElapsedTime();
+        ABPNode &cur = stk.top();
+        Node* currentNode = treeManager.getNode();
 
-    // end condition
-    if (depth <= 0 || isGameOver(board)) {
-        Value val = evaluator.evaluate();
-        if (!maximizingPlayer) {
-            val = -val;
+        // calculate child nodes & initialize best value
+        if (cur.childMoves.empty()) { // when first visit
+            Evaluator evaluator(currentNode->board);
+            cur.childMoves = getCandidates(evaluator, cur.isMax);
+            cur.bestVal = cur.isMax ? MIN_VALUE - 1 : MAX_VALUE + 1;
+            sortChildNodes(cur.childMoves, cur.isMax);
         }
-        if (val > monitor.getBestValue()) {
-            monitor.setBestValue(val);
-            monitor.setBestPath(treeManager.getBoard().getPath());
+        
+        // if current node is leaf node
+        if (cur.depth == 0 || 
+            isGameOver(currentNode->board) || 
+            cur.childMoves.empty()) {
+            // evaluate leaf node value
+            Evaluator evaluator(currentNode->board);
+            Value val = evaluateNode(evaluator);
+            if (!cur.isMax) val *= -1;
+            currentNode->value = val;
+
+            treeManager.undo();
+            stk.pop();
+
+            if (!stk.empty()) {
+                updateParent(stk, val);
+            }
+
+            continue;
         }
-        return val;
+
+        if (cur.childIdx < cur.childMoves.size()) {
+            Pos move = cur.childMoves[cur.childIdx++];
+            treeManager.move(move);
+            stk.push({cur.depth - 1, !cur.isMax, cur.alpha, cur.beta, 0, {}});
+            monitor.incVisitCnt();
+        } else { // if search every child nodes
+            currentNode->value = cur.bestVal;
+            
+            treeManager.undo();
+            stk.pop();
+
+            if (!stk.empty()) {
+                updateParent(stk, cur.bestVal);
+            }
+        }
     }
 
-    MoveList moves = evaluator.getCandidates();
+    return treeManager.getNode()->value;
+}
 
-    if (moves.empty()) return evaluator.evaluate();
+void Search::updateParent(stack<ABPNode>& stk, Value val) {
+    ABPNode& parent = stk.top();
+    Node* parentNode = treeManager.getNode();
+    Pos lastMove;
+    if (parent.childIdx > 0 && parent.childIdx - 1 < parent.childMoves.size()) {
+        lastMove = parent.childMoves[parent.childIdx - 1];
+    }
 
-    if (maximizingPlayer) {
-        int maxEval = MIN_VALUE;
-
-        for (Pos move : moves) {
-            treeManager.move(move);
-            Value eval = alphaBeta(treeManager.getBoard(), depth - 1, alpha, beta, false);
-            treeManager.undo();
-            maxEval = max(maxEval, eval);
-            alpha = max(alpha, eval);
-            if (beta <= alpha) break;
+    if (parent.isMax) {
+        if (val > parent.bestVal) {
+            parent.bestVal = val;
+            parentNode->value = val;
+            parentNode->bestMove = lastMove;
         }
-
-        return maxEval;
+        if (val > parent.alpha) {
+            parent.alpha = val;
+        }
     } else {
-        int minEval = MAX_VALUE;
-
-        for (Pos move : moves) {
-            treeManager.move(move);
-            Value eval = alphaBeta(treeManager.getBoard(), depth - 1, alpha, beta, true);
-            treeManager.undo();
-            minEval = min(minEval, eval);
-            beta = min(beta, eval);
-            if (beta <= alpha) break;
+        if (val < parent.bestVal) {
+            parent.bestVal = val;
+            parentNode->value = val;
+            parentNode->bestMove = lastMove;
         }
+        if (val < parent.beta) {
+            parent.beta = val;
+        }
+    }
 
-        return minEval;
+    if (parent.beta <= parent.alpha) {
+        // pruning
+        treeManager.undo();
+        stk.pop();
     }
 }
 
-int Search::ids(Board& board, int depthLimit) {
-    Pos bestMove;
-    for (int depth = 1; depth <= depthLimit; depth++) {
-        bestMove = findBestMove();
+Value Search::evaluateNode(Evaluator& evaluator) {
+    treeManager.getNode()->value = evaluator.evaluate();
+    return treeManager.getNode()->value;
+}
+
+MoveList Search::getCandidates(Evaluator& evaluator, bool isMax) {
+    MoveList moves;
+    
+    Pos sureMove = evaluator.getSureMove();
+    if (!sureMove.isDefault()) {
+        moves.push_back(sureMove);
+        return moves;
     }
-    Evaluator evaluator(treeManager.getBoard());
-    return evaluator.evaluate();
+
+    if (isMax) {
+        moves = evaluator.getThreats();
+    } else {
+        moves = evaluator.getThreatDefend();
+    }
+    sortChildNodes(moves, isMax);
+    return moves;
+}
+
+void Search::sortChildNodes(MoveList& moves, bool isTarget) {
+    if (!treeManager.getNode()->childNodes.empty()) {
+        sort(moves.begin(), moves.end(), [&](const Pos& a, const Pos& b) {
+            Node* aNode = treeManager.getChildNode(a);
+            Node* bNode = treeManager.getChildNode(b);
+            if (aNode == nullptr || bNode == nullptr) return true;
+
+            if(isTarget) return aNode->value > bNode->value;
+            else return aNode->value < bNode->value;
+        });
+    }   
 }
 
 bool Search::isGameOver(Board& board) {
@@ -106,121 +188,15 @@ bool Search::isTargetTurn() {
     }
 }
 
-Pos Search::findBestMove() {
-    monitor.getBestPath().clear();
+void Search::ids() {
+    monitor.incDepth(5);
+    monitor.initStartTime();
 
-    int bestValue = MIN_VALUE;
-    Pos bestMove;
-
-    Evaluator evaluator(treeManager.getBoard());
-    vector<Pos> moves = evaluator.getCandidates();
-
-    for (Pos move : moves) {
-        treeManager.move(move);
-        monitor.getBestPath().push_back(move);
-        int moveValue = alphaBeta(treeManager.getBoard(), monitor.getMaxDepth() - 1, MIN_VALUE, MAX_VALUE, false);
-        treeManager.undo();
-        monitor.getBestPath().pop_back();
-
-        if (moveValue > bestValue) {
-            bestValue = moveValue;
-            bestMove = move;
-        }
+    while (true) {
+        Value result = abp(monitor.getDepth());
+        monitor.setBestPath(treeManager.getBestLine(0));
+        
+        if (result == MAX_VALUE) break;
+        monitor.incDepth(2);
     }
-
-    return bestMove;
-}
-
-Pos Search::findNextMove(Board board) {
-    if (board.getResult() != ONGOING) return Pos();
-
-    Evaluator evaluator(board);
-    Pos sureMove = evaluator.getSureMove();
-    if (!sureMove.isDefault()) {
-        return sureMove;
-    }
-
-    SearchMonitor vcfMonitor;
-    SearchWin vcfSearcher(board, vcfMonitor);
-
-    double lastTriggerTime = 0.0;
-    vcfMonitor.setTrigger([&lastTriggerTime](SearchMonitor& monitor) {
-        if (monitor.getElapsedTime() - lastTriggerTime >= 5.0) {
-            return true;
-        }
-        return false;
-    });
-    vcfMonitor.setSearchListener([&vcfSearcher](SearchMonitor& monitor) {
-        vcfSearcher.stop();
-    });
-
-    if (vcfSearcher.findVCF()) {
-        return vcfMonitor.getBestPath()[board.getPath().size()];
-    }
-
-    if (evaluator.isOppoMateExist()) {
-        MoveList defends = evaluator.getThreatDefend();
-        MoveList candidates;
-        for (auto move : defends) {
-            board.move(move);
-            Board tmpBoard = board;
-            SearchMonitor vctMonitor;
-            SearchWin vctSearcher(tmpBoard, vctMonitor);
-
-            lastTriggerTime = 0.0;
-            vcfMonitor.setTrigger([&lastTriggerTime](SearchMonitor& monitor) {
-                if (monitor.getElapsedTime() - lastTriggerTime >= 5.0) {
-                    return true;
-                }
-                return false;
-            });
-            vcfMonitor.setSearchListener([&vcfSearcher](SearchMonitor& monitor) {
-                vcfSearcher.stop();
-            });
-
-            if (!vctSearcher.findVCT()) {
-                candidates.push_back(move);
-            }
-            board.undo();
-        }
-        if (candidates.empty()) {
-            return defends.front();
-        }
-        else {
-            return candidates.front();
-        }
-    }
-
-    SearchMonitor vctMonitor;
-    SearchWin vctSearcher(board, vctMonitor);
-
-    lastTriggerTime = 0.0;
-    vcfMonitor.setTrigger([&lastTriggerTime](SearchMonitor& monitor) {
-        if (monitor.getElapsedTime() - lastTriggerTime >= 5.0) {
-            return true;
-        }
-        return false;
-    });
-    vcfMonitor.setSearchListener([&vcfSearcher](SearchMonitor& monitor) {
-        vcfSearcher.stop();
-    });
-
-    if (vctSearcher.findVCT()) {
-        return vctMonitor.getBestPath()[board.getPath().size()];
-    }
-
-    MoveList candidates = evaluator.getCandidates();
-    if (!candidates.empty())
-        return candidates.front();
-    
-    return Pos();
-}
-
-Pos Search::iterativeDeepeningSearch() {
-    int depthLimit = monitor.getMaxDepth();
-    return findBestMove();
-}
-
-MoveList Search::getPath() {
-    return monitor.getBestPath();
 }

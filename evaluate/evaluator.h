@@ -9,7 +9,6 @@
 #define MIN_VALUE -50000
 #define INITIAL_VALUE -99999
 
-// evaluate value
 using Value = int;
 
 class Evaluator {
@@ -40,10 +39,10 @@ Evaluator::Evaluator(Board& board) : board(board) {
 }
 
 void Evaluator::classify() {
-    if (board.getResult() != ONGOING) return;
-
     self = board.isBlackTurn() ? BLACK : WHITE;
     oppo = !board.isBlackTurn() ? BLACK : WHITE;
+
+    if (board.getResult() != ONGOING) return;
 
     for (int i = 1; i <= BOARD_SIZE; i++) {
         for (int j = 1; j <= BOARD_SIZE; j++) {
@@ -214,13 +213,15 @@ Value Evaluator::evaluate() {
     Result result = board.getResult();
     if (result != ONGOING) {
         if (result == DRAW) return 0;
+        
+        // black turn & white win = white 5
         if (self == BLACK && result == WHITE_WIN)
             return MIN_VALUE;
+        // white turn & black win = black 5
         if (self == WHITE && result == BLACK_WIN)
             return MIN_VALUE;
+        // white turn & white win = black forbidden
         if (self == WHITE && result == WHITE_WIN)
-            return MAX_VALUE;
-        if (self == BLACK && result == BLACK_WIN)
             return MAX_VALUE;
     }
     
@@ -229,9 +230,9 @@ Value Evaluator::evaluate() {
     if (!patternMap[self][WINNING].empty()) {
         return MAX_VALUE - 1;
     }
-    // 1 step before lose
+    // 2 step before lose
     if (patternMap[oppo][WINNING].size() > 1) {
-        return MIN_VALUE + 1;
+        return MIN_VALUE + 2;
     }
     // 3 step before win
     if (!patternMap[self][MATE].empty() && patternMap[oppo][WINNING].empty()) {
@@ -251,10 +252,6 @@ Value Evaluator::evaluate() {
     val += patternMap[self][B3_ANY].size() * 5;
     val += patternMap[self][F2_ANY].size() * 4;
 
-    val -= patternMap[oppo][WINNING].size() * 200;
-    val -= patternMap[oppo][MATE].size() * 200;
-
-    val -= patternMap[oppo][B4_F3].size() * 130;
     val -= patternMap[oppo][B4_PLUS].size() * 20;
     val -= patternMap[oppo][B4_ANY].size() * 20;
     val -= patternMap[oppo][F3_2X].size() * 20;

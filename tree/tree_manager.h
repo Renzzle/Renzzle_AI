@@ -8,35 +8,36 @@ class TreeManager {
 
 PRIVATE
     Tree tree;
-    shared_ptr<Node> currentNode;
-    stack<shared_ptr<Node>> nodeHistory;
+    Node* rootNode;
+    Node* currentNode;
+    stack<Node*> nodeHistory;
 
 PUBLIC
     TreeManager(Board initialBoard);
     bool move(Pos p);
     void undo();
-    void cleanCache();
     Board& getBoard();
-    shared_ptr<Node> getChildNode(Pos p);
-    shared_ptr<Node> getNode();
+    Node* getChildNode(Pos p);
+    Node* getNode();
+    Node* getRootNode();
+    MoveList getBestLine(int i);
 
 };
 
 TreeManager::TreeManager(Board initialBoard) {
-    auto rootNode = tree.createNode(initialBoard);
-    tree.addNodeAsRoot(rootNode);
+    rootNode = tree.addNodeAsRoot(initialBoard);
     currentNode = rootNode;
     nodeHistory.push(currentNode);
 }
 
 bool TreeManager::move(Pos p) {
-    shared_ptr<Node> previousNode = currentNode;
+    Node* previousNode = currentNode;
 
     // if child node exist
-    for (const auto& pair : previousNode->childNodes) {
-        shared_ptr<Node> node = pair.second;
-        if (node->board.getPath().back() == p) {
-            currentNode = node;
+    Node* childNode = getChildNode(p);
+    if (childNode != nullptr) {
+        if (!previousNode->board.isForbidden(p)) {
+            currentNode = childNode;
             nodeHistory.push(currentNode);
             return true;
         }
@@ -47,8 +48,7 @@ bool TreeManager::move(Pos p) {
     bool result = newBoard.move(p);
     if (!result) return result; // move failed
 
-    currentNode = tree.createNode(newBoard);
-    tree.addNode(previousNode, currentNode);
+    currentNode = tree.addNode(previousNode, newBoard);
     nodeHistory.push(currentNode);
     return result;
 }
@@ -61,24 +61,50 @@ void TreeManager::undo() {
     }
 }
 
-void TreeManager::cleanCache() {
-    tree.cleanTree();
-}
-
 Board& TreeManager::getBoard() {
     return currentNode->board;
 }
 
-shared_ptr<Node> TreeManager::getChildNode(Pos p) {
-    for (const auto& pair : currentNode->childNodes) {
-        shared_ptr<Node> node = pair.second;
-        if (node->board.getPath().back() == p) {
-            return node;
-        }
-    }
-    return nullptr; // if cannot find
+Node* TreeManager::getChildNode(Pos p) {
+    size_t childHash = currentNode->board.getChildHash(p);
+    return tree.findNode(childHash);
 }
 
-shared_ptr<Node> TreeManager::getNode() {
+Node* TreeManager::getNode() {
     return currentNode;
+}
+
+Node* TreeManager::getRootNode() {
+    return rootNode;
+}
+
+MoveList TreeManager::getBestLine(int i) {
+    MoveList result;
+    if (!rootNode || rootNode->childNodes.empty()) 
+        return result;
+
+    std::vector<std::pair<Pos, Node*>> rankedChildren;
+    for (const auto& entry : rootNode->childNodes) {
+        Node* child = entry.second;
+        if (child) {
+            rankedChildren.emplace_back(child->board.getPath().back(), child);
+        }
+    }
+
+    std::sort(rankedChildren.begin(), rankedChildren.end(),
+        [](const std::pair<Pos, Node*>& a, const std::pair<Pos, Node*>& b) {
+            return a.second->value > b.second->value;
+    });
+
+    if (i < 0 || i >= static_cast<int>(rankedChildren.size())) 
+        return result;
+
+    Node* node = rankedChildren[i].second;
+    result.push_back(rankedChildren[i].first);
+    while (node != nullptr && !node->bestMove.isDefault()) {
+        result.push_back(node->bestMove);
+        node = tree.findNode(node->board.getChildHash(node->bestMove));
+    }
+
+    return result;
 }

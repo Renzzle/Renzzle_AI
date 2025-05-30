@@ -212,6 +212,14 @@ public:
         // fake 3-3 (5)
         board = getBoard("d14e14c13c12d12a9c11e11f12g12f13o15h12o14i11e12d13");
         TEST_ASSERT(board.getResult() != WHITE_WIN);
+
+        // isForbidden method test
+        // 3-3: .oo.?. & .oo.?.
+        board = getBoard("g8g9h9g10h11h10g11f10");
+        TEST_ASSERT(board.isForbidden(Pos(11, 10)));
+        // 3-3: ..oo?.. & ..oo?..
+        board = getBoard("g8g9h9g10h10f9f8f10");
+        TEST_ASSERT(board.isForbidden(Pos(8, 8)));
     }
 
 };

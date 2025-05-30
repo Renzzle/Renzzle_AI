@@ -20,6 +20,10 @@
 
 #define TEST_ASSERT(expr) TestBase::assertState((expr), #expr, __FILE__, __LINE__)
 
+#define TEST_STOP() \
+    std::cout << "press enter" << std::endl; \
+    std::cin.get();
+
 #else
 
 #define PRIVATE private:

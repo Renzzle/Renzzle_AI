@@ -13,13 +13,13 @@ class SearchMonitor {
 PRIVATE
     Timestamp startTime;
     double elapsedTime;
-    MoveList bestPath;
-    Value bestValue;
+    MoveList bestPath; // final best path determined after one complete search iteration
+    MoveList bestLine; // best line, updated when getBestLine() is explicitly called
     int depth;
-    int maxDepth;
     size_t visitCnt;
     function<bool(SearchMonitor&)> trigger;
     function<void(SearchMonitor&)> searchListener;
+    function<MoveList(int)> bestLineProvider;
 
 PUBLIC
     SearchMonitor();
@@ -28,35 +28,27 @@ PUBLIC
     void setTrigger(function<bool(SearchMonitor&)> newTrigger) { trigger = newTrigger; };
     void setSearchListener(function<void(SearchMonitor&)> newSearchListener) { searchListener = newSearchListener; };
     void executeTrigger();
+    void setBestLineProvider(std::function<MoveList(int)> provider) { bestLineProvider = provider; }
     
     // update data function, executeTrigger function execute
     void updateElapsedTime();
-    void incDepth() { depth++; executeTrigger(); };
-    void decDepth() { depth--; executeTrigger(); };
+    void incDepth(int val) { depth += val; executeTrigger(); };
+    void decDepth(int val) { depth -= val; executeTrigger(); };
     void incVisitCnt() { visitCnt++; executeTrigger(); };
-    void updateMaxDepth(int maxDepth) {
-        if (this->maxDepth < maxDepth)
-            this->maxDepth = maxDepth;
-        executeTrigger();
-    }
     void setBestPath(MoveList path) { bestPath = path; executeTrigger(); };
-    void setBestValue(Value val) { bestValue = val; executeTrigger(); };
 
     // getter
     double getElapsedTime() { return elapsedTime; }
     int getDepth() { return depth; }
-    int getMaxDepth() { return maxDepth; }
     size_t getVisitCnt() { return visitCnt; }
     MoveList getBestPath() { return bestPath; }
-    Value getBestValue() { return bestValue; }
+    MoveList getBestLine(int i) { return bestLineProvider ? bestLineProvider(i) : MoveList(); }
 
 };
 
 SearchMonitor::SearchMonitor() {
     elapsedTime = 0.0;
-    bestValue = INITIAL_VALUE;
     depth = 0;
-    maxDepth = 0;
     visitCnt = 0;
 
     trigger = [](SearchMonitor monitor) { return false; };
