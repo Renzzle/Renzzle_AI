@@ -129,32 +129,10 @@ Result Board::getResult() {
 bool Board::isForbidden(Pos p) {
     Cell c = getCell(p);
     if (c.getPiece() != EMPTY) return false;
-    if (c.getCompositePattern(BLACK) != FORBID) return false;
+    if (c.getCompositePattern(BLACK) == FORBID) return true;
+    if (c.getCompositePattern(BLACK) != FORBID_33) return false;
 
-    int winByFour = 0;
     int winByThree = 0;
-    int pThreeCnt = 0;
-
-    // five, overline, 4-4
-    for (Direction dir = DIRECTION_START; dir < DIRECTION_SIZE; dir++) {
-        p.dir = dir;
-        Pattern pattern = c.getPattern(BLACK, p.dir);
-        if (pattern == FIVE)
-            return false;
-        else if (pattern == OVERLINE)
-            return true;
-        else if (pattern == BLOCKED_4 || pattern == FREE_4) {
-            if (++winByFour >= 2)
-                return true;
-        }
-
-        if (pattern == FREE_3 || pattern == FREE_3A)
-            pThreeCnt++;
-    }
-    
-    // if there is not open three more than two
-    if (pThreeCnt < 2)
-        return false;
 
     // recursive 3-3
     // move
