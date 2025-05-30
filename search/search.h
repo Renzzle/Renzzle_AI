@@ -32,7 +32,6 @@ PRIVATE
     void sortChildNodes(MoveList& moves, bool isTarget);
     void updateParent(stack<ABPNode>& stk, Value val);
     bool isGameOver(Board& board);
-    bool isTargetTurn();
 
 PUBLIC
     Search(Board& board, SearchMonitor& monitor);
@@ -61,7 +60,6 @@ Value Search::abp(int depth) {
             Evaluator evaluator(currentNode->board);
             cur.childMoves = getCandidates(evaluator, cur.isMax);
             cur.bestVal = cur.isMax ? MIN_VALUE - 1 : MAX_VALUE + 1;
-            sortChildNodes(cur.childMoves, cur.isMax);
         }
         
         // if current node is leaf node
@@ -157,6 +155,8 @@ MoveList Search::getCandidates(Evaluator& evaluator, bool isMax) {
         moves = evaluator.getThreats();
     } else {
         moves = evaluator.getThreatDefend();
+        MoveList fours = evaluator.getFours();
+        moves.insert(moves.end(), fours.begin(), fours.end());
     }
     sortChildNodes(moves, isMax);
     return moves;
@@ -167,7 +167,19 @@ void Search::sortChildNodes(MoveList& moves, bool isTarget) {
         sort(moves.begin(), moves.end(), [&](const Pos& a, const Pos& b) {
             Node* aNode = treeManager.getChildNode(a);
             Node* bNode = treeManager.getChildNode(b);
-            if (aNode == nullptr || bNode == nullptr) return true;
+
+            bool aIsNull = (aNode == nullptr);
+            bool bIsNull = (bNode == nullptr);
+
+            if (aIsNull && bIsNull) {
+                return false;
+            }
+            if (aIsNull) {
+                return false;
+            }
+            if (bIsNull) {
+                return true;
+            }
 
             if(isTarget) return aNode->value > bNode->value;
             else return aNode->value < bNode->value;
@@ -178,14 +190,6 @@ void Search::sortChildNodes(MoveList& moves, bool isTarget) {
 bool Search::isGameOver(Board& board) {
     Result result = board.getResult();
     return result != ONGOING;
-}
-
-bool Search::isTargetTurn() {
-    if (treeManager.getBoard().isBlackTurn()) {
-        return targetColor == COLOR_BLACK;
-    } else {
-        return targetColor == COLOR_WHITE;
-    }
 }
 
 void Search::ids() {

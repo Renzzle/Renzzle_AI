@@ -44,7 +44,7 @@ PUBLIC
         const string processArr[] = {
             "h8h9i8g8i10i9j9k10j7i7",
             "h8h9i8g8i10i9j9k8k10l11i7j6",
-            "h8h9j9g8j10g7i10"
+            "h8h9j9g8j10g7i10g10g9"
         };
 
         for (auto process : processArr) {

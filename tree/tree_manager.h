@@ -36,11 +36,9 @@ bool TreeManager::move(Pos p) {
     // if child node exist
     Node* childNode = getChildNode(p);
     if (childNode != nullptr) {
-        if (!previousNode->board.isForbidden(p)) {
-            currentNode = childNode;
-            nodeHistory.push(currentNode);
-            return true;
-        }
+        currentNode = childNode;
+        nodeHistory.push(currentNode);
+        return true;
     }
 
     // new child node

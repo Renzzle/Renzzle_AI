@@ -88,7 +88,7 @@ void Cell::setCompositePattern() {
     } else if (bpc[OVERLINE] > 0 || bpc[FREE_4] + bpc[BLOCKED_4] >= 2) {
         cPattern[BLACK] = FORBID;
     } else if (bpc[FREE_3] + bpc[FREE_3A] >= 2) {
-        cPattern[BLACK] = FORBID;
+        cPattern[BLACK] = FORBID_33;
     } else if (bpc[FREE_4] > 0 || bpc[BLOCKED_4] >= 2) {
         cPattern[BLACK] = MATE;
     } else if (bpc[BLOCKED_4] > 0 && bpc[FREE_3] + bpc[FREE_3A] > 0) {
