@@ -48,7 +48,7 @@ Search::Search(Board& board, SearchMonitor& monitor) : treeManager(board), monit
 
 Value Search::abp(int depth) {
     stack<ABPNode> stk;
-    stk.push({depth, true, MIN_VALUE - 1, MAX_VALUE + 1, 0, {}});
+    stk.push({depth, true, MIN_VALUE, MAX_VALUE + 1, 0, {}});
 
     while (!stk.empty()) {
         monitor.updateElapsedTime();
