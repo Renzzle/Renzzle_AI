@@ -58,11 +58,11 @@ PUBLIC
 int main() {
     SearchTest searchTest;
     searchTest.runAllTests();
-    // SimpleProfiler::PrintResults();
-
-    #ifdef TEST // TEST 매크로가 정의된 경우에만 프로파일러 관련 코드 실행
     SimpleProfiler::PrintResults();
-    #endif
+
+    // #ifdef TEST // TEST 매크로가 정의된 경우에만 프로파일러 관련 코드 실행
+    // SimpleProfiler::PrintResults();
+    // #endif
 
     return 0;
 }

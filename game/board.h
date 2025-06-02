@@ -24,7 +24,6 @@ struct LineCacheKey {
     }
 };
 
-// LineCacheKey에 대한 std::hash 특수화
 namespace std {
     template <>
     struct hash<LineCacheKey> {
@@ -232,7 +231,7 @@ void Board::clearPattern(Cell& cell) {
 }
 
 void Board::setPatterns(Pos& p) {
-    PROFILE_FUNCTION();
+
     for (Direction dir = DIRECTION_START; dir < DIRECTION_SIZE; dir++) {
         p.dir = dir;
         for (int i = 0; i < LINE_LENGTH; i++) {
