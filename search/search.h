@@ -48,7 +48,7 @@ Search::Search(Board& board, SearchMonitor& monitor) : treeManager(board), monit
 
 Value Search::abp(int depth) {
     stack<ABPNode> stk;
-    stk.push({depth, true, MIN_VALUE, MAX_VALUE + 1, 0, {}});
+    stk.push({depth, true, Value(MIN_VALUE), Value(MAX_VALUE + 1), Value(), {}});
 
     while (!stk.empty()) {
         monitor.updateElapsedTime();
@@ -57,16 +57,16 @@ Value Search::abp(int depth) {
 
         // if already searched
         if (currentNode->searchedDepth >= cur.depth && 
-            currentNode->valueType != Node::ValueType::UNKNOWN) {
+            currentNode->value.getType() != Value::Type::UNKNOWN) {
             Value cv = currentNode->value;
             bool cut = false;
 
-            if (currentNode->valueType == Node::ValueType::EXACT) {
+            if (currentNode->value.getType() == Value::Type::EXACT) {
                 cut = true;
-            } else if (currentNode->valueType == Node::ValueType::LOWER_BOUND) {
+            } else if (currentNode->value.getType() == Value::Type::LOWER_BOUND) {
                 if (cv >= cur.beta) cut = true;
                 else cur.alpha = cur.alpha > cv ? cur.alpha : cv;
-            } else if (currentNode->valueType == Node::ValueType::UPPER_BOUND) {
+            } else if (currentNode->value.getType() == Value::Type::UPPER_BOUND) {
                 if (cv <= cur.alpha) cut = true;
                 else cur.beta = cur.beta < cv ? cur.beta : cv;
             }
@@ -87,7 +87,7 @@ Value Search::abp(int depth) {
         if (cur.childMoves.empty()) { // when first visit
             Evaluator evaluator(currentNode->board);
             cur.childMoves = getCandidates(evaluator, cur.isMax);
-            cur.bestVal = cur.isMax ? MIN_VALUE - 1 : MAX_VALUE + 1;
+            cur.bestVal = cur.isMax ? Value(MIN_VALUE - 1) : Value(MAX_VALUE + 1);
         }
         
         // if current node is leaf node
@@ -97,9 +97,8 @@ Value Search::abp(int depth) {
             // evaluate leaf node value
             Evaluator evaluator(currentNode->board);
             Value val = evaluateNode(evaluator);
-            if (!cur.isMax) val *= -1;
+            if (!cur.isMax) val.invert();
             currentNode->value = val;
-            currentNode->valueType = Node::ValueType::EXACT;
 
             treeManager.undo();
             stk.pop();
@@ -119,7 +118,7 @@ Value Search::abp(int depth) {
         } else { // if search every child nodes
             currentNode->searchedDepth = cur.depth;
             currentNode->value = cur.bestVal;
-            currentNode->valueType = Node::ValueType::EXACT;
+            currentNode->value.setType(Value::Type::EXACT);
             
             treeManager.undo();
             stk.pop();
@@ -163,8 +162,7 @@ void Search::updateParent(stack<ABPNode>& stk, Value val) {
 
     if (parent.beta <= parent.alpha) {
         // pruning
-        parentNode->valueType 
-            = parent.isMax ? Node::ValueType::LOWER_BOUND : Node::ValueType::UPPER_BOUND;
+        parentNode->value.setType(parent.isMax ? Value::Type::LOWER_BOUND : Value::Type::UPPER_BOUND);
         parentNode->searchedDepth = parent.depth;
 
         treeManager.undo();
@@ -235,7 +233,7 @@ void Search::ids() {
         Value result = abp(monitor.getDepth());
         monitor.setBestPath(treeManager.getBestLine(0));
         
-        if (result == MAX_VALUE) break;
+        if (result.isWin()) break;
         monitor.incDepth(2);
     }
 }
