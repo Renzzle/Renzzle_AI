@@ -1,17 +1,43 @@
 #pragma once
 
+#include "../test/profiler.h"
 #include "line.h"
 #include "pos.h"
 #include "zobrist.h"
 #include "../test/test.h"
 #include <array>
 #include <vector>
+#include <unordered_map>
 
 #define STATIC_WALL &cells[0][0];
 
 using namespace std;
 using MoveList = vector<Pos>;
 using CellArray = array<array<Cell, BOARD_SIZE + 2>, BOARD_SIZE + 2>;
+
+struct LineCacheKey {
+    std::array<Piece, LINE_LENGTH> pieces;
+    Color analyzeColor;
+
+    bool operator==(const LineCacheKey& other) const {
+        return pieces == other.pieces && analyzeColor == other.analyzeColor;
+    }
+};
+
+// LineCacheKey에 대한 std::hash 특수화
+namespace std {
+    template <>
+    struct hash<LineCacheKey> {
+        size_t operator()(const LineCacheKey& k) const {
+            size_t seed = k.pieces.size();
+            for(Piece p : k.pieces) {
+                seed ^= hash<int>()(static_cast<int>(p)) + 0x9e3779b9 + (seed << 6) + (seed >> 2);
+            }
+            seed ^= hash<int>()(static_cast<int>(k.analyzeColor)) + 0x9e3779b9 + (seed << 6) + (seed >> 2);
+            return seed;
+        }
+    };
+}
 
 class Board {
 
@@ -206,6 +232,7 @@ void Board::clearPattern(Cell& cell) {
 }
 
 void Board::setPatterns(Pos& p) {
+    PROFILE_FUNCTION();
     for (Direction dir = DIRECTION_START; dir < DIRECTION_SIZE; dir++) {
         p.dir = dir;
         for (int i = 0; i < LINE_LENGTH; i++) {
@@ -227,7 +254,7 @@ void Board::setPatterns(Pos& p) {
             }
 
             p - (i - (LINE_LENGTH / 2));
-        }   
+        }
     }
 }
 
@@ -247,6 +274,21 @@ Line Board::getLine(Pos& p) {
 }
 
 Pattern Board::getPattern(Line& line, Color color) {
+
+    static std::unordered_map<LineCacheKey, Pattern> patternCache;
+
+    LineCacheKey key;
+    for (int i = 0; i < LINE_LENGTH; ++i) {
+        key.pieces[i] = line[i]->getPiece();
+    }
+    key.analyzeColor = color;
+
+    auto it = patternCache.find(key);
+    if (it != patternCache.end()) {
+        return it->second; // 캐시 히트
+    }
+
+    PROFILE_FUNCTION();
     constexpr auto mid = LINE_LENGTH / 2;
     bool isBlack = color == COLOR_BLACK;
     Piece self = isBlack ? BLACK : WHITE;
@@ -254,12 +296,18 @@ Pattern Board::getPattern(Line& line, Color color) {
     int realLen, fullLen, start, end;
     tie(realLen, fullLen, start, end) = line.countLine();
 
-    if (isBlack && realLen >= 6) 
+    if (isBlack && realLen >= 6) {
+        patternCache[key] = OVERLINE; // 캐시에 저장
         return OVERLINE;
-    else if (realLen >= 5)
+    }
+    else if (realLen >= 5) {
+        patternCache[key] = FIVE; // 캐시에 저장
         return FIVE;
-    else if (fullLen < 5)
+    }
+    else if (fullLen < 5) {
+        patternCache[key] = DEAD; // 캐시에 저장
         return DEAD;
+    }
 
     int patternCnt[PATTERN_SIZE] = {0};
     int fiveIdx[2] = {0};
@@ -307,7 +355,8 @@ Pattern Board::getPattern(Line& line, Color color) {
         p = FREE_1;
     else if (patternCnt[BLOCKED_2])
         p = BLOCKED_1;
-
+    
+    patternCache[key] = p;
     return p;
 }
 

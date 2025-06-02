@@ -4,6 +4,11 @@
 
 #ifdef TEST
 
+#include "profiler.h"
+
+#define PROFILE_FUNCTION() SimpleProfiler::Timer timer##__LINE__(__func__)
+#define PROFILE_SCOPE(name_str) SimpleProfiler::Timer timer_scope_##name_str(#name_str)
+
 #define PRIVATE public:
 #define PUBLIC public:
 
