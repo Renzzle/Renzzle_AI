@@ -44,7 +44,7 @@ PUBLIC
         const string processArr[] = {
             "h8h9i8g8i10i9j9k10j7i7",
             "h8h9i8g8i10i9j9k8k10l11i7j6",
-            "h8h9j9g8j10g7i10g10g9"
+            "h8h9j9g8j10g7i10"
         };
 
         for (auto process : processArr) {
@@ -58,6 +58,11 @@ PUBLIC
 int main() {
     SearchTest searchTest;
     searchTest.runAllTests();
+    SimpleProfiler::PrintResults();
+
+    // #ifdef TEST // TEST 매크로가 정의된 경우에만 프로파일러 관련 코드 실행
+    // SimpleProfiler::PrintResults();
+    // #endif
 
     return 0;
 }

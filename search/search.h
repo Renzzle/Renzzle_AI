@@ -55,6 +55,34 @@ Value Search::abp(int depth) {
         ABPNode &cur = stk.top();
         Node* currentNode = treeManager.getNode();
 
+        // if already searched
+        if (currentNode->searchedDepth >= cur.depth && 
+            currentNode->valueType != Node::ValueType::UNKNOWN) {
+            Value cv = currentNode->value;
+            bool cut = false;
+
+            if (currentNode->valueType == Node::ValueType::EXACT) {
+                cut = true;
+            } else if (currentNode->valueType == Node::ValueType::LOWER_BOUND) {
+                if (cv >= cur.beta) cut = true;
+                else cur.alpha = cur.alpha > cv ? cur.alpha : cv;
+            } else if (currentNode->valueType == Node::ValueType::UPPER_BOUND) {
+                if (cv <= cur.alpha) cut = true;
+                else cur.beta = cur.beta < cv ? cur.beta : cv;
+            }
+
+            if (cut) {
+                treeManager.undo();
+                stk.pop();
+
+                if (!stk.empty()) {
+                    updateParent(stk, cv);
+                }
+
+                continue;
+            }
+        }
+
         // calculate child nodes & initialize best value
         if (cur.childMoves.empty()) { // when first visit
             Evaluator evaluator(currentNode->board);
@@ -71,6 +99,7 @@ Value Search::abp(int depth) {
             Value val = evaluateNode(evaluator);
             if (!cur.isMax) val *= -1;
             currentNode->value = val;
+            currentNode->valueType = Node::ValueType::EXACT;
 
             treeManager.undo();
             stk.pop();
@@ -88,7 +117,9 @@ Value Search::abp(int depth) {
             stk.push({cur.depth - 1, !cur.isMax, cur.alpha, cur.beta, 0, {}});
             monitor.incVisitCnt();
         } else { // if search every child nodes
+            currentNode->searchedDepth = cur.depth;
             currentNode->value = cur.bestVal;
+            currentNode->valueType = Node::ValueType::EXACT;
             
             treeManager.undo();
             stk.pop();
@@ -132,6 +163,10 @@ void Search::updateParent(stack<ABPNode>& stk, Value val) {
 
     if (parent.beta <= parent.alpha) {
         // pruning
+        parentNode->valueType 
+            = parent.isMax ? Node::ValueType::LOWER_BOUND : Node::ValueType::UPPER_BOUND;
+        parentNode->searchedDepth = parent.depth;
+
         treeManager.undo();
         stk.pop();
     }

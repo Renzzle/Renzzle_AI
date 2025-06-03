@@ -73,6 +73,7 @@ void Cell::clearCompositePattern() {
 }
 
 void Cell::setCompositePattern() {
+    PROFILE_FUNCTION();
     int bpc[PATTERN_SIZE] = {0};
     int wpc[PATTERN_SIZE] = {0};
 
