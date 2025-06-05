@@ -19,11 +19,11 @@ PRIVATE
     int resultDepth;
 
 PUBLIC
-    Value() : Value(INITIAL_VALUE, Type::UNKNOWN, Result::ONGOING, -1) {}
+    Value() : Value(INITIAL_VALUE, Type::UNKNOWN, Result::ONGOING, INITIAL_VALUE) {}
 
-    Value(int val) : Value(val, Type::EXACT, Result::ONGOING, -1) {}
+    Value(int val) : Value(val, Type::EXACT, Result::ONGOING, INITIAL_VALUE) {}
 
-    Value(int val, Type type) : Value(val, type, Result::ONGOING, -1) {}
+    Value(int val, Type type) : Value(val, type, Result::ONGOING, INITIAL_VALUE) {}
 
     Value(Result result) : Value(result, 0) {}
 
@@ -85,6 +85,18 @@ PUBLIC
         }
     }
 
+    void increaseResultDepth() {
+        if (result != Result::ONGOING) {
+            resultDepth += 1;
+        }
+    }
+
+    void decreaseResultDepth() {
+        if (result != Result::ONGOING) {
+            resultDepth -= 1;
+        }
+    }
+
     Value& operator+=(int n) {
         value += n;
         return *this;
@@ -109,7 +121,7 @@ PUBLIC
         if (value != other.value) {
             return value < other.value;
         } else {
-            if (resultDepth == -1 || other.resultDepth == -1) {
+            if (resultDepth == INITIAL_VALUE || other.resultDepth == INITIAL_VALUE) {
                 return false;
             }
             if (value == MAX_VALUE) {
@@ -124,10 +136,10 @@ PUBLIC
         if ((value != MAX_VALUE && value != MIN_VALUE) || 
             (other.value != MAX_VALUE && other.value != MIN_VALUE))
             return (value == other.value);
-        if (resultDepth == -1 || other.resultDepth == -1)
+        if (resultDepth == INITIAL_VALUE || other.resultDepth == INITIAL_VALUE)
             return (value == other.value);
         else
-            return (value == other.value) && (resultDepth == resultDepth);
+            return (value == other.value) && (resultDepth == other.resultDepth);
     }
 
     bool operator!=(const Value& other) const {
@@ -166,7 +178,7 @@ PUBLIC
             resultDepth = 0;
         } else {
             result = Result::ONGOING;
-            resultDepth = -1;
+            resultDepth = INITIAL_VALUE;
         }
         return *this;
     }
