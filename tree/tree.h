@@ -7,18 +7,13 @@
 #include <memory>
 
 struct Node {
-    enum class ValueType {
-        EXACT, LOWER_BOUND, UPPER_BOUND, UNKNOWN
-    };
-
     Board board;
     Value value;
-    ValueType valueType;
     int searchedDepth;
     unordered_map<size_t, Node*> childNodes;
     Pos bestMove;
 
-    Node(Board b) : board(b), value(INITIAL_VALUE), searchedDepth(0), valueType(ValueType::UNKNOWN) {}
+    Node(Board b) : board(b), value(), searchedDepth(0) {}
 };
 
 class Tree {

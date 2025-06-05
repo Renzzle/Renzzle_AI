@@ -1,15 +1,10 @@
 #pragma once
 
 #include "../game/board.h"
+#include "value.h"
 #include <vector>
 #include <algorithm>
 #include <tuple>
- 
-#define MAX_VALUE 50000
-#define MIN_VALUE -50000
-#define INITIAL_VALUE -99999
-
-using Value = int;
 
 class Evaluator {
 
@@ -254,34 +249,34 @@ Value Evaluator::evaluate() {
     // case 1: finish
     Result result = board.getResult();
     if (result != ONGOING) {
-        if (result == DRAW) return 0;
+        if (result == DRAW) return Value(0);
         
         // black turn & white win = white 5
         if (self == BLACK && result == WHITE_WIN)
-            return MIN_VALUE;
+            return Value(Value::Result::LOSE);
         // white turn & black win = black 5
         if (self == WHITE && result == BLACK_WIN)
-            return MIN_VALUE;
+            return Value(Value::Result::LOSE);
         // white turn & white win = black forbidden
         if (self == WHITE && result == WHITE_WIN)
-            return MAX_VALUE;
+            return Value(Value::Result::WIN);
     }
     
     // case 2: there is sure winning path
     // 1 step before win
     if (!patternMap[self][WINNING].empty()) {
-        return MAX_VALUE - 1;
+        return Value(Value::Result::WIN, 1);
     }
     // 2 step before lose
     if (patternMap[oppo][WINNING].size() > 1) {
-        return MIN_VALUE + 2;
+        return Value(Value::Result::LOSE, 2);
     }
     // 3 step before win
     if (!patternMap[self][MATE].empty() && patternMap[oppo][WINNING].empty()) {
-        return MAX_VALUE - 3;
+        return Value(Value::Result::WIN, 3);
     }
 
-    Value val = 0;
+    int val = 0;
     val += patternMap[self][B4_F3].size() * 150;
     val += patternMap[self][B4_PLUS].size() * 25;
     val += patternMap[self][F3_2X].size() * 35;
@@ -305,5 +300,5 @@ Value Evaluator::evaluate() {
     val -= patternMap[oppo][B3_ANY].size() * 3;
     val -= patternMap[oppo][F2_ANY].size() * 2;
 
-    return val;
+    return Value(val);
 }

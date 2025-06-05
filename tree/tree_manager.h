@@ -81,24 +81,24 @@ MoveList TreeManager::getBestLine(int i) {
     if (!rootNode || rootNode->childNodes.empty()) 
         return result;
 
-    std::vector<std::pair<Pos, Node*>> rankedChildren;
+    std::vector<std::pair<Pos, Node*>> rankedChilds;
     for (const auto& entry : rootNode->childNodes) {
         Node* child = entry.second;
         if (child) {
-            rankedChildren.emplace_back(child->board.getPath().back(), child);
+            rankedChilds.emplace_back(child->board.getPath().back(), child);
         }
     }
 
-    std::sort(rankedChildren.begin(), rankedChildren.end(),
+    std::sort(rankedChilds.begin(), rankedChilds.end(),
         [](const std::pair<Pos, Node*>& a, const std::pair<Pos, Node*>& b) {
             return a.second->value > b.second->value;
     });
 
-    if (i < 0 || i >= static_cast<int>(rankedChildren.size())) 
+    if (i < 0 || i >= static_cast<int>(rankedChilds.size())) 
         return result;
 
-    Node* node = rankedChildren[i].second;
-    result.push_back(rankedChildren[i].first);
+    Node* node = rankedChilds[i].second;
+    result.push_back(rankedChilds[i].first);
     while (node != nullptr && !node->bestMove.isDefault()) {
         result.push_back(node->bestMove);
         node = tree.findNode(node->board.getChildHash(node->bestMove));
