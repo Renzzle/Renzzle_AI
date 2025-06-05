@@ -231,7 +231,6 @@ void Board::clearPattern(Cell& cell) {
 }
 
 void Board::setPatterns(Pos& p) {
-
     for (Direction dir = DIRECTION_START; dir < DIRECTION_SIZE; dir++) {
         p.dir = dir;
         for (int i = 0; i < LINE_LENGTH; i++) {
@@ -273,7 +272,6 @@ Line Board::getLine(Pos& p) {
 }
 
 Pattern Board::getPattern(Line& line, Color color) {
-
     static std::unordered_map<LineCacheKey, Pattern> patternCache;
 
     LineCacheKey key;
@@ -284,10 +282,9 @@ Pattern Board::getPattern(Line& line, Color color) {
 
     auto it = patternCache.find(key);
     if (it != patternCache.end()) {
-        return it->second; // 캐시 히트
+        return it->second; // cache hit
     }
 
-    PROFILE_FUNCTION();
     constexpr auto mid = LINE_LENGTH / 2;
     bool isBlack = color == COLOR_BLACK;
     Piece self = isBlack ? BLACK : WHITE;
@@ -296,15 +293,15 @@ Pattern Board::getPattern(Line& line, Color color) {
     tie(realLen, fullLen, start, end) = line.countLine();
 
     if (isBlack && realLen >= 6) {
-        patternCache[key] = OVERLINE; // 캐시에 저장
+        patternCache[key] = OVERLINE;
         return OVERLINE;
     }
     else if (realLen >= 5) {
-        patternCache[key] = FIVE; // 캐시에 저장
+        patternCache[key] = FIVE;
         return FIVE;
     }
     else if (fullLen < 5) {
-        patternCache[key] = DEAD; // 캐시에 저장
+        patternCache[key] = DEAD;
         return DEAD;
     }
 

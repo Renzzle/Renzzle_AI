@@ -245,6 +245,4 @@ void Search::ids() {
             break;
         monitor.incDepth(2);
     }
-
-    TEST_PRINT("Result Depth: " << treeManager.getRootNode()->value.getResultDepth());
 }

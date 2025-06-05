@@ -12,6 +12,7 @@ static std::map<std::string, double> accumulatedTime;
 static std::map<std::string, long long> callCounts;
 
 class Timer {
+
 public:
     Timer(const std::string& funcName) : functionName(funcName), start_time(std::chrono::high_resolution_clock::now()) {
         callCounts[functionName]++;
@@ -26,9 +27,10 @@ public:
 private:
     std::string functionName;
     std::chrono::time_point<std::chrono::high_resolution_clock> start_time;
+    
 };
 
-void PrintResults() {
+void printResults() {
     std::cout << "\n--- Profiling Results ---" << std::endl;
     std::cout << std::fixed << std::setprecision(9);
     for (const auto& pair : accumulatedTime) {
@@ -46,7 +48,7 @@ void PrintResults() {
     std::cout << "-------------------------" << std::endl;
 }
 
-void Reset() {
+void reset() {
     accumulatedTime.clear();
     callCounts.clear();
 }
