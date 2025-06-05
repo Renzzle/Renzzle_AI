@@ -89,7 +89,6 @@ public:
 int main() {
     VCFSearchTest vcfSearchTest;
     vcfSearchTest.runAllTests();
-    SimpleProfiler::PrintResults();
 
     return 0;
 }
