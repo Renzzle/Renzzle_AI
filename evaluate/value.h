@@ -72,6 +72,10 @@ PUBLIC
         return resultDepth;
     }
 
+    bool isOnGoing() {
+        return result == Result::ONGOING;
+    }
+
     void setType(Type type) {
         this->type = type;
     }
