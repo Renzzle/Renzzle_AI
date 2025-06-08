@@ -22,7 +22,8 @@ PRIVATE
         });
 
         monitor.setSearchListener([&searcher](SearchMonitor& monitor) {
-            TEST_PRINT("Depth: " << monitor.getDepth() << ", Time: " << monitor.getElapsedTime() << "sec, Node: " << monitor.getVisitCnt());
+            TEST_PRINT("Depth: " << monitor.getDepth() << ", Time: " << monitor.getElapsedTime() << 
+            "sec, Node: " << monitor.getVisitCnt() << ", Value: " << monitor.getBestValue().getValue());
             printPath(monitor.getBestPath());
         });
 

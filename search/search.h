@@ -50,6 +50,9 @@ Search::Search(Board& board, SearchMonitor& monitor) : treeManager(board), monit
     monitor.setBestLineProvider([this](int i) {
         return treeManager.getBestLine(i);
     });
+    monitor.setBestValueProvider([this]() {
+        return treeManager.getRootNode()->value;
+    });
 }
 
 Value Search::abp(int depth) {
