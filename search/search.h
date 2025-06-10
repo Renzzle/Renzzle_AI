@@ -66,6 +66,7 @@ Value Search::abp(int depth) {
 
         // if already searched
         if (currentNode->searchedDepth >= cur.depth && 
+            currentNode->value.getValue() != INITIAL_VALUE && 
             currentNode->value.getType() != Value::Type::UNKNOWN) {
             Value cv = currentNode->value;
             bool cut = false;
