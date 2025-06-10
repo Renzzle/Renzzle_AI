@@ -7,6 +7,7 @@
 #include "../test/test.h"
 #include <array>
 #include <vector>
+#include <unordered_set>
 #include <unordered_map>
 
 #define STATIC_WALL &cells[0][0];
@@ -51,6 +52,9 @@ PRIVATE
     void setResult(Pos& p);
     Line getLine(Pos& p);
     Pattern getPattern(Line& line, Color color);
+    void updatePatternMap(const Pos& p, Piece piece, CompositePattern oldPattern, CompositePattern newPattern);
+    unordered_set<Pos, PosHash> patternMap[2][COMPOSITE_PATTERN_SIZE];
+    
 
 PUBLIC
     Board();
@@ -65,7 +69,7 @@ PUBLIC
     MoveList& getPath();
     size_t getCurrentHash() const;
     size_t getChildHash(Pos p);
-    
+    const unordered_set<Pos, PosHash>& getMovesByPattern(Piece piece, CompositePattern pattern) const;
 };
 
 Board::Board() {
@@ -79,6 +83,16 @@ Board::Board() {
                 currentHash ^= getZobristValue(i, j, WALL);
             } else {
                 cells[i][j].setPiece(EMPTY);
+            }
+        }
+    }
+
+    for (int i = 1; i <= BOARD_SIZE; i++) {
+        for (int j = 1; j <= BOARD_SIZE; j++) {
+            Pos p(i, j);
+            if (getCell(p).getPiece() == EMPTY) {
+                patternMap[BLACK][ETC].insert(p);
+                patternMap[WHITE][ETC].insert(p);
             }
         }
     }
@@ -97,6 +111,11 @@ Cell& Board::getCell(const Pos p) {
 }
 
 bool Board::move(Pos p) {
+
+    if (getResult() != ONGOING) {
+        return false;
+    }
+
     if (getCell(p).getPiece() != EMPTY) return false;
     if (result != ONGOING) return false;
     if (path.size() == BOARD_SIZE * BOARD_SIZE) return false;
@@ -230,7 +249,22 @@ void Board::clearPattern(Cell& cell) {
     }
 }
 
+void Board::updatePatternMap(const Pos& p, Piece piece, CompositePattern oldPattern, CompositePattern newPattern) {
+     patternMap[piece][oldPattern].erase(p);
+     patternMap[piece][newPattern].insert(p);
+}
+
+const std::unordered_set<Pos, PosHash>& Board::getMovesByPattern(Piece piece, CompositePattern pattern) const {
+    if (pattern < COMPOSITE_PATTERN_SIZE) {
+        return patternMap[piece][pattern];
+    }
+
+    static const std::unordered_set<Pos, PosHash> empty_set;
+    return empty_set;
+}
+
 void Board::setPatterns(Pos& p) {
+    PROFILE_FUNCTION();
     for (Direction dir = DIRECTION_START; dir < DIRECTION_SIZE; dir++) {
         p.dir = dir;
         for (int i = 0; i < LINE_LENGTH; i++) {
@@ -238,8 +272,12 @@ void Board::setPatterns(Pos& p) {
                 continue;
             }
 
+            Pos curP = p;
             Cell& c = getCell(p);
             if (c.getPiece() == EMPTY) {
+                CompositePattern oldBlackPattern = c.getCompositePattern(BLACK);
+                CompositePattern oldWhitePattern = c.getCompositePattern(WHITE);
+                
                 Line line = getLine(p);
                 c.setPiece(BLACK);
                 c.setPattern(BLACK, dir, getPattern(line, COLOR_BLACK));
@@ -249,6 +287,16 @@ void Board::setPatterns(Pos& p) {
 
                 c.setScore();
                 c.setCompositePattern();
+
+                CompositePattern newBlackPattern = c.getCompositePattern(BLACK);
+                CompositePattern newWhitePattern = c.getCompositePattern(WHITE);
+
+                if (oldBlackPattern != newBlackPattern) {
+                    updatePatternMap(curP, BLACK, oldBlackPattern, newBlackPattern);
+                }
+                if (oldWhitePattern != newWhitePattern) {
+                    updatePatternMap(curP, WHITE, oldWhitePattern, newWhitePattern);
+                }
             }
 
             p - (i - (LINE_LENGTH / 2));
@@ -272,6 +320,7 @@ Line Board::getLine(Pos& p) {
 }
 
 Pattern Board::getPattern(Line& line, Color color) {
+    PROFILE_FUNCTION();
     static std::unordered_map<LineCacheKey, Pattern> patternCache;
 
     LineCacheKey key;

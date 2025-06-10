@@ -84,6 +84,14 @@ public:
 
     bool isDefault() {
         return (x == -1) && (y == -1);
+    } 
+};
+
+struct PosHash {
+    std::size_t operator()(const Pos& p) const {
+        std::size_t h1 = std::hash<int>{}(p.getX());
+        std::size_t h2 = std::hash<int>{}(p.getY());
+
+        return h1 ^ (h2 << 1);
     }
-    
 };
