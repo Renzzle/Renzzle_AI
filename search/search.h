@@ -74,10 +74,8 @@ Value Search::abp(int depth) {
                 cut = true;
             } else if (currentNode->value.getType() == Value::Type::LOWER_BOUND) {
                 if (cv >= cur.beta) cut = true;
-                else cur.alpha = cur.alpha > cv ? cur.alpha : cv;
             } else if (currentNode->value.getType() == Value::Type::UPPER_BOUND) {
                 if (cv <= cur.alpha) cut = true;
-                else cur.beta = cur.beta < cv ? cur.beta : cv;
             }
 
             if (cut) {
