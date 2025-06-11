@@ -67,7 +67,8 @@ Value Search::abp(int depth) {
         // if already searched
         if (currentNode->searchedDepth >= cur.depth && 
             currentNode->value.getValue() != INITIAL_VALUE && 
-            currentNode->value.getType() != Value::Type::UNKNOWN) {
+            currentNode->value.getType() != Value::Type::UNKNOWN && 
+            cur.childIdx == 0) {
             Value cv = currentNode->value;
             bool cut = false;
 
@@ -148,8 +149,7 @@ Value Search::abp(int depth) {
                 cur.bestVal = cur.isMax ? cur.alpha : cur.beta;
                 cur.bestVal.setType(cur.isMax ? Value::Type::UPPER_BOUND : Value::Type::LOWER_BOUND);
             }
-            if (cur.searchMode == SearchMode::FULL_WINDOW)
-                currentNode->searchedDepth = cur.depth;
+            currentNode->searchedDepth = cur.depth;
             currentNode->value = cur.bestVal;
             
             treeManager.undo();
@@ -209,8 +209,7 @@ void Search::updateParent(stack<ABPNode>& stk, Value childValue, SearchMode chil
     if (parent.beta <= parent.alpha) {
         // pruning
         parentNode->value.setType(parent.isMax ? Value::Type::LOWER_BOUND : Value::Type::UPPER_BOUND);
-        if (parent.searchMode == SearchMode::FULL_WINDOW)
-            parentNode->searchedDepth = parent.depth;
+        parentNode->searchedDepth = parent.depth;
 
         treeManager.undo();
         stk.pop();
