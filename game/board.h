@@ -120,6 +120,10 @@ bool Board::move(Pos p) {
     if (result != ONGOING) return false;
     if (path.size() == BOARD_SIZE * BOARD_SIZE) return false;
 
+    Cell& c = getCell(p);
+    CompositePattern oldBlackPattern = c.getCompositePattern(BLACK);
+    CompositePattern oldWhitePattern = c.getCompositePattern(WHITE);
+
     path.push_back(p);
 
     setResult(p);
@@ -129,7 +133,11 @@ bool Board::move(Pos p) {
     getCell(p).setPiece(piece);
 
     clearPattern(getCell(p));
-    getCell(p).clearCompositePattern();
+    c.clearCompositePattern();
+
+    updatePatternMap(p, BLACK, oldBlackPattern, NOT_EMPTY);
+    updatePatternMap(p, WHITE, oldWhitePattern, NOT_EMPTY);
+
     setPatterns(p);
 
     return true;

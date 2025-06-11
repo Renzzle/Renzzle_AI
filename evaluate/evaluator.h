@@ -5,6 +5,7 @@
 #include <vector>
 #include <algorithm>
 #include <tuple>
+#include "../test/test.h"
 
 class Evaluator {
 
@@ -12,6 +13,9 @@ PRIVATE
     Board& board;
     Piece self = BLACK;
     Piece oppo = WHITE;
+    MoveList patternMap[2][COMPOSITE_PATTERN_SIZE];
+
+    void classify();
     
 PUBLIC
     Evaluator(Board& board);
@@ -27,8 +31,126 @@ PUBLIC
 }; 
 
 Evaluator::Evaluator(Board& board) : board(board) {
+    // classify();
     self = board.isBlackTurn() ? BLACK : WHITE;
     oppo = !board.isBlackTurn() ? BLACK : WHITE;
+}
+
+void Evaluator::classify() {
+    self = board.isBlackTurn() ? BLACK : WHITE;
+    oppo = !board.isBlackTurn() ? BLACK : WHITE;
+
+    if (board.getResult() != ONGOING) return;
+
+    for (int i = 1; i <= BOARD_SIZE; i++) {
+        for (int j = 1; j <= BOARD_SIZE; j++) {
+            Pos p = Pos(i, j);
+            Cell& c = board.getCell(p);
+            if (c.getPiece() == EMPTY) {
+                patternMap[BLACK][c.getCompositePattern(BLACK)].push_back(p);
+                
+                patternMap[WHITE][c.getCompositePattern(WHITE)].push_back(p);
+                
+            }
+            // TEST_PRINT(std::string("  [Classify] Add Pos(") + std::to_string(p.getX()) + "," + std::to_string(p.getY()) 
+            //        + ") to BLACK pattern list [" + std::to_string(c.getCompositePattern(BLACK)) + "]");
+            // TEST_PRINT(std::string("  [Classify] Add Pos(") + std::to_string(p.getX()) + "," + std::to_string(p.getY()) 
+            //        + ") to WHITE pattern list [" + std::to_string(c.getCompositePattern(WHITE)) + "]");
+        }
+    }
+    // // ======================= 검증 코드 시작 =======================
+
+    // // 불일치 정보를 저장하기 위한 구조체
+    // struct MismatchInfo {
+    //     Piece piece;
+    //     CompositePattern pattern;
+    //     MoveList only_in_evaluator;
+    //     MoveList only_in_board;
+    // };
+
+    // std::vector<MismatchInfo> mismatches; // 모든 불일치를 저장할 벡터
+
+    // // 1. 모든 패턴을 순회하며 불일치 정보 수집
+    // for (int piece_idx = 0; piece_idx < 2; ++piece_idx) {
+    //     Piece piece = (piece_idx == 0) ? BLACK : WHITE;
+    //     for (int pattern_idx = 0; pattern_idx < COMPOSITE_PATTERN_SIZE; ++pattern_idx) {
+    //         CompositePattern pattern = static_cast<CompositePattern>(pattern_idx);
+
+    //         MoveList evaluator_moves = patternMap[piece][pattern];
+    //         const auto& board_moves_set = board.getMovesByPattern(piece, pattern);
+    //         MoveList board_moves_vec(board_moves_set.begin(), board_moves_set.end());
+
+    //         sort(evaluator_moves.begin(), evaluator_moves.end());
+    //         sort(board_moves_vec.begin(), board_moves_vec.end());
+
+    //         if (evaluator_moves != board_moves_vec) {
+    //             MismatchInfo info;
+    //             info.piece = piece;
+    //             info.pattern = pattern;
+                
+    //             set_difference(evaluator_moves.begin(), evaluator_moves.end(),
+    //                         board_moves_vec.begin(), board_moves_vec.end(),
+    //                         back_inserter(info.only_in_evaluator));
+
+    //             set_difference(board_moves_vec.begin(), board_moves_vec.end(),
+    //                         evaluator_moves.begin(), evaluator_moves.end(),
+    //                         back_inserter(info.only_in_board));
+                
+    //             mismatches.push_back(info);
+    //         }
+    //     }
+    // }
+
+    // // 2. 수집된 모든 불일치 정보를 종합하여 "어디로 잘못 들어갔는지"까지 추적하여 출력
+    // TEST_PRINT("\n========================================================");
+    // TEST_PRINT(">>> Verifying consistency between Evaluator and Board maps...");
+
+    // if (!mismatches.empty()) {
+    //     TEST_PRINT(">>> VERIFICATION FAILED: Inconsistencies found in " + std::to_string(mismatches.size()) + " patterns.");
+    //     TEST_PRINT("--------------------------------------------------------");
+
+    //     for (const auto& info : mismatches) {
+    //         TEST_PRINT(std::string("  [MISMATCH] Piece: ") + (info.piece == BLACK ? "BLACK" : "WHITE") + ", Pattern: " + std::to_string(info.pattern));
+            
+    //         // Evaluator 맵에만 있는 좌표 출력
+    //         if (!info.only_in_evaluator.empty()) {
+    //             TEST_PRINT("    - Only in Evaluator's map (should not be here):");
+    //             for(const auto& pos : info.only_in_evaluator) {
+    //                 TEST_PRINT(std::string("      (") + std::to_string(pos.getX()) + "," + std::to_string(pos.getY()) + ")");
+    //             }
+    //         }
+
+    //         // Board 맵에만 있는 좌표 (즉, Evaluator가 놓친 좌표)에 대해 역추적
+    //         if (!info.only_in_board.empty()) {
+    //             TEST_PRINT("    - Missing from Evaluator's map (should be here):");
+    //             for(const auto& missing_pos : info.only_in_board) {
+    //                 std::string base_info = std::string("      (") + std::to_string(missing_pos.getX()) + "," + std::to_string(missing_pos.getY()) + ")";
+                    
+    //                 // 이 좌표가 Evaluator의 다른 패턴 목록에 있는지 역추적
+    //                 bool found_elsewhere = false;
+    //                 for (int p_idx = 0; p_idx < COMPOSITE_PATTERN_SIZE; ++p_idx) {
+    //                     if (p_idx == info.pattern) continue; // 현재 비교 중인 패턴은 제외
+
+    //                     const auto& other_pattern_list = patternMap[info.piece][p_idx];
+    //                     if (std::find(other_pattern_list.begin(), other_pattern_list.end(), missing_pos) != other_pattern_list.end()) {
+    //                         TEST_PRINT(base_info + " -> WRONGLY CLASSIFIED by Evaluator in pattern " + std::to_string(p_idx));
+    //                         found_elsewhere = true;
+    //                         break;
+    //                     }
+    //                 }
+
+    //                 if (!found_elsewhere) {
+    //                     TEST_PRINT(base_info + " -> COMPLETELY MISSING from Evaluator's entire map.");
+    //                 }
+    //             }
+    //         }
+    //         TEST_PRINT("--------------------------------------------------------");
+    //     }
+    // } else {
+    //     TEST_PRINT(">>> VERIFICATION PASSED: All pattern maps are consistent.");
+    // }
+    // TEST_PRINT("========================================================");
+    // // ======================== 검증 코드 끝 =========================
 }
 
 MoveList Evaluator::getCandidates() {
