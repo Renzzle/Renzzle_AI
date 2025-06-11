@@ -187,22 +187,26 @@ void Search::updateParent(stack<ABPNode>& stk, Value childValue, SearchMode chil
     }
 
     if (parent.isMax) {
-        if (childValue > parent.bestVal && childValue.getType() == Value::Type::EXACT) {
+        if (childValue > parent.bestVal && (childValue.getType() == Value::Type::EXACT || childValue.getType() == Value::Type::LOWER_BOUND)) {
             parent.bestVal = childValue;
             parentNode->value = childValue;
             parentNode->bestMove = lastMove;
         }
-        if (childValue > parent.alpha) {
-            parent.alpha = childValue;
+        if (childValue.getType() == Value::Type::EXACT || childValue.getType() == Value::Type::LOWER_BOUND) {
+            if (childValue > parent.alpha) {
+                parent.alpha = childValue;
+            }
         }
     } else {
-        if (childValue < parent.bestVal && childValue.getType() == Value::Type::EXACT) {
+        if (childValue < parent.bestVal && (childValue.getType() == Value::Type::EXACT || childValue.getType() == Value::Type::UPPER_BOUND)) {
             parent.bestVal = childValue;
             parentNode->value = childValue;
             parentNode->bestMove = lastMove;
         }
-        if (childValue < parent.beta) {
-            parent.beta = childValue;
+        if (childValue.getType() == Value::Type::EXACT || childValue.getType() == Value::Type::UPPER_BOUND) {
+            if (childValue < parent.beta) {
+                parent.beta = childValue;
+            }
         }
     }
 
@@ -217,8 +221,7 @@ void Search::updateParent(stack<ABPNode>& stk, Value childValue, SearchMode chil
 }
 
 Value Search::evaluateNode(Evaluator& evaluator) {
-    treeManager.getNode()->value = evaluator.evaluate();
-    return treeManager.getNode()->value;
+    return evaluator.evaluate();
 }
 
 MoveList Search::getCandidates(Evaluator& evaluator, bool isMax) {
@@ -281,6 +284,7 @@ void Search::ids() {
 
         if (result.isWin() && result.getResultDepth() <= monitor.getDepth()) 
             break;
+
         monitor.incDepth(2);
     }
 }
