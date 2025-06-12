@@ -187,32 +187,32 @@ void Search::updateParent(stack<ABPNode>& stk, Value childValue, SearchMode chil
     }
 
     if (parent.isMax) {
-        if (childValue > parent.bestVal && (childValue.getType() == Value::Type::EXACT || childValue.getType() == Value::Type::LOWER_BOUND)) {
+        if (childValue > parent.bestVal && childValue.getType() == Value::Type::EXACT) {
             parent.bestVal = childValue;
             parentNode->value = childValue;
             parentNode->bestMove = lastMove;
         }
-        if (childValue.getType() == Value::Type::EXACT || childValue.getType() == Value::Type::LOWER_BOUND) {
-            if (childValue > parent.alpha) {
-                parent.alpha = childValue;
-            }
+        if (childValue > parent.alpha) {
+            parent.alpha = childValue;
         }
     } else {
-        if (childValue < parent.bestVal && (childValue.getType() == Value::Type::EXACT || childValue.getType() == Value::Type::UPPER_BOUND)) {
+        if (childValue < parent.bestVal && childValue.getType() == Value::Type::EXACT) {
             parent.bestVal = childValue;
             parentNode->value = childValue;
             parentNode->bestMove = lastMove;
         }
-        if (childValue.getType() == Value::Type::EXACT || childValue.getType() == Value::Type::UPPER_BOUND) {
-            if (childValue < parent.beta) {
-                parent.beta = childValue;
-            }
+        if (childValue < parent.beta) {
+            parent.beta = childValue;
         }
     }
 
     if (parent.beta <= parent.alpha) {
         // pruning
-        parentNode->value.setType(parent.isMax ? Value::Type::LOWER_BOUND : Value::Type::UPPER_BOUND);
+        if (parent.bestVal.getType() == Value::Type::UNKNOWN) {
+            parentNode->value = Value();
+        } else {
+            parentNode->value.setType(parent.isMax ? Value::Type::LOWER_BOUND : Value::Type::UPPER_BOUND);
+        }
         parentNode->searchedDepth = parent.depth;
 
         treeManager.undo();
