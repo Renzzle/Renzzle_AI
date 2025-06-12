@@ -209,7 +209,7 @@ void Search::updateParent(stack<ABPNode>& stk, Value childValue, SearchMode chil
     if (parent.beta <= parent.alpha) {
         // pruning
         if (parent.bestVal.getType() == Value::Type::UNKNOWN) {
-            parentNode->value = Value();
+            parentNode->value = parent.isMax ? parent.alpha : parent.beta;
         } else {
             parentNode->value.setType(parent.isMax ? Value::Type::LOWER_BOUND : Value::Type::UPPER_BOUND);
         }

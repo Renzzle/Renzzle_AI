@@ -84,7 +84,7 @@ MoveList TreeManager::getBestLine(int i) {
     std::vector<std::pair<Pos, Node*>> rankedChilds;
     for (const auto& entry : rootNode->childNodes) {
         Node* child = entry.second;
-        if (child) {
+        if (child && child->value.getType() == Value::Type::EXACT) {
             rankedChilds.emplace_back(child->board.getPath().back(), child);
         }
     }
