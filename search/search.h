@@ -9,6 +9,11 @@
 #include <limits>
 #include <stack>
 
+enum class SearchMode {
+    FULL_WINDOW,
+    NULL_WINDOW
+};
+
 struct ABPNode {
     int depth;
     bool isMax;
@@ -17,6 +22,7 @@ struct ABPNode {
     Value bestVal;
     int childIdx;
     MoveList childMoves;
+    SearchMode searchMode;
 };
 
 class Search {
@@ -30,7 +36,7 @@ PRIVATE
     Value evaluateNode(Evaluator& evaluator);
     MoveList getCandidates(Evaluator& evaluator, bool isMax);
     void sortChildNodes(MoveList& moves, bool isTarget);
-    void updateParent(stack<ABPNode>& stk, Value val);
+    void updateParent(stack<ABPNode>& stk, Value childValue, SearchMode childMode);
     bool isGameOver(Board& board);
 
 PUBLIC
@@ -44,11 +50,14 @@ Search::Search(Board& board, SearchMonitor& monitor) : treeManager(board), monit
     monitor.setBestLineProvider([this](int i) {
         return treeManager.getBestLine(i);
     });
+    monitor.setBestValueProvider([this]() {
+        return treeManager.getRootNode()->value;
+    });
 }
 
 Value Search::abp(int depth) {
     stack<ABPNode> stk;
-    stk.push({depth, true, Value(MIN_VALUE, Value::Type::UNKNOWN), Value(MAX_VALUE + 1, Value::Type::UNKNOWN), Value(), {}});
+    stk.push(ABPNode{depth, true, Value(MIN_VALUE, Value::Type::UNKNOWN), Value(MAX_VALUE + 1, Value::Type::UNKNOWN), Value(), 0, {}, SearchMode::FULL_WINDOW});
 
     while (!stk.empty()) {
         monitor.updateElapsedTime();
@@ -57,7 +66,9 @@ Value Search::abp(int depth) {
 
         // if already searched
         if (currentNode->searchedDepth >= cur.depth && 
-            currentNode->value.getType() != Value::Type::UNKNOWN) {
+            currentNode->value.getValue() != INITIAL_VALUE && 
+            currentNode->value.getType() != Value::Type::UNKNOWN && 
+            cur.childIdx == 0) {
             Value cv = currentNode->value;
             bool cut = false;
 
@@ -65,10 +76,8 @@ Value Search::abp(int depth) {
                 cut = true;
             } else if (currentNode->value.getType() == Value::Type::LOWER_BOUND) {
                 if (cv >= cur.beta) cut = true;
-                else cur.alpha = cur.alpha > cv ? cur.alpha : cv;
             } else if (currentNode->value.getType() == Value::Type::UPPER_BOUND) {
                 if (cv <= cur.alpha) cut = true;
-                else cur.beta = cur.beta < cv ? cur.beta : cv;
             }
 
             if (cut) {
@@ -76,7 +85,7 @@ Value Search::abp(int depth) {
                 stk.pop();
 
                 if (!stk.empty()) {
-                    updateParent(stk, cv);
+                    updateParent(stk, cv, cur.searchMode);
                 }
 
                 continue;
@@ -104,7 +113,7 @@ Value Search::abp(int depth) {
             stk.pop();
 
             if (!stk.empty()) {
-                updateParent(stk, val);
+                updateParent(stk, val, cur.searchMode);
             }
 
             continue;
@@ -113,11 +122,27 @@ Value Search::abp(int depth) {
         if (cur.childIdx < cur.childMoves.size()) {
             Pos move = cur.childMoves[cur.childIdx++];
             treeManager.move(move);
+
             Value nextAlpha = cur.alpha;
             Value nextBeta = cur.beta;
             nextAlpha.decreaseResultDepth();
             nextBeta.decreaseResultDepth();
-            stk.push({cur.depth - 1, !cur.isMax, nextAlpha, nextBeta, 0, {}});
+
+            if (cur.searchMode == SearchMode::NULL_WINDOW) { // null window search in progress
+                stk.push({cur.depth - 1, !cur.isMax, nextAlpha, nextBeta, Value(), 0, {}, SearchMode::NULL_WINDOW});
+            } else if (cur.childIdx > 1) { // start new null window search
+                if (cur.isMax) {
+                    nextBeta = nextAlpha;
+                    nextBeta += 1;
+                } else {
+                    nextAlpha = nextBeta;
+                    nextAlpha -= 1;
+                }
+                stk.push({cur.depth - 1, !cur.isMax, nextAlpha, nextBeta, Value(), 0, {}, SearchMode::NULL_WINDOW});
+            } else {
+                stk.push({cur.depth - 1, !cur.isMax, nextAlpha, nextBeta, Value(), 0, {}, SearchMode::FULL_WINDOW});
+            }
+            
             monitor.incVisitCnt();
         } else { // if search every child nodes
             if (cur.bestVal.getType() == Value::Type::UNKNOWN) {
@@ -131,7 +156,7 @@ Value Search::abp(int depth) {
             stk.pop();
 
             if (!stk.empty()) {
-                updateParent(stk, cur.bestVal);
+                updateParent(stk, cur.bestVal, cur.searchMode);
             }
         }
     }
@@ -139,38 +164,55 @@ Value Search::abp(int depth) {
     return treeManager.getNode()->value;
 }
 
-void Search::updateParent(stack<ABPNode>& stk, Value val) {
+void Search::updateParent(stack<ABPNode>& stk, Value childValue, SearchMode childMode) {
     ABPNode& parent = stk.top();
     Node* parentNode = treeManager.getNode();
     Pos lastMove;
     if (parent.childIdx > 0 && parent.childIdx - 1 < parent.childMoves.size()) {
         lastMove = parent.childMoves[parent.childIdx - 1];
     }
-    val.increaseResultDepth();
+    childValue.increaseResultDepth();
+
+    // if null window search failed, re-search with full window
+    if (parent.searchMode == SearchMode::FULL_WINDOW && childMode == SearchMode::NULL_WINDOW) {
+        Value nextAlpha = parent.alpha;
+        Value nextBeta = parent.beta;
+        nextAlpha.decreaseResultDepth();
+        nextBeta.decreaseResultDepth();
+
+        stk.push({parent.depth - 1, !parent.isMax, nextAlpha, nextBeta, Value(), 0, {}, SearchMode::FULL_WINDOW});
+        Pos move = parent.childMoves[parent.childIdx - 1];
+        treeManager.move(move);
+        return;
+    }
 
     if (parent.isMax) {
-        if (val > parent.bestVal && val.getType() == Value::Type::EXACT) {
-            parent.bestVal = val;
-            parentNode->value = val;
+        if (childValue > parent.bestVal && childValue.getType() == Value::Type::EXACT) {
+            parent.bestVal = childValue;
+            parentNode->value = childValue;
             parentNode->bestMove = lastMove;
         }
-        if (val > parent.alpha) {
-            parent.alpha = val;
+        if (childValue > parent.alpha) {
+            parent.alpha = childValue;
         }
     } else {
-        if (val < parent.bestVal && val.getType() == Value::Type::EXACT) {
-            parent.bestVal = val;
-            parentNode->value = val;
+        if (childValue < parent.bestVal && childValue.getType() == Value::Type::EXACT) {
+            parent.bestVal = childValue;
+            parentNode->value = childValue;
             parentNode->bestMove = lastMove;
         }
-        if (val < parent.beta) {
-            parent.beta = val;
+        if (childValue < parent.beta) {
+            parent.beta = childValue;
         }
     }
 
     if (parent.beta <= parent.alpha) {
         // pruning
-        parentNode->value.setType(parent.isMax ? Value::Type::LOWER_BOUND : Value::Type::UPPER_BOUND);
+        if (parent.bestVal.getType() == Value::Type::UNKNOWN) {
+            parentNode->value = Value();
+        } else {
+            parentNode->value.setType(parent.isMax ? Value::Type::LOWER_BOUND : Value::Type::UPPER_BOUND);
+        }
         parentNode->searchedDepth = parent.depth;
 
         treeManager.undo();
@@ -179,8 +221,7 @@ void Search::updateParent(stack<ABPNode>& stk, Value val) {
 }
 
 Value Search::evaluateNode(Evaluator& evaluator) {
-    treeManager.getNode()->value = evaluator.evaluate();
-    return treeManager.getNode()->value;
+    return evaluator.evaluate();
 }
 
 MoveList Search::getCandidates(Evaluator& evaluator, bool isMax) {
@@ -243,6 +284,7 @@ void Search::ids() {
 
         if (result.isWin() && result.getResultDepth() <= monitor.getDepth()) 
             break;
+
         monitor.incDepth(2);
     }
 }
