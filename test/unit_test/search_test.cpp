@@ -50,7 +50,6 @@ PUBLIC
             "h8i8i9i7j8j7j6k7k6i6h7h6i5g7f8h10i10d8f6",
             "h8h9f6g7e9g8f7h6f8f9h7d6",
             "h8h9g7i9g9i7g10i8i10h10e8f9d8j7",
-            "h8h9i8i9j9j8k7l8k8i10l7k6j6i7h6g6h7h5g8f9",
             "h8h9i8g8i10j8i6h7h6k7j6f7f8",
             "h8h9i9i8g10h10f7g7h6h7g5i7k7j6k6k8l7j9k10"
         };
