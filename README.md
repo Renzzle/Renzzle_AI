@@ -1,7 +1,7 @@
 # Renzzle
 <img width="1440" alt="Image" src="https://github.com/user-attachments/assets/e7054f08-4d15-46c5-96ff-8a3fad3a3c09" style="width: 100%;"/>
 
-## 📖 Project Overview
+## 🎯 Project Overview
 
 Renzzle은 오목 초보자부터 전문가까지 누구나 즐기며 실력을 향상시킬 수 있는 **AI 기반 오목 퍼즐 학습 플랫폼**입니다.
 
@@ -11,8 +11,9 @@ Renzzle은 오목 초보자부터 전문가까지 누구나 즐기며 실력을 
 * **랭킹 시스템:** 랭킹전을 통해 다른 사용자들과 실력을 겨루며 학습 동기를 부여합니다.
 
 ## 📖 Reposiotory Overview
-이 Repository는 C++로 개발된 오목(Renju) 인공지능 프로그램입니다. 
-핵심 원리는 Alpha-Beta Pruning 탐색 알고리즘을 사용하며, 여기에 다양한 최적화 기법을 적용하여 높은 기력과 빠른 수읽기 속도를 목표로 합니다.
+이 Repository는 C++로 개발된 오목(Renju) AI 프로그램입니다. <br>
+핵심 원리는 Alpha-Beta Pruning 탐색 알고리즘을 사용하며, 여기에 다양한 최적화 기법을 적용하여 높은 기력과 빠른 수읽기 속도를 목표로 합니다. <br>
+이 AI는 사용자의 수에 대한 올바른 대응을 찾고, 사용자가 창작한 퍼즐들의 풀이 가능성을 검증하는 역할을 합니다.
 
 ## 🛠️ Core Technologies
 - **Alpha-Beta Pruning**
