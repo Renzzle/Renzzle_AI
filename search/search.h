@@ -92,7 +92,34 @@ bool Search::cutOffSearchedNode(stack<ABPNode>& stk) {
 void Search::searchNextNode(stack<ABPNode>& stk) {
     ABPNode &cur = stk.top();
 
-    Pos move = cur.childMoves[cur.childIdx++];
+    Pos move;
+    Node* child = nullptr;
+
+    // cut off if already searched win node and child node searchedDepth >= cur.depth - 2
+    if (cur.isMax && cur.alpha.getResult() == Value::Result::WIN && cur.alpha.getType() == Value::Type::EXACT) {
+        // if (treeManager.currentNode == treeManager.rootNode) {
+        //     printBoard(treeManager.getBoard());
+        //     TEST_PRINT("childIdx: " << cur.childIdx);
+        // }
+        while (cur.childIdx < cur.childMoves.size()) {
+            move = cur.childMoves[cur.childIdx++];
+            child = treeManager.getChildNode(move);
+
+            if (child == nullptr || child->searchedDepth < cur.alpha.resultDepth - 3) {
+                break;
+            }
+        }
+        // if (treeManager.currentNode == treeManager.rootNode) {
+        //     TEST_PRINT("childIdx: " << cur.childIdx);
+        // }
+        if (child != nullptr && child->searchedDepth >= cur.alpha.resultDepth - 3) {
+            return;
+        }
+    } else {
+        move = cur.childMoves[cur.childIdx++];
+    }
+
+    //move = cur.childMoves[cur.childIdx++];
     treeManager.move(move);
 
     Value nextAlpha = cur.alpha;
@@ -114,6 +141,8 @@ void Search::searchNextNode(stack<ABPNode>& stk) {
     } else {
         stk.push({cur.depth - 1, !cur.isMax, nextAlpha, nextBeta, Value(), 0, {}, SearchMode::FULL_WINDOW});
     }
+
+    monitor.incVisitCnt();
 }
 
 void Search::updateParent(stack<ABPNode>& stk, Value childValue, SearchMode childMode) {
@@ -162,6 +191,7 @@ void Search::updateParent(stack<ABPNode>& stk, Value childValue, SearchMode chil
         // pruning
         if (parent.bestVal.getType() == Value::Type::UNKNOWN) {
             parentNode->value = parent.isMax ? parent.alpha : parent.beta;
+            parentNode->bestMove = Pos();
         } else {
             parentNode->value.setType(parent.isMax ? Value::Type::LOWER_BOUND : Value::Type::UPPER_BOUND);
         }
@@ -213,11 +243,11 @@ Value Search::abp(int depth) {
 
         if (cur.childIdx < cur.childMoves.size()) {
             searchNextNode(stk);
-            monitor.incVisitCnt();
         } else { // if search every child nodes
             if (cur.bestVal.getType() == Value::Type::UNKNOWN) {
                 cur.bestVal = cur.isMax ? cur.alpha : cur.beta;
                 cur.bestVal.setType(cur.isMax ? Value::Type::UPPER_BOUND : Value::Type::LOWER_BOUND);
+                currentNode->bestMove = Pos();
             }
             currentNode->searchedDepth = cur.depth;
             currentNode->value = cur.bestVal;
@@ -258,29 +288,64 @@ MoveList Search::getCandidates(Evaluator& evaluator, bool isMax) {
     return moves;
 }
 
-void Search::sortChildNodes(MoveList& moves, bool isTarget) {
-    if (!treeManager.getNode()->childNodes.empty()) {
-        sort(moves.begin(), moves.end(), [&](const Pos& a, const Pos& b) {
-            Node* aNode = treeManager.getChildNode(a);
-            Node* bNode = treeManager.getChildNode(b);
+void Search::sortChildNodes(MoveList& moves, bool isMax) {
+    if (treeManager.getNode()->childNodes.empty()) {
+        return;
+    }
+    Pos bestMove = treeManager.getNode()->bestMove;
 
-            bool aIsNull = (aNode == nullptr);
-            bool bIsNull = (bNode == nullptr);
+    auto getValueTypePriority = [&](Value::Type type) {
+        if (isMax) {
+            switch (type) {
+                case Value::Type::EXACT:       return 0;
+                case Value::Type::LOWER_BOUND: return 1;
+                case Value::Type::UNKNOWN:     return 2;
+                case Value::Type::UPPER_BOUND: return 3;
+                default: return 2;
+            }
+        } else { 
+            switch (type) {
+                case Value::Type::EXACT:       return 0;
+                case Value::Type::UPPER_BOUND: return 1;
+                case Value::Type::UNKNOWN:     return 2;
+                case Value::Type::LOWER_BOUND: return 3;
+                default: return 2;
+            }
+        }
+    };
 
-            if (aIsNull && bIsNull) {
-                return false;
-            }
-            if (aIsNull) {
-                return false;
-            }
-            if (bIsNull) {
-                return true;
-            }
+    sort(moves.begin(), moves.end(), [&](const Pos& a, const Pos& b) {
+        if (!bestMove.isDefault()) {
+            if (a == bestMove) return true;
+            if (b == bestMove) return false;
+        }
 
-            if(isTarget) return aNode->value > bNode->value;
-            else return aNode->value < bNode->value;
-        });
-    }   
+        Node* aNode = treeManager.getChildNode(a);
+        Node* bNode = treeManager.getChildNode(b);
+
+        bool aIsUnknown = (aNode == nullptr || aNode->value.getType() == Value::Type::UNKNOWN);
+        bool bIsUnknown = (bNode == nullptr || bNode->value.getType() == Value::Type::UNKNOWN);
+
+        if (aIsUnknown && bIsUnknown) return false;
+        if (aIsUnknown) return false;
+        if (bIsUnknown) return true;
+
+        Value aValue = aNode->value;
+        Value bValue = bNode->value;
+
+        int aPriority = getValueTypePriority(aValue.getType());
+        int bPriority = getValueTypePriority(bValue.getType());
+
+        if (aPriority != bPriority) {
+            return aPriority < bPriority;
+        }
+
+        if (isMax) {
+            return aValue > bValue;
+        } else {
+            return aValue < bValue;
+        }
+    });
 }
 
 bool Search::isGameOver(Board& board) {
