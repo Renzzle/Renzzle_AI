@@ -92,34 +92,7 @@ bool Search::cutOffSearchedNode(stack<ABPNode>& stk) {
 void Search::searchNextNode(stack<ABPNode>& stk) {
     ABPNode &cur = stk.top();
 
-    Pos move;
-    Node* child = nullptr;
-
-    // cut off if already searched win node and child node searchedDepth >= cur.depth - 2
-    if (cur.isMax && cur.alpha.getResult() == Value::Result::WIN && cur.alpha.getType() == Value::Type::EXACT) {
-        // if (treeManager.currentNode == treeManager.rootNode) {
-        //     printBoard(treeManager.getBoard());
-        //     TEST_PRINT("childIdx: " << cur.childIdx);
-        // }
-        while (cur.childIdx < cur.childMoves.size()) {
-            move = cur.childMoves[cur.childIdx++];
-            child = treeManager.getChildNode(move);
-
-            if (child == nullptr || child->searchedDepth < cur.alpha.resultDepth - 3) {
-                break;
-            }
-        }
-        // if (treeManager.currentNode == treeManager.rootNode) {
-        //     TEST_PRINT("childIdx: " << cur.childIdx);
-        // }
-        if (child != nullptr && child->searchedDepth >= cur.alpha.resultDepth - 3) {
-            return;
-        }
-    } else {
-        move = cur.childMoves[cur.childIdx++];
-    }
-
-    //move = cur.childMoves[cur.childIdx++];
+    Pos move = cur.childMoves[cur.childIdx++];
     treeManager.move(move);
 
     Value nextAlpha = cur.alpha;
