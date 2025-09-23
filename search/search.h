@@ -31,6 +31,7 @@ PRIVATE
     TreeManager treeManager;
     Color targetColor;
     SearchMonitor& monitor;
+    bool isRunning = false;
 
     Value abp(int depth);
     Value evaluateNode(Evaluator& evaluator);
@@ -44,6 +45,7 @@ PRIVATE
 PUBLIC
     Search(Board& board, SearchMonitor& monitor);
     void ids();
+    void stop();
 
 };
 
@@ -180,6 +182,8 @@ Value Search::abp(int depth) {
     stk.push(ABPNode{depth, true, Value(MIN_VALUE, Value::Type::UNKNOWN), Value(MAX_VALUE + 1, Value::Type::UNKNOWN), Value(), 0, {}, SearchMode::FULL_WINDOW});
 
     while (!stk.empty()) {
+        if (!isRunning) break;
+
         monitor.updateElapsedTime();
         ABPNode &cur = stk.top();
         Node* currentNode = treeManager.getNode();
@@ -250,13 +254,14 @@ MoveList Search::getCandidates(Evaluator& evaluator, bool isMax) {
         return moves;
     }
 
-    if (isMax) {
-        moves = evaluator.getThreats();
-    } else {
+    if (evaluator.isOppoMateExist()) {
         moves = evaluator.getThreatDefend();
         MoveList fours = evaluator.getFours();
         moves.insert(moves.end(), fours.begin(), fours.end());
+    } else {
+        moves = evaluator.getThreats();
     }
+    
     sortChildNodes(moves, isMax);
     return moves;
 }
@@ -327,6 +332,7 @@ bool Search::isGameOver(Board& board) {
 }
 
 void Search::ids() {
+    isRunning = true;
     monitor.incDepth(5);
     monitor.initStartTime();
 
@@ -339,4 +345,8 @@ void Search::ids() {
 
         monitor.incDepth(2);
     }
+}
+
+void Search::stop() {
+    isRunning = false;
 }

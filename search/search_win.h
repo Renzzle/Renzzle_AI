@@ -91,6 +91,10 @@ bool SearchWin::isWin() {
         MoveList bestPath(fullPath.begin() + rootSize, fullPath.end());
 
         monitor.setBestPath(bestPath);
+        monitor.setBestValueProvider([&bestPath]() {
+            int resultDepth = bestPath.size();
+            return Value(Value::Result::WIN, resultDepth);
+        });
     }
 
     return isWin;
