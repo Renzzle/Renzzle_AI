@@ -56,6 +56,11 @@ PUBLIC
         else return false;
     }
 
+    bool isLose() {
+        if (result == Result::LOSE) return true;
+        else return false;
+    }
+
     int getValue() {
         return value;
     }
