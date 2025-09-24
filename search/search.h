@@ -261,7 +261,7 @@ MoveList Search::getCandidates(Evaluator& evaluator, bool isMax) {
     } else {
         moves = evaluator.getThreats();
     }
-    
+
     sortChildNodes(moves, isMax);
     return moves;
 }
@@ -344,6 +344,7 @@ void Search::ids() {
             break;
 
         monitor.incDepth(2);
+        if (!isRunning) break;
     }
 }
 
