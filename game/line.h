@@ -3,6 +3,7 @@
 #include "cell.h"
 #include <array>
 #include <tuple>
+using namespace std;
 
 #define LINE_LENGTH 11
 

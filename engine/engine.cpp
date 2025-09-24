@@ -8,6 +8,7 @@
 #define MAX_THINKING_TIME 10.0 // second
 
 SearchMonitor findVCF(Board board, atomic<bool>& stopFlag) {
+    TEST_PRINT("start findVCF()");
     SearchMonitor monitor;
     SearchWin vcfSearcher(board, monitor);
 
@@ -24,12 +25,14 @@ SearchMonitor findVCF(Board board, atomic<bool>& stopFlag) {
     });
 
     bool result = vcfSearcher.findVCF();
-    stopFlag = result; 
+    if (result) stopFlag = true;
+    TEST_PRINT("findVCF() result : " << stopFlag);
 
     return monitor;
 }
 
 SearchMonitor findVCTorBestMove(Board board, atomic<bool>& stopFlag) {
+    TEST_PRINT("start findVCTorBestMove()");
     SearchMonitor monitor;
     Search vctSearcher(board, monitor);
 
@@ -39,6 +42,7 @@ SearchMonitor findVCTorBestMove(Board board, atomic<bool>& stopFlag) {
             lastTriggerTime = monitor.getElapsedTime();
             return true;
         }
+        if (stopFlag.load()) TEST_PRINT(stopFlag.load());
         return stopFlag.load();
     });
     monitor.setSearchListener([&vctSearcher](SearchMonitor& monitor) {
@@ -48,7 +52,7 @@ SearchMonitor findVCTorBestMove(Board board, atomic<bool>& stopFlag) {
     vctSearcher.ids();
     
     if (monitor.getBestValue().isWin()) stopFlag = true;
-    else stopFlag = false;
+    TEST_PRINT("findVCTorBestMove() result : " << stopFlag);
 
     return monitor;
 }
@@ -62,47 +66,44 @@ int validatePuzzle(string boardStr) {
     if (value.isLose()) return -1;
     else if (value.isWin()) return value.getResultDepth();
 
-    atomic<bool> stopFlag(false);
-    vector<future<SearchMonitor>> futures;
+    SearchMonitor vcfMonitor;
+    SearchWin vcfSearcher(board, vcfMonitor);
 
-    // start vcf thread
-    future<SearchMonitor> future_vcf = async(launch::async, findVCF, board, ref(stopFlag));
-    futures.push_back(move(future_vcf));
-
-    // if there is no opponent mate start vct thread
-    if (!evaluator.isOppoMateExist()) {
-        future<SearchMonitor> future_vct = async(launch::async, findVCTorBestMove, board, ref(stopFlag));
-        futures.push_back(move(future_vct));
-    }
-
-    vector<optional<SearchMonitor>> results;
-
-    while (results.size() < futures.size()) {
-        bool flag = false;
-        for (auto& fut : futures) {
-            if (fut.valid() && fut.wait_for(chrono::milliseconds(1)) == future_status::ready) {
-                results.push_back(fut.get());
-                if (fut.get().getBestValue().isWin()) {
-                    flag = true; break;
-                }
-            }
+    double lastTriggerTime = 0.0;
+    vcfMonitor.setTrigger([&lastTriggerTime](SearchMonitor& monitor) {
+        if (monitor.getElapsedTime() >= MAX_THINKING_TIME) {
+            lastTriggerTime = monitor.getElapsedTime();
+            return true;
         }
-        if (flag) break;
-    }
+        return false;
+    });
+    vcfMonitor.setSearchListener([&vcfSearcher](SearchMonitor& monitor) {
+        vcfSearcher.stop();
+    });
+
+    bool result = vcfSearcher.findVCF();
+    if (result) return vcfMonitor.getBestPath().size();
     
-    int depth = -1;
-    if (!results.empty()) {
-        if (results.back().value().getBestValue().isWin())
-            depth = results.back().value().getBestPath().size();
-    }
+    SearchMonitor vctMonitor;
+    Search vctSearcher(board, vctMonitor);
 
-    for (auto& fut : futures) {
-        if (fut.valid()) {
-            fut.wait();
+    lastTriggerTime = 0.0;
+    vctMonitor.setTrigger([&lastTriggerTime](SearchMonitor& monitor) {
+        if (monitor.getElapsedTime() >= MAX_THINKING_TIME) {
+            lastTriggerTime = monitor.getElapsedTime();
+            return true;
         }
-    }
+        return false;
+    });
+    vctMonitor.setSearchListener([&vctSearcher](SearchMonitor& monitor) {
+        vctSearcher.stop();
+    });
 
-    return depth;
+    vctSearcher.ids();
+    if (vctMonitor.getBestValue().isWin())
+        return vctMonitor.getBestPath().size();
+
+    return -1;
 }
 
 int convertMoveToInt(Pos& move) {
@@ -122,53 +123,40 @@ int findNextMove(string boardStr) {
     Pos nextMove = evaluator.getSureMove();
     if (!nextMove.isDefault()) return convertMoveToInt(nextMove);
 
-    atomic<bool> stopFlag(false);
-    vector<future<SearchMonitor>> futures;
+    SearchMonitor vcfMonitor;
+    SearchWin vcfSearcher(board, vcfMonitor);
 
-    // start vcf thread
-    future<SearchMonitor> future_vcf = async(launch::async, findVCF, board, ref(stopFlag));
-    futures.push_back(move(future_vcf));
-
-    // start search thread when defend or threat exist
-    if (evaluator.isOppoMateExist() || !evaluator.getThreats().empty()) {
-        future<SearchMonitor> future_vctOrDefend = async(launch::async, findVCTorBestMove, board, ref(stopFlag));
-        futures.push_back(move(future_vctOrDefend));
-    }
-
-    vector<optional<SearchMonitor>> results;
-
-    while (results.size() < futures.size()) {
-        bool flag = false;
-        for (auto& fut : futures) {
-            if (fut.valid() && fut.wait_for(chrono::milliseconds(1)) == future_status::ready) {
-                results.push_back(fut.get());
-                if (fut.get().getBestValue().isWin()) {
-                    flag = true; break;
-                }
-            }
+    vcfMonitor.setTrigger([](SearchMonitor& monitor) {
+        if (monitor.getElapsedTime() >= MAX_THINKING_TIME) {
+            return true;
         }
-        if (flag) break;
-    }
+        return false;
+    });
+    vcfMonitor.setSearchListener([&vcfSearcher](SearchMonitor& monitor) {
+        vcfSearcher.stop();
+    });
 
-    for (auto& fut : futures) {
-        if (fut.valid()) {
-            fut.wait();
+    bool result = vcfSearcher.findVCF();
+    if (result) return convertMoveToInt(vcfMonitor.getBestPath()[0]);
+    
+    SearchMonitor searchMonitor;
+    Search searcher(board, searchMonitor);
+
+    searchMonitor.setTrigger([](SearchMonitor& monitor) {
+        if (monitor.getElapsedTime() >= 3) {
+            return true;
         }
-    }
+        return false;
+    });
+    searchMonitor.setSearchListener([&searcher](SearchMonitor& monitor) {
+        searcher.stop();
+    });
 
-    Value tmp;
-    for (auto& result : results) {
-        if (result.has_value()) {
-            SearchMonitor& resultMonitor = result.value();
-            if (tmp < resultMonitor.getBestValue()) {
-                tmp = resultMonitor.getBestValue();
-                if (!resultMonitor.getBestPath().empty()) {
-                    nextMove = result.value().getBestPath()[0];
-                }
-            }
-        }
-    }
-
+    searcher.ids();
+    
+    if (!searchMonitor.getBestPath().empty())
+        nextMove = searchMonitor.getBestPath()[0];
+    
     if (nextMove.isDefault()) {
         MoveList moves = evaluator.getCandidates();
         if (!moves.empty()) nextMove = moves[0];
@@ -178,5 +166,7 @@ int findNextMove(string boardStr) {
 }
 
 int main() {
-    
+    //int depth = validatePuzzle("h8h9i8g8i10j9i9i7j10k11h10k10j8k7g10f10g11f12g7f6f7f11");
+    int move = findNextMove("h8h9i8g8i10i9j9k8k10l11i7j6j10");
+    TEST_PRINT(move);
 }
