@@ -117,7 +117,8 @@ int findNextMove(string boardStr) {
     Evaluator evaluator(board);
 
     // if game is already over
-    if (!evaluator.evaluate().isOnGoing()) return -1;
+    if (evaluator.evaluate().isWin()) return -1;
+    else if (evaluator.evaluate().isLose()) return 1000;
 
     // if there is sure move
     Pos nextMove = evaluator.getSureMove();
@@ -167,6 +168,6 @@ int findNextMove(string boardStr) {
 
 int main() {
     //int depth = validatePuzzle("h8h9i8g8i10j9i9i7j10k11h10k10j8k7g10f10g11f12g7f6f7f11");
-    int move = findNextMove("h8h9i8g8i10i9j9k8k10l11i7j6j10");
+    int move = findNextMove("h8h9i8i9j8j9g8g9f8");
     TEST_PRINT(move);
 }
