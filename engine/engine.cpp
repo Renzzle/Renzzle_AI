@@ -7,55 +7,6 @@
 
 #define MAX_THINKING_TIME 10.0 // second
 
-SearchMonitor findVCF(Board board, atomic<bool>& stopFlag) {
-    TEST_PRINT("start findVCF()");
-    SearchMonitor monitor;
-    SearchWin vcfSearcher(board, monitor);
-
-    double lastTriggerTime = 0.0;
-    monitor.setTrigger([&stopFlag, &lastTriggerTime](SearchMonitor& monitor) {
-        if (monitor.getElapsedTime() >= MAX_THINKING_TIME) {
-            lastTriggerTime = monitor.getElapsedTime();
-            return true;
-        }
-        return stopFlag.load();
-    });
-    monitor.setSearchListener([&vcfSearcher](SearchMonitor& monitor) {
-        vcfSearcher.stop();
-    });
-
-    bool result = vcfSearcher.findVCF();
-    if (result) stopFlag = true;
-    TEST_PRINT("findVCF() result : " << stopFlag);
-
-    return monitor;
-}
-
-SearchMonitor findVCTorBestMove(Board board, atomic<bool>& stopFlag) {
-    TEST_PRINT("start findVCTorBestMove()");
-    SearchMonitor monitor;
-    Search vctSearcher(board, monitor);
-
-    double lastTriggerTime = 0.0;
-    monitor.setTrigger([&stopFlag, &lastTriggerTime](SearchMonitor& monitor) {
-        if (monitor.getElapsedTime() >= MAX_THINKING_TIME) {
-            lastTriggerTime = monitor.getElapsedTime();
-            return true;
-        }
-        if (stopFlag.load()) TEST_PRINT(stopFlag.load());
-        return stopFlag.load();
-    });
-    monitor.setSearchListener([&vctSearcher](SearchMonitor& monitor) {
-        vctSearcher.stop();
-    });
-
-    vctSearcher.ids();
-    
-    if (monitor.getBestValue().isWin()) stopFlag = true;
-    TEST_PRINT("findVCTorBestMove() result : " << stopFlag);
-
-    return monitor;
-}
 
 int validatePuzzle(string boardStr) {
     Board board = getBoard(boardStr);
@@ -117,8 +68,9 @@ int findNextMove(string boardStr) {
     Evaluator evaluator(board);
 
     // if game is already over
-    if (evaluator.evaluate().isWin()) return -1;
-    else if (evaluator.evaluate().isLose()) return 1000;
+    Value value = evaluator.evaluate();
+    if (value.isWin() && board.getResult() != ONGOING) return -1;
+    else if (value.isLose() && board.getResult() != ONGOING) return 1000;
 
     // if there is sure move
     Pos nextMove = evaluator.getSureMove();
