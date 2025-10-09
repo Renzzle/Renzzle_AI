@@ -7,15 +7,13 @@
 
 #define MAX_THINKING_TIME 10.0 // second
 
-
-int validatePuzzle(string boardStr) {
+string validatePuzzle(string boardStr) {
     Board board = getBoard(boardStr);
     Evaluator evaluator(board);
 
     // if game is already over
-    Value value = evaluator.evaluate();
-    if (value.isLose()) return -1;
-    else if (value.isWin()) return value.getResultDepth();
+    Result status = board.getResult();
+    if (status != ONGOING) return "";
 
     SearchMonitor vcfMonitor;
     SearchWin vcfSearcher(board, vcfMonitor);
@@ -33,7 +31,7 @@ int validatePuzzle(string boardStr) {
     });
 
     bool result = vcfSearcher.findVCF();
-    if (result) return vcfMonitor.getBestPath().size();
+    if (result) return convertPath2String(vcfMonitor.getBestPath());
     
     SearchMonitor vctMonitor;
     Search vctSearcher(board, vctMonitor);
@@ -52,9 +50,9 @@ int validatePuzzle(string boardStr) {
 
     vctSearcher.ids();
     if (vctMonitor.getBestValue().isWin())
-        return vctMonitor.getBestPath().size();
+        return convertPath2String(vctMonitor.getBestPath());
 
-    return -1;
+    return "";
 }
 
 int convertMoveToInt(Pos& move) {
@@ -68,9 +66,8 @@ int findNextMove(string boardStr) {
     Evaluator evaluator(board);
 
     // if game is already over
-    Value value = evaluator.evaluate();
-    if (value.isWin() && board.getResult() != ONGOING) return -1;
-    else if (value.isLose() && board.getResult() != ONGOING) return 1000;
+    Result status = board.getResult();
+    if (status != ONGOING) return -1;
 
     // if there is sure move
     Pos nextMove = evaluator.getSureMove();
@@ -119,7 +116,7 @@ int findNextMove(string boardStr) {
 }
 
 int main() {
-    //int depth = validatePuzzle("h8h9i8g8i10j9i9i7j10k11h10k10j8k7g10f10g11f12g7f6f7f11");
-    int move = findNextMove("h8h9i8i9j8j9g8g9f8");
+    string move = validatePuzzle("h8h9i8g8i10j9i9i7j10k11h10k10j8k7g10f10g11f12g7f6f7f11");
+    //int move = findNextMove("h8h9i8i9j8j9g8g9f8");
     TEST_PRINT(move);
 }
