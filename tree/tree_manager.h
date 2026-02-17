@@ -21,6 +21,8 @@ PUBLIC
     Node* getNode();
     Node* getRootNode();
     MoveList getBestLine(int i);
+    size_t getNodeCount() const;
+    size_t getEstimatedMemoryBytes() const;
 
 };
 
@@ -105,4 +107,12 @@ MoveList TreeManager::getBestLine(int i) {
     }
 
     return result;
+}
+
+size_t TreeManager::getNodeCount() const {
+    return tree.getNodeCount();
+}
+
+size_t TreeManager::getEstimatedMemoryBytes() const {
+    return tree.getEstimatedMemoryBytes();
 }

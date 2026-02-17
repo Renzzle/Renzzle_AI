@@ -25,6 +25,8 @@ PUBLIC
     Node* addNodeAsRoot(Board& board);
     Node* addNode(Node* parentNode, Board& newNode);
     Node* findNode(size_t hash);
+    size_t getNodeCount() const;
+    size_t getEstimatedMemoryBytes() const;
 
 };
 
@@ -54,4 +56,12 @@ Node* Tree::findNode(size_t hash) {
         return it->second.get();
     }
     return nullptr;
+}
+
+size_t Tree::getNodeCount() const {
+    return nodeMap.size();
+}
+
+size_t Tree::getEstimatedMemoryBytes() const {
+    return nodeMap.size() * sizeof(Node);
 }

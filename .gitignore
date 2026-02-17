@@ -2,6 +2,7 @@
 !*.*
 !*/
 /.vscode
+/.cursor
 *.dSYM
 *.exe
 .DS_Store
