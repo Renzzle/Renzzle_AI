@@ -7,64 +7,13 @@
 
 #define MAX_THINKING_TIME 10.0 // second
 
-SearchMonitor findVCF(Board board, atomic<bool>& stopFlag) {
-    TEST_PRINT("start findVCF()");
-    SearchMonitor monitor;
-    SearchWin vcfSearcher(board, monitor);
-
-    double lastTriggerTime = 0.0;
-    monitor.setTrigger([&stopFlag, &lastTriggerTime](SearchMonitor& monitor) {
-        if (monitor.getElapsedTime() >= MAX_THINKING_TIME) {
-            lastTriggerTime = monitor.getElapsedTime();
-            return true;
-        }
-        return stopFlag.load();
-    });
-    monitor.setSearchListener([&vcfSearcher](SearchMonitor& monitor) {
-        vcfSearcher.stop();
-    });
-
-    bool result = vcfSearcher.findVCF();
-    if (result) stopFlag = true;
-    TEST_PRINT("findVCF() result : " << stopFlag);
-
-    return monitor;
-}
-
-SearchMonitor findVCTorBestMove(Board board, atomic<bool>& stopFlag) {
-    TEST_PRINT("start findVCTorBestMove()");
-    SearchMonitor monitor;
-    Search vctSearcher(board, monitor);
-
-    double lastTriggerTime = 0.0;
-    monitor.setTrigger([&stopFlag, &lastTriggerTime](SearchMonitor& monitor) {
-        if (monitor.getElapsedTime() >= MAX_THINKING_TIME) {
-            lastTriggerTime = monitor.getElapsedTime();
-            return true;
-        }
-        if (stopFlag.load()) TEST_PRINT(stopFlag.load());
-        return stopFlag.load();
-    });
-    monitor.setSearchListener([&vctSearcher](SearchMonitor& monitor) {
-        vctSearcher.stop();
-    });
-
-    vctSearcher.ids();
-    
-    if (monitor.getBestValue().isWin()) stopFlag = true;
-    TEST_PRINT("findVCTorBestMove() result : " << stopFlag);
-
-    return monitor;
-}
-
-int validatePuzzle(string boardStr) {
+string validatePuzzle(string boardStr) {
     Board board = getBoard(boardStr);
     Evaluator evaluator(board);
 
     // if game is already over
-    Value value = evaluator.evaluate();
-    if (value.isLose()) return -1;
-    else if (value.isWin()) return value.getResultDepth();
+    Result status = board.getResult();
+    if (status != ONGOING) return "";
 
     SearchMonitor vcfMonitor;
     SearchWin vcfSearcher(board, vcfMonitor);
@@ -82,7 +31,7 @@ int validatePuzzle(string boardStr) {
     });
 
     bool result = vcfSearcher.findVCF();
-    if (result) return vcfMonitor.getBestPath().size();
+    if (result) return convertPath2String(vcfMonitor.getBestPath());
     
     SearchMonitor vctMonitor;
     Search vctSearcher(board, vctMonitor);
@@ -101,9 +50,9 @@ int validatePuzzle(string boardStr) {
 
     vctSearcher.ids();
     if (vctMonitor.getBestValue().isWin())
-        return vctMonitor.getBestPath().size();
+        return convertPath2String(vctMonitor.getBestPath());
 
-    return -1;
+    return "";
 }
 
 int convertMoveToInt(Pos& move) {
@@ -117,7 +66,8 @@ int findNextMove(string boardStr) {
     Evaluator evaluator(board);
 
     // if game is already over
-    if (!evaluator.evaluate().isOnGoing()) return -1;
+    Result status = board.getResult();
+    if (status != ONGOING) return -1;
 
     // if there is sure move
     Pos nextMove = evaluator.getSureMove();
@@ -166,7 +116,7 @@ int findNextMove(string boardStr) {
 }
 
 int main() {
-    //int depth = validatePuzzle("h8h9i8g8i10j9i9i7j10k11h10k10j8k7g10f10g11f12g7f6f7f11");
-    int move = findNextMove("h8h9i8g8i10i9j9k8k10l11i7j6j10");
+    string move = validatePuzzle("h8h9i8g8i10j9i9i7j10k11h10k10j8k7g10f10g11f12g7f6f7f11");
+    //int move = findNextMove("h8h9i8i9j8j9g8g9f8");
     TEST_PRINT(move);
 }

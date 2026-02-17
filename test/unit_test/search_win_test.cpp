@@ -22,7 +22,10 @@ private:
         });
 
         monitor.setSearchListener([&vcfSearcher](SearchMonitor& monitor) {
-            TEST_PRINT("Time: " << monitor.getElapsedTime() << "sec, Node: " << monitor.getVisitCnt());
+            size_t memBytes = vcfSearcher.getEstimatedMemoryBytes();
+            double memMB = memBytes / (1024.0 * 1024.0);
+            TEST_PRINT("Time: " << monitor.getElapsedTime() << "sec, Node: " << monitor.getVisitCnt()
+                << ", Tree nodes: " << vcfSearcher.getNodeCount() << ", Mem: " << memMB << " MB");
             printPath(monitor.getBestPath());
             //vcfSearcher.stop();
         });
@@ -38,14 +41,16 @@ private:
         if(!result) {
             TEST_PRINT("There is no VCF");
             size_t node = monitor.getVisitCnt();
-            TEST_PRINT("Node: " << node);
+            double memMB = vcfSearcher.getEstimatedMemoryBytes() / (1024.0 * 1024.0);
+            TEST_PRINT("Node: " << node << ", Tree nodes: " << vcfSearcher.getNodeCount() << ", Mem: " << memMB << " MB");
             return;
         }
 
         MoveList resultPath = monitor.getBestPath();
         int depth = resultPath.size();
         size_t node = monitor.getVisitCnt();
-        TEST_PRINT("Find VCF. Depth: " << depth << ", Node: " << node);
+        double memMB = vcfSearcher.getEstimatedMemoryBytes() / (1024.0 * 1024.0);
+        TEST_PRINT("Find VCF. Depth: " << depth << ", Node: " << node << ", Tree nodes: " << vcfSearcher.getNodeCount() << ", Mem: " << memMB << " MB");
         printPath(resultPath);
         TEST_PRINT("==================================");
     }

@@ -127,6 +127,15 @@ void printPath(MoveList path) {
     cout << endl;
 }
 
+string convertPath2String(MoveList path) {
+    string str = "";
+    for (const auto& pos : path) {
+        str += (char)(pos.getY() + 96);
+        str += to_string(pos.getX());
+    }
+    return str;
+}
+
 void printPos(Pos pos) {
     cout << (char)(pos.getY() + 96) << pos.getX();
 }

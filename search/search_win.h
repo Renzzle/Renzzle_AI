@@ -21,6 +21,8 @@ PUBLIC
     SearchWin(Board& board, SearchMonitor& monitor);
     bool findVCF();
     void stop();
+    size_t getNodeCount() const;
+    size_t getEstimatedMemoryBytes() const;
 
 };
 
@@ -112,4 +114,12 @@ bool SearchWin::isTargetTurn() {
 
 void SearchWin::stop() {
     isRunning = false;
+}
+
+size_t SearchWin::getNodeCount() const {
+    return treeManager.getNodeCount();
+}
+
+size_t SearchWin::getEstimatedMemoryBytes() const {
+    return treeManager.getEstimatedMemoryBytes();
 }
