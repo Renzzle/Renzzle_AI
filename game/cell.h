@@ -12,10 +12,10 @@ const Score defendScore[PATTERN_SIZE] = { 0, 00, 00, 00, 00, 02, 02, 02, 02, 10,
 class Cell {
 
 private:
-    Piece piece;
+    Score score[2];
     Pattern patterns[2][DIRECTION_SIZE];
     CompositePattern cPattern[2];
-    Score score[2];
+    Piece piece;
 
 public:
     Cell();
