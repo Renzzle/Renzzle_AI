@@ -53,6 +53,7 @@ private:
     size_t bucketCount = 0;
     size_t associativity = 4;
     size_t memoryBytes = 0;
+    size_t usedEntries = 0;
     uint8_t generation = 0;
 
     mutable size_t probeCount = 0;
@@ -99,6 +100,7 @@ public:
 
         entries.assign(bucketCount * associativity, TTEntry());
         memoryBytes = entries.size() * sizeof(TTEntry);
+        usedEntries = 0;
         generation = 0;
         resetStats();
     }
@@ -107,6 +109,7 @@ public:
         for (auto& entry : entries) {
             entry = TTEntry();
         }
+        usedEntries = 0;
         generation = 0;
         resetStats();
     }
@@ -166,6 +169,7 @@ public:
         }
 
         TTEntry& target = entries[slotIdx];
+        const bool wasEmpty = target.isEmpty();
 
         // Existing key: keep deeper info unless new one is EXACT.
         if (!target.isEmpty() && target.key == key) {
@@ -184,6 +188,18 @@ public:
         target.bestMove = bestMove;
         target.depth = depth;
         target.setMeta(flag, generation);
+        if (wasEmpty) {
+            usedEntries++;
+        }
+    }
+
+    size_t getUsedEntryCount() const {
+        return usedEntries;
+    }
+
+    double getLoadFactor() const {
+        if (entries.empty()) return 0.0;
+        return static_cast<double>(usedEntries) / static_cast<double>(entries.size());
     }
 
     size_t getEntryCount() const {
@@ -247,4 +263,3 @@ public:
         return Pos(x, y);
     }
 };
-

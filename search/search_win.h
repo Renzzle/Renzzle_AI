@@ -1,21 +1,32 @@
 #pragma once
 
 #include "../evaluate/evaluator.h"
-#include "../tree/tree_manager.h"
 #include "../test/test.h"
 #include "search_monitor.h"
+#include "transposition_table.h"
+#include <algorithm>
+#include <limits>
 
 class SearchWin {
 
 PRIVATE
-    TreeManager treeManager;
+    Board board;
+    MoveList rootPath;
     SearchMonitor& monitor;
     Color targetColor;
     Result targetResult;
     bool isRunning = false;
-    
+    TranspositionTable tt;
+
+    static constexpr uint64_t TURN_KEY_BLACK = 0x9e3779b97f4a7c15ULL;
+    static constexpr uint64_t TURN_KEY_WHITE = 0xc2b2ae3d27d4eb4fULL;
+
+    bool dfsVCF();
     bool isWin();
     bool isTargetTurn();
+    uint64_t getTTKey();
+    uint8_t getDepthLeft();
+    void moveTTBestFirst(MoveList& moves, const TTEntry* entry);
 
 PUBLIC
     SearchWin(Board& board, SearchMonitor& monitor);
@@ -26,8 +37,9 @@ PUBLIC
 
 };
 
-SearchWin::SearchWin(Board& board, SearchMonitor& monitor) : treeManager(board), monitor(monitor) {
-    targetColor = board.isBlackTurn() ? COLOR_BLACK : COLOR_WHITE;
+SearchWin::SearchWin(Board& initialBoard, SearchMonitor& monitor)
+    : board(initialBoard), rootPath(this->board.getPath()), monitor(monitor), tt(64ull * 1024ull * 1024ull, 4) {
+    targetColor = this->board.isBlackTurn() ? COLOR_BLACK : COLOR_WHITE;
     targetResult = (targetColor == COLOR_BLACK) ? BLACK_WIN : WHITE_WIN;
 }
 
@@ -35,80 +47,111 @@ bool SearchWin::findVCF() {
     if (!isRunning) {
         monitor.initStartTime();
         isRunning = true;
+        tt.clear();
+        tt.nextGeneration();
     }
-    monitor.incVisitCnt();
+    return dfsVCF();
+}
+
+bool SearchWin::dfsVCF() {
     monitor.updateElapsedTime();
+
     if (isWin()) return true;
     if (!isRunning) return false;
-    if (treeManager.getBoard().getResult() != ONGOING) return false;
-    
-    // find candidates
-    Evaluator evaluator(treeManager.getBoard());
-    MoveList moves;
+    if (board.getResult() != ONGOING) return false;
 
-    if (isTargetTurn())
-        moves = evaluator.getFours();
-    else 
-        moves = evaluator.getCandidates();
+    const uint64_t key = getTTKey();
+    const TTEntry* probed = tt.probe(key);
 
-    // dfs
-    for (auto move : moves) {
-        Node* childNode = treeManager.getChildNode(move);
-        if (childNode != nullptr) { // child node exist
-            // prune except win path
-            continue;
-        }
+    // score=0 means this state was already proven as no VCF path.
+    if (probed != nullptr && probed->getFlag() == TTFlag::EXACT && probed->score == 0) {
+        return false;
+    }
 
-        treeManager.move(move);
-        
-        if (findVCF()) {
-            // if find vcf, update parent node result
+    monitor.incVisitCnt();
+
+    Evaluator evaluator(board);
+    MoveList moves = isTargetTurn() ? evaluator.getFours() : evaluator.getCandidates();
+    moveTTBestFirst(moves, probed);
+
+    for (const auto& move : moves) {
+        if (!board.move(move)) continue;
+
+        if (dfsVCF()) {
+            board.undo();
+            tt.store(key, 1, getDepthLeft(), TTFlag::EXACT, TranspositionTable::encodeMove(move));
             return true;
         }
-        
-        treeManager.undo();
+
+        board.undo();
         if (!isRunning) break;
     }
 
+    tt.store(key, 0, getDepthLeft(), TTFlag::EXACT, TranspositionTable::INVALID_MOVE);
     return false;
 }
 
 bool SearchWin::isWin() {
-    Result result = treeManager.getBoard().getResult();;
-    bool isWin = false;
-    
+    Result result = board.getResult();
+    bool win = false;
+
     if (result == BLACK_WIN && targetColor == COLOR_BLACK)
-        isWin = true;
+        win = true;
     if (result == WHITE_WIN && targetColor == COLOR_WHITE)
-        isWin = true;
+        win = true;
 
-    // if win, update current node result & set vcf path
-    if (isWin) {        
-        const auto& fullPath = treeManager.getNode()->board.getPath();
-        const auto& rootPath = treeManager.getRootNode()->board.getPath();
+    if (win) {
+        const auto& fullPath = board.getPath();
 
-        int rootSize = static_cast<int>(rootPath.size());
-        int totalSize = static_cast<int>(fullPath.size());
-
-        MoveList bestPath(fullPath.begin() + rootSize, fullPath.end());
+        const size_t rootSize = rootPath.size();
+        const size_t totalSize = fullPath.size();
+        MoveList bestPath;
+        if (totalSize >= rootSize) {
+            bestPath.assign(fullPath.begin() + rootSize, fullPath.end());
+        }
 
         monitor.setBestPath(bestPath);
-        monitor.setBestValueProvider([&bestPath]() {
-            int resultDepth = bestPath.size();
-            return Value(Value::Result::WIN, resultDepth);
+        monitor.setBestValueProvider([bestPath]() {
+            return Value(Value::Result::WIN, static_cast<int>(bestPath.size()));
         });
     }
 
-    return isWin;
+    return win;
 }
 
 bool SearchWin::isTargetTurn() {
-    if (treeManager.getBoard().isBlackTurn()) {
-        if (targetColor == COLOR_BLACK) return true;
-        else return false;
-    } else {
-        if (targetColor == COLOR_BLACK) return false;
-        else return true;
+    if (board.isBlackTurn()) {
+        return targetColor == COLOR_BLACK;
+    }
+    return targetColor == COLOR_WHITE;
+}
+
+uint64_t SearchWin::getTTKey() {
+    uint64_t key = static_cast<uint64_t>(board.getCurrentHash());
+    key ^= board.isBlackTurn() ? TURN_KEY_BLACK : TURN_KEY_WHITE;
+    return key;
+}
+
+uint8_t SearchWin::getDepthLeft() {
+    const size_t pathSize = board.getPath().size();
+    size_t remain = 0;
+    if (BOARD_SIZE * BOARD_SIZE > pathSize) {
+        remain = (BOARD_SIZE * BOARD_SIZE) - pathSize;
+    }
+    if (remain > std::numeric_limits<uint8_t>::max()) {
+        remain = std::numeric_limits<uint8_t>::max();
+    }
+    return static_cast<uint8_t>(remain);
+}
+
+void SearchWin::moveTTBestFirst(MoveList& moves, const TTEntry* entry) {
+    if (entry == nullptr) return;
+    if (entry->bestMove == TranspositionTable::INVALID_MOVE) return;
+
+    const Pos bestMove = TranspositionTable::decodeMove(entry->bestMove);
+    const auto it = std::find(moves.begin(), moves.end(), bestMove);
+    if (it != moves.end() && it != moves.begin()) {
+        std::iter_swap(moves.begin(), it);
     }
 }
 
@@ -117,9 +160,9 @@ void SearchWin::stop() {
 }
 
 size_t SearchWin::getNodeCount() const {
-    return treeManager.getNodeCount();
+    return tt.getUsedEntryCount();
 }
 
 size_t SearchWin::getEstimatedMemoryBytes() const {
-    return treeManager.getEstimatedMemoryBytes();
+    return tt.getMemoryBytes();
 }
