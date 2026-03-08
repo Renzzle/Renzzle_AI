@@ -42,9 +42,9 @@ void Evaluator::classify() {
 
     for (int i = 1; i <= BOARD_SIZE; i++) {
         for (int j = 1; j <= BOARD_SIZE; j++) {
-            Pos p = Pos(i, j);
-            Cell& c = board.getCell(p);
+            Cell& c = board.getCell(i, j);
             if (c.getPiece() == EMPTY) {
+                Pos p(i, j);
                 patternMap[BLACK][c.getCompositePattern(BLACK)].push_back(p);
                 patternMap[WHITE][c.getCompositePattern(WHITE)].push_back(p);
             }
@@ -99,9 +99,11 @@ Pos Evaluator::getSureMove() {
         
         for (int r = 1; r <= BOARD_SIZE; ++r) {
             for (int c = 1; c <= BOARD_SIZE; ++c) {
-                Pos cp(r, c);
-                if (board.getCell(cp).getPiece() == EMPTY && !isMoveForbidden(cp)) {
-                    return cp;
+                if (board.getCell(r, c).getPiece() == EMPTY) {
+                    Pos cp(r, c);
+                    if (!isMoveForbidden(cp)) {
+                        return cp;
+                    }
                 }
             }
         }
@@ -194,16 +196,22 @@ MoveList Evaluator::getThreatDefend() {
                 p.setDirection(dir);
                 MoveList defendB4;
                 int f4Cnt = 0;
+                const int baseX = p.getX();
+                const int baseY = p.getY();
+                const int dx = getDirectionDx(dir);
+                const int dy = getDirectionDy(dir);
                 // check the number of free 4 move and if 1, blocked 4 move also can defend
                 for (int i = 0; i < LINE_LENGTH; i++) {
-                    if (!(p + (i - (LINE_LENGTH / 2)))) continue;
+                    const int offset = i - (LINE_LENGTH / 2);
+                    const int x = baseX + (dx * offset);
+                    const int y = baseY + (dy * offset);
+                    if (!isBoardCoord(x, y)) continue;
 
-                    if (board.getCell(p).getPattern(oppo, dir) == BLOCKED_4)
-                        defendB4.push_back(p);
-                    else if (board.getCell(p).getPattern(oppo, dir) == FREE_4)
+                    Cell& lineCell = board.getCell(x, y);
+                    if (lineCell.getPattern(oppo, dir) == BLOCKED_4)
+                        defendB4.emplace_back(x, y);
+                    else if (lineCell.getPattern(oppo, dir) == FREE_4)
                         f4Cnt++;
-
-                    p - (i - (LINE_LENGTH / 2));
                 }
 
                 if (f4Cnt == 1) {
@@ -220,10 +228,12 @@ MoveList Evaluator::getThreatDefend() {
     if (result.empty()) {
         for (int r = 1; r <= BOARD_SIZE; ++r) {
             for (int c = 1; c <= BOARD_SIZE; ++c) {
-                Pos cp(r, c);
-                if (board.getCell(cp).getPiece() == EMPTY && !isMoveForbidden(cp)) {
-                    result.push_back(cp);
-                    return result;
+                if (board.getCell(r, c).getPiece() == EMPTY) {
+                    Pos cp(r, c);
+                    if (!isMoveForbidden(cp)) {
+                        result.push_back(cp);
+                        return result;
+                    }
                 }
             }
         }

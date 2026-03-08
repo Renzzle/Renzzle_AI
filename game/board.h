@@ -23,13 +23,14 @@ PRIVATE
     void clearPattern(Cell& cell);
     void setPatterns(Pos& p);
     void setResult(Pos& p);
-    Line getLine(Pos& p);
+    Line getLine(int x, int y, Direction dir);
     Pattern getPattern(const Line& line, Color color);
 
 PUBLIC
     Board();
     bool isBlackTurn();
     CellArray& getBoardStatus();
+    Cell& getCell(int x, int y);
     Cell& getCell(const Pos p);
     bool move(Pos p);
     void undo();
@@ -64,6 +65,10 @@ bool Board::isBlackTurn() {
 
 CellArray& Board::getBoardStatus() {
     return cells;
+}
+
+Cell& Board::getCell(int x, int y) {
+    return cells[x][y];
 }
 
 Cell& Board::getCell(const Pos p) {
@@ -138,26 +143,33 @@ bool Board::isForbidden(Pos p) {
     getCell(p).setPiece(BLACK);
     setPatterns(p);
 
+    const int originX = p.x;
+    const int originY = p.y;
+
     for (Direction dir = DIRECTION_START; dir < DIRECTION_SIZE; dir++) {
-        p.dir = dir;
-        Pattern pattern = c.getPattern(BLACK, p.dir);
+        Pattern pattern = c.getPattern(BLACK, dir);
 
         // double three forbidden type
         if (pattern != FREE_3 && pattern != FREE_3A)
             continue;
-        
-        Pos posi = p;
+
+        const int dx = getDirectionDx(dir);
+        const int dy = getDirectionDy(dir);
         for (int i = 0; i < LINE_LENGTH; i++) {
-            if (!(posi + (i - (LINE_LENGTH / 2))))
+            const int offset = i - (LINE_LENGTH / 2);
+            const int x = originX + (dx * offset);
+            const int y = originY + (dy * offset);
+            if (!isBoardCoord(x, y))
                 continue;
 
-            Cell &c = getCell(posi);
-            if (c.getPiece() == EMPTY) {
+            Cell& cell = getCell(x, y);
+            if (cell.getPiece() == EMPTY) {
                 bool isFive = false;
-                if (c.getPattern(BLACK, dir) == FREE_4 && !isForbidden(posi)) {
+                Pos posi(x, y);
+                if (cell.getPattern(BLACK, dir) == FREE_4 && !isForbidden(posi)) {
                     for (Direction eDir = DIRECTION_START; eDir < DIRECTION_SIZE; eDir++) {
-                        Pattern pattern = c.getPattern(BLACK, eDir);
-                        if (pattern == FIVE)
+                        Pattern nextPattern = cell.getPattern(BLACK, eDir);
+                        if (nextPattern == FIVE)
                             isFive = true;
                     }
                     // made 5 with an empty space -> not a forbidden position
@@ -167,7 +179,6 @@ bool Board::isForbidden(Pos p) {
                     }
                 }
             }
-            posi - (i - (LINE_LENGTH / 2));
         }
 
         if (winByThree >= 2) {
@@ -205,18 +216,24 @@ void Board::clearPattern(Cell& cell) {
 }
 
 void Board::setPatterns(Pos& p) {
+    const int originX = p.x;
+    const int originY = p.y;
+
     if (getCell(p).getPiece() != EMPTY) {
         for (Direction dir = DIRECTION_START; dir < DIRECTION_SIZE; dir++) {
-            p.dir = dir;
+            const int dx = getDirectionDx(dir);
+            const int dy = getDirectionDy(dir);
             for (int i = 0; i < LINE_LENGTH; i++) {
                 const int offset = i - (LINE_LENGTH / 2);
-                if (!(p + offset)) {
+                const int x = originX + (dx * offset);
+                const int y = originY + (dy * offset);
+                if (!isBoardCoord(x, y)) {
                     continue;
                 }
 
-                Cell& c = getCell(p);
+                Cell& c = getCell(x, y);
                 if (c.getPiece() == EMPTY) {
-                    Line line = getLine(p);
+                    Line line = getLine(x, y, dir);
                     constexpr int mid = LINE_LENGTH / 2;
                     line[mid] = BLACK;
                     c.setPattern(BLACK, dir, getPattern(line, COLOR_BLACK));
@@ -225,8 +242,6 @@ void Board::setPatterns(Pos& p) {
                     c.setScore();
                     c.setCompositePattern();
                 }
-
-                p - offset;
             }
         }
         return;
@@ -237,29 +252,30 @@ void Board::setPatterns(Pos& p) {
     std::array<std::array<bool, BOARD_SIZE + 2>, BOARD_SIZE + 2> isTouched = {};
 
     for (Direction dir = DIRECTION_START; dir < DIRECTION_SIZE; dir++) {
-        p.dir = dir;
+        const int dx = getDirectionDx(dir);
+        const int dy = getDirectionDy(dir);
         for (int i = 0; i < LINE_LENGTH; i++) {
             const int offset = i - (LINE_LENGTH / 2);
-            if (!(p + offset)) {
+            const int x = originX + (dx * offset);
+            const int y = originY + (dy * offset);
+            if (!isBoardCoord(x, y)) {
                 continue;
             }
 
-            Cell& c = getCell(p);
+            Cell& c = getCell(x, y);
             if (c.getPiece() == EMPTY) {
-                Line line = getLine(p);
+                Line line = getLine(x, y, dir);
                 constexpr int mid = LINE_LENGTH / 2;
                 line[mid] = BLACK;
                 c.setPattern(BLACK, dir, getPattern(line, COLOR_BLACK));
                 line[mid] = WHITE;
                 c.setPattern(WHITE, dir, getPattern(line, COLOR_WHITE));
 
-                if (!isTouched[p.x][p.y]) {
-                    isTouched[p.x][p.y] = true;
-                    touchedCells[touchedCount++] = Pos(p.x, p.y);
+                if (!isTouched[x][y]) {
+                    isTouched[x][y] = true;
+                    touchedCells[touchedCount++] = Pos(x, y);
                 }
             }
-
-            p - offset;
         }
     }
 
@@ -270,17 +286,20 @@ void Board::setPatterns(Pos& p) {
     }
 }
 
-Line Board::getLine(Pos& p) {    
+Line Board::getLine(int x, int y, Direction dir) {
     Line line;
+    const int dx = getDirectionDx(dir);
+    const int dy = getDirectionDy(dir);
 
     for (int i = 0; i < LINE_LENGTH; i++) {
         const int offset = i - (LINE_LENGTH / 2);
-        if (!(p + offset)) {
+        const int nx = x + (dx * offset);
+        const int ny = y + (dy * offset);
+        if (!isBoardCoord(nx, ny)) {
             line[i] = WALL;
             continue; 
         }
-        line[i] = getCell(p).getPiece();
-        p - offset;
+        line[i] = getCell(nx, ny).getPiece();
     }
 
     return line;

@@ -5,6 +5,20 @@
 
 #define BOARD_SIZE 15
 
+inline int getDirectionDx(Direction dir) {
+    static constexpr int dx[DIRECTION_SIZE] = {0, 1, 1, 1};
+    return dx[static_cast<int>(dir)];
+}
+
+inline int getDirectionDy(Direction dir) {
+    static constexpr int dy[DIRECTION_SIZE] = {1, 0, 1, -1};
+    return dy[static_cast<int>(dir)];
+}
+
+inline bool isBoardCoord(int x, int y) {
+    return x >= 1 && x <= BOARD_SIZE && y >= 1 && y <= BOARD_SIZE;
+}
+
 class Pos {
 
     friend class Board;
@@ -14,27 +28,15 @@ private:
     Direction dir;
 
     static int getDx(Direction dir) {
-        switch (dir) {
-            case HORIZONTAL: return 0;
-            case VERTICAL:   return 1;
-            case UPWARD:     return 1;
-            case DOWNWARD:   return 1;
-            default:         return 0;
-        }
+        return getDirectionDx(dir);
     }
 
     static int getDy(Direction dir) {
-        switch (dir) {
-            case HORIZONTAL: return 1;
-            case VERTICAL:   return 0;
-            case UPWARD:     return 1;
-            case DOWNWARD:   return -1;
-            default:         return 0;
-        }
+        return getDirectionDy(dir);
     }
 
     bool isValid() {
-        return x >= 1 && x <= BOARD_SIZE && y >= 1 && y <= BOARD_SIZE;
+        return isBoardCoord(x, y);
     }
 
 public:
