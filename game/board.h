@@ -8,8 +8,6 @@
 #include <array>
 #include <vector>
 
-#define STATIC_WALL &cells[0][0];
-
 using namespace std;
 using MoveList = vector<Pos>;
 using CellArray = array<array<Cell, BOARD_SIZE + 2>, BOARD_SIZE + 2>;
@@ -26,7 +24,7 @@ PRIVATE
     void setPatterns(Pos& p);
     void setResult(Pos& p);
     Line getLine(Pos& p);
-    Pattern getPattern(Line& line, Color color);
+    Pattern getPattern(const Line& line, Color color);
 
 PUBLIC
     Board();
@@ -219,11 +217,11 @@ void Board::setPatterns(Pos& p) {
                 Cell& c = getCell(p);
                 if (c.getPiece() == EMPTY) {
                     Line line = getLine(p);
-                    c.setPiece(BLACK);
+                    constexpr int mid = LINE_LENGTH / 2;
+                    line[mid] = BLACK;
                     c.setPattern(BLACK, dir, getPattern(line, COLOR_BLACK));
-                    c.setPiece(WHITE);
+                    line[mid] = WHITE;
                     c.setPattern(WHITE, dir, getPattern(line, COLOR_WHITE));
-                    c.setPiece(EMPTY);
                     c.setScore();
                     c.setCompositePattern();
                 }
@@ -249,11 +247,11 @@ void Board::setPatterns(Pos& p) {
             Cell& c = getCell(p);
             if (c.getPiece() == EMPTY) {
                 Line line = getLine(p);
-                c.setPiece(BLACK);
+                constexpr int mid = LINE_LENGTH / 2;
+                line[mid] = BLACK;
                 c.setPattern(BLACK, dir, getPattern(line, COLOR_BLACK));
-                c.setPiece(WHITE);
+                line[mid] = WHITE;
                 c.setPattern(WHITE, dir, getPattern(line, COLOR_WHITE));
-                c.setPiece(EMPTY);
 
                 if (!isTouched[p.x][p.y]) {
                     isTouched[p.x][p.y] = true;
@@ -276,18 +274,19 @@ Line Board::getLine(Pos& p) {
     Line line;
 
     for (int i = 0; i < LINE_LENGTH; i++) {
-        if (!(p + (i - (LINE_LENGTH / 2)))) {
-            line[i] = STATIC_WALL;
+        const int offset = i - (LINE_LENGTH / 2);
+        if (!(p + offset)) {
+            line[i] = WALL;
             continue; 
         }
-        line[i] = &getCell(p);
-        p - (i - (LINE_LENGTH / 2));
+        line[i] = getCell(p).getPiece();
+        p - offset;
     }
 
     return line;
 }
 
-Pattern Board::getPattern(Line& line, Color color) {
+Pattern Board::getPattern(const Line& line, Color color) {
     constexpr uint32_t PIECE_BITS = 2;
     constexpr uint32_t COLOR_SHIFT = LINE_LENGTH * PIECE_BITS;
     constexpr uint32_t CACHE_SIZE = 1u << (COLOR_SHIFT + 1);
@@ -297,7 +296,7 @@ Pattern Board::getPattern(Line& line, Color color) {
 
     uint32_t key = (color == COLOR_WHITE) ? (1u << COLOR_SHIFT) : 0u;
     for (int i = 0; i < LINE_LENGTH; ++i) {
-        key |= static_cast<uint32_t>(line[i]->getPiece()) << (i * PIECE_BITS);
+        key |= static_cast<uint32_t>(line[i]) << (i * PIECE_BITS);
     }
 
     const uint8_t cachedPattern = patternCache[key];
@@ -330,12 +329,11 @@ Pattern Board::getPattern(Line& line, Color color) {
     Pattern p = DEAD;
 
     for (int i = start; i <= end; i++) {
-        Piece piece = line[i]->getPiece();
+        Piece piece = line[i];
         if (piece == EMPTY) {
-            Line sl = line.shiftLine(line, i);
-            sl[mid]->setPiece(self);
+            Line sl = line.shiftLine(i);
+            sl[mid] = self;
             Pattern slp = getPattern(sl, color);
-            sl[mid]->setPiece(EMPTY);
         
             if (slp == FIVE && patternCnt[FIVE] < 2) {
                 fiveIdx[patternCnt[FIVE]] = i;
