@@ -21,8 +21,8 @@ PRIVATE
     size_t currentHash;
 
     void clearPattern(Cell& cell);
-    void setPatterns(Pos& p);
-    void setResult(Pos& p);
+    void setPatterns(const Pos& p);
+    void setResult(const Pos& p);
     Line getLine(int x, int y, Direction dir);
     Pattern getPattern(const Line& line, Color color);
 
@@ -31,21 +31,22 @@ PUBLIC
     bool isBlackTurn();
     CellArray& getBoardStatus();
     Cell& getCell(int x, int y);
-    Cell& getCell(const Pos p);
-    bool move(Pos p);
+    Cell& getCell(const Pos& p);
+    bool move(const Pos& p);
     void undo();
     bool pass();
     Result getResult();
-    bool isForbidden(Pos p);
+    bool isForbidden(const Pos& p);
     MoveList& getPath();
     size_t getCurrentHash() const;
-    size_t getChildHash(Pos p);
+    size_t getChildHash(const Pos& p);
     
 };
 
 Board::Board() {
     currentHash = 0;
     result = ONGOING;
+    path.reserve(BOARD_SIZE * BOARD_SIZE);
 
     for (int i = 0; i < BOARD_SIZE + 2; i++) {
         for (int j = 0; j < BOARD_SIZE + 2; j++) {
@@ -71,12 +72,13 @@ Cell& Board::getCell(int x, int y) {
     return cells[x][y];
 }
 
-Cell& Board::getCell(const Pos p) {
+Cell& Board::getCell(const Pos& p) {
     return cells[p.x][p.y];
 }
 
-bool Board::move(Pos p) {
-    if (getCell(p).getPiece() != EMPTY) return false;
+bool Board::move(const Pos& p) {
+    Cell& targetCell = getCell(p);
+    if (targetCell.getPiece() != EMPTY) return false;
     if (result != ONGOING) return false;
     if (path.size() == BOARD_SIZE * BOARD_SIZE) return false;
 
@@ -86,10 +88,10 @@ bool Board::move(Pos p) {
 
     Piece piece = isBlackTurn() ? WHITE : BLACK;
     currentHash ^= getZobristValue(p.x, p.y, piece);
-    getCell(p).setPiece(piece);
+    targetCell.setPiece(piece);
 
-    clearPattern(getCell(p));
-    getCell(p).clearCompositePattern();
+    clearPattern(targetCell);
+    targetCell.clearCompositePattern();
     setPatterns(p);
 
     return true;
@@ -105,10 +107,11 @@ void Board::undo() {
         return;
     }
 
-    Piece piece = getCell(p).getPiece();
+    Cell& targetCell = getCell(p);
+    Piece piece = targetCell.getPiece();
     currentHash ^= getZobristValue(p.x, p.y, piece);
     
-    getCell(p).setPiece(EMPTY);
+    targetCell.setPiece(EMPTY);
 
     path.pop_back();
 
@@ -130,24 +133,31 @@ Result Board::getResult() {
     return result;
 }
 
-bool Board::isForbidden(Pos p) {
-    Cell c = getCell(p);
-    if (c.getPiece() != EMPTY) return false;
-    if (c.getCompositePattern(BLACK) == FORBID) return true;
-    if (c.getCompositePattern(BLACK) != FORBID_33) return false;
+bool Board::isForbidden(const Pos& p) {
+    Cell& targetCell = getCell(p);
+    if (targetCell.getPiece() != EMPTY) return false;
+
+    const CompositePattern baseCompositePattern = targetCell.getCompositePattern(BLACK);
+    if (baseCompositePattern == FORBID) return true;
+    if (baseCompositePattern != FORBID_33) return false;
+
+    std::array<Pattern, DIRECTION_SIZE> basePatterns;
+    for (Direction dir = DIRECTION_START; dir < DIRECTION_SIZE; dir++) {
+        basePatterns[dir] = targetCell.getPattern(BLACK, dir);
+    }
 
     int winByThree = 0;
 
     // recursive 3-3
     // move
-    getCell(p).setPiece(BLACK);
+    targetCell.setPiece(BLACK);
     setPatterns(p);
 
     const int originX = p.x;
     const int originY = p.y;
 
     for (Direction dir = DIRECTION_START; dir < DIRECTION_SIZE; dir++) {
-        Pattern pattern = c.getPattern(BLACK, dir);
+        Pattern pattern = basePatterns[dir];
 
         // double three forbidden type
         if (pattern != FREE_3 && pattern != FREE_3A)
@@ -187,7 +197,7 @@ bool Board::isForbidden(Pos p) {
     }
 
     // undo
-    getCell(p).setPiece(EMPTY);
+    targetCell.setPiece(EMPTY);
     setPatterns(p);
 
     return winByThree >= 2;
@@ -201,7 +211,7 @@ size_t Board::getCurrentHash() const {
     return currentHash;
 }
 
-size_t Board::getChildHash(Pos p) {
+size_t Board::getChildHash(const Pos& p) {
     size_t result = currentHash;
     Piece piece = isBlackTurn() ? BLACK : WHITE;
     result ^= getZobristValue(p.x, p.y, piece);
@@ -215,7 +225,7 @@ void Board::clearPattern(Cell& cell) {
     }
 }
 
-void Board::setPatterns(Pos& p) {
+void Board::setPatterns(const Pos& p) {
     const int originX = p.x;
     const int originY = p.y;
 
@@ -392,8 +402,9 @@ Pattern Board::getPattern(const Line& line, Color color) {
     return p;
 }
 
-void Board::setResult(Pos& p) {
+void Board::setResult(const Pos& p) {
     bool isBlackTurn = this->isBlackTurn();
+    Cell& targetCell = getCell(p);
 
     if (!isBlackTurn && isForbidden(p)) {
         result = WHITE_WIN;
@@ -402,7 +413,7 @@ void Board::setResult(Pos& p) {
 
     Piece self = isBlackTurn ? WHITE : BLACK;
     for (Direction dir = DIRECTION_START; dir < DIRECTION_SIZE; dir++) {
-        if(getCell(p).getPattern(self, dir) == FIVE) {
+        if (targetCell.getPattern(self, dir) == FIVE) {
             result = isBlackTurn ? WHITE_WIN : BLACK_WIN;
             return;
         }

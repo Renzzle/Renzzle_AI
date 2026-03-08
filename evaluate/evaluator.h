@@ -64,6 +64,19 @@ MoveList Evaluator::getCandidates() {
     if (isOppoMateExist()) {
         return getThreatDefend();
     }
+
+    result.reserve(
+        patternMap[self][B4_F3].size() +
+        patternMap[oppo][MATE].size() +
+        patternMap[self][F3_2X].size() +
+        patternMap[self][B4_PLUS].size() +
+        patternMap[self][B4_ANY].size() +
+        patternMap[self][F3_PLUS].size() +
+        patternMap[self][F3_ANY].size() +
+        patternMap[self][B3_PLUS].size() +
+        patternMap[self][F2_2X].size() +
+        patternMap[self][B3_ANY].size() +
+        patternMap[self][F2_ANY].size());
     
     result.insert(result.end(), patternMap[self][B4_F3].begin(), patternMap[self][B4_F3].end());
     for (const auto& p : patternMap[oppo][MATE]) {
@@ -91,6 +104,7 @@ Pos Evaluator::getSureMove() {
     }
     if (!patternMap[oppo][WINNING].empty()) {
         MoveList result;
+        result.reserve(patternMap[oppo][WINNING].size());
         for (const auto& p : patternMap[oppo][WINNING]) {
             if (!isMoveForbidden(p)) result.push_back(p);
         }
@@ -125,6 +139,10 @@ MoveList Evaluator::getFours() {
         result.push_back(patternMap[self][MATE].front());
         return result;
     }
+    result.reserve(
+        patternMap[self][B4_F3].size() +
+        patternMap[self][B4_PLUS].size() +
+        patternMap[self][B4_ANY].size());
     if (!patternMap[self][B4_F3].empty()) {
         result.insert(result.end(), patternMap[self][B4_F3].begin(), patternMap[self][B4_F3].end());
     }
@@ -148,6 +166,13 @@ MoveList Evaluator::getThreats() {
         result.push_back(patternMap[self][MATE].front());
         return result;
     }
+    result.reserve(
+        patternMap[self][B4_F3].size() +
+        patternMap[self][F3_2X].size() +
+        patternMap[self][F3_PLUS].size() +
+        patternMap[self][F3_ANY].size() +
+        patternMap[self][B4_PLUS].size() +
+        patternMap[self][B4_ANY].size());
     if (!patternMap[self][B4_F3].empty()) {
         result.insert(result.end(), patternMap[self][B4_F3].begin(), patternMap[self][B4_F3].end());
     }
@@ -175,6 +200,8 @@ MoveList Evaluator::getThreatDefend() {
 
     if (!isOppoMateExist()) return result;
 
+    result.reserve(patternMap[oppo][WINNING].size() + patternMap[oppo][MATE].size() * 2);
+
     if (!patternMap[oppo][WINNING].empty()) {
         for (const auto& p : patternMap[oppo][WINNING]) {
             if (!isMoveForbidden(p)) result.push_back(p);
@@ -195,6 +222,7 @@ MoveList Evaluator::getThreatDefend() {
             if (c.getPiece() == EMPTY && c.getPattern(oppo, dir) == FREE_4) {
                 p.setDirection(dir);
                 MoveList defendB4;
+                defendB4.reserve(LINE_LENGTH);
                 int f4Cnt = 0;
                 const int baseX = p.getX();
                 const int baseY = p.getY();

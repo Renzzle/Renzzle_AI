@@ -111,7 +111,7 @@ public:
         return x == other.x && y == other.y;
     }
 
-    bool isDefault() {
+    bool isDefault() const {
         return (x == -1) && (y == -1);
     }
     
