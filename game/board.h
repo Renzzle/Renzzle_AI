@@ -7,36 +7,12 @@
 #include "../test/test.h"
 #include <array>
 #include <vector>
-#include <unordered_map>
 
 #define STATIC_WALL &cells[0][0];
 
 using namespace std;
 using MoveList = vector<Pos>;
 using CellArray = array<array<Cell, BOARD_SIZE + 2>, BOARD_SIZE + 2>;
-
-struct LineCacheKey {
-    std::array<Piece, LINE_LENGTH> pieces;
-    Color analyzeColor;
-
-    bool operator==(const LineCacheKey& other) const {
-        return pieces == other.pieces && analyzeColor == other.analyzeColor;
-    }
-};
-
-namespace std {
-    template <>
-    struct hash<LineCacheKey> {
-        size_t operator()(const LineCacheKey& k) const {
-            size_t seed = k.pieces.size();
-            for(Piece p : k.pieces) {
-                seed ^= hash<int>()(static_cast<int>(p)) + 0x9e3779b9 + (seed << 6) + (seed >> 2);
-            }
-            seed ^= hash<int>()(static_cast<int>(k.analyzeColor)) + 0x9e3779b9 + (seed << 6) + (seed >> 2);
-            return seed;
-        }
-    };
-}
 
 class Board {
 
@@ -231,10 +207,42 @@ void Board::clearPattern(Cell& cell) {
 }
 
 void Board::setPatterns(Pos& p) {
+    if (getCell(p).getPiece() != EMPTY) {
+        for (Direction dir = DIRECTION_START; dir < DIRECTION_SIZE; dir++) {
+            p.dir = dir;
+            for (int i = 0; i < LINE_LENGTH; i++) {
+                const int offset = i - (LINE_LENGTH / 2);
+                if (!(p + offset)) {
+                    continue;
+                }
+
+                Cell& c = getCell(p);
+                if (c.getPiece() == EMPTY) {
+                    Line line = getLine(p);
+                    c.setPiece(BLACK);
+                    c.setPattern(BLACK, dir, getPattern(line, COLOR_BLACK));
+                    c.setPiece(WHITE);
+                    c.setPattern(WHITE, dir, getPattern(line, COLOR_WHITE));
+                    c.setPiece(EMPTY);
+                    c.setScore();
+                    c.setCompositePattern();
+                }
+
+                p - offset;
+            }
+        }
+        return;
+    }
+
+    std::array<Pos, LINE_LENGTH * DIRECTION_SIZE> touchedCells;
+    size_t touchedCount = 0;
+    std::array<std::array<bool, BOARD_SIZE + 2>, BOARD_SIZE + 2> isTouched = {};
+
     for (Direction dir = DIRECTION_START; dir < DIRECTION_SIZE; dir++) {
         p.dir = dir;
         for (int i = 0; i < LINE_LENGTH; i++) {
-            if (!(p + (i - (LINE_LENGTH / 2)))) {
+            const int offset = i - (LINE_LENGTH / 2);
+            if (!(p + offset)) {
                 continue;
             }
 
@@ -247,12 +255,20 @@ void Board::setPatterns(Pos& p) {
                 c.setPattern(WHITE, dir, getPattern(line, COLOR_WHITE));
                 c.setPiece(EMPTY);
 
-                c.setScore();
-                c.setCompositePattern();
+                if (!isTouched[p.x][p.y]) {
+                    isTouched[p.x][p.y] = true;
+                    touchedCells[touchedCount++] = Pos(p.x, p.y);
+                }
             }
 
-            p - (i - (LINE_LENGTH / 2));
+            p - offset;
         }
+    }
+
+    for (size_t i = 0; i < touchedCount; i++) {
+        Cell& c = getCell(touchedCells[i]);
+        c.setScore();
+        c.setCompositePattern();
     }
 }
 
@@ -272,17 +288,21 @@ Line Board::getLine(Pos& p) {
 }
 
 Pattern Board::getPattern(Line& line, Color color) {
-    static std::unordered_map<LineCacheKey, Pattern> patternCache;
+    constexpr uint32_t PIECE_BITS = 2;
+    constexpr uint32_t COLOR_SHIFT = LINE_LENGTH * PIECE_BITS;
+    constexpr uint32_t CACHE_SIZE = 1u << (COLOR_SHIFT + 1);
+    constexpr uint8_t CACHE_UNSET = 0;
 
-    LineCacheKey key;
+    static array<uint8_t, CACHE_SIZE> patternCache = {};
+
+    uint32_t key = (color == COLOR_WHITE) ? (1u << COLOR_SHIFT) : 0u;
     for (int i = 0; i < LINE_LENGTH; ++i) {
-        key.pieces[i] = line[i]->getPiece();
+        key |= static_cast<uint32_t>(line[i]->getPiece()) << (i * PIECE_BITS);
     }
-    key.analyzeColor = color;
 
-    auto it = patternCache.find(key);
-    if (it != patternCache.end()) {
-        return it->second; // cache hit
+    const uint8_t cachedPattern = patternCache[key];
+    if (cachedPattern != CACHE_UNSET) {
+        return static_cast<Pattern>(cachedPattern - 1);
     }
 
     constexpr auto mid = LINE_LENGTH / 2;
@@ -293,15 +313,15 @@ Pattern Board::getPattern(Line& line, Color color) {
     tie(realLen, fullLen, start, end) = line.countLine();
 
     if (isBlack && realLen >= 6) {
-        patternCache[key] = OVERLINE;
+        patternCache[key] = static_cast<uint8_t>(OVERLINE) + 1;
         return OVERLINE;
     }
     else if (realLen >= 5) {
-        patternCache[key] = FIVE;
+        patternCache[key] = static_cast<uint8_t>(FIVE) + 1;
         return FIVE;
     }
     else if (fullLen < 5) {
-        patternCache[key] = DEAD;
+        patternCache[key] = static_cast<uint8_t>(DEAD) + 1;
         return DEAD;
     }
 
@@ -314,7 +334,6 @@ Pattern Board::getPattern(Line& line, Color color) {
         if (piece == EMPTY) {
             Line sl = line.shiftLine(line, i);
             sl[mid]->setPiece(self);
-
             Pattern slp = getPattern(sl, color);
             sl[mid]->setPiece(EMPTY);
         
@@ -352,7 +371,7 @@ Pattern Board::getPattern(Line& line, Color color) {
     else if (patternCnt[BLOCKED_2])
         p = BLOCKED_1;
     
-    patternCache[key] = p;
+    patternCache[key] = static_cast<uint8_t>(p) + 1;
     return p;
 }
 
