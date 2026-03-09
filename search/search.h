@@ -1,46 +1,43 @@
 #pragma once
 
 #include "../evaluate/evaluator.h"
-#include "../tree/tree_manager.h"
 #include "../test/test.h"
-#include "search_win.h"
 #include "search_monitor.h"
-#include "../test/util.h"
+#include "transposition_table.h"
+#include <algorithm>
+#include <cstddef>
+#include <cstdint>
 #include <limits>
-#include <stack>
-
-enum class SearchMode {
-    FULL_WINDOW,
-    NULL_WINDOW
-};
-
-struct ABPNode {
-    int depth;
-    bool isMax;
-    Value alpha;
-    Value beta;
-    Value bestVal;
-    int childIdx;
-    MoveList childMoves;
-    SearchMode searchMode;
-};
+#include <vector>
 
 class Search {
 
 PRIVATE
-    TreeManager treeManager;
-    Color targetColor;
+    Board rootBoard;
+    Board board;
     SearchMonitor& monitor;
     bool isRunning = false;
+    TranspositionTable tt;
+    MoveList bestPath;
+    Value bestValue;
 
-    Value abp(int depth);
+    //  Random salts to distinguish the side to move in TT keys
+    static constexpr uint64_t TURN_KEY_BLACK = 0x9e3779b97f4a7c15ULL;
+    static constexpr uint64_t TURN_KEY_WHITE = 0xc2b2ae3d27d4eb4fULL;
+
+    Value abp(int depth, bool isMax, Value alpha, Value beta, MoveList* pv = nullptr);
     Value evaluateNode(Evaluator& evaluator);
     MoveList getCandidates(Evaluator& evaluator, bool isMax);
-    bool cutOffSearchedNode(stack<ABPNode>& stk);
-    void searchNextNode(stack<ABPNode>& stk);
-    void sortChildNodes(MoveList& moves, bool isTarget);
-    void updateParent(stack<ABPNode>& stk, Value childValue, SearchMode childMode);
+    void sortChildNodes(MoveList& moves, bool isMax, const TTEntry* entry);
     bool isGameOver(Board& board);
+    uint64_t getTTKey(Board& board) const;
+    uint64_t getChildTTKey(const Pos& move);
+    uint8_t getTTDepth(int depth) const;
+    TTFlag getTTFlag(Value::Type type) const;
+    Value getTTValue(const TTEntry& entry) const;
+    int32_t encodeTTScore(Value value) const;
+    void storeTT(Board& board, Value value, int depth, const Pos& bestMove);
+    void appendTTPV(Board tempBoard, MoveList& pv) const;
 
 PUBLIC
     Search(Board& board, SearchMonitor& monitor);
@@ -51,196 +48,203 @@ PUBLIC
 
 };
 
-Search::Search(Board& board, SearchMonitor& monitor) : treeManager(board), monitor(monitor) {
-    targetColor = board.isBlackTurn() ? COLOR_BLACK : COLOR_WHITE;
+Search::Search(Board& initialBoard, SearchMonitor& monitor)
+    : rootBoard(initialBoard), board(initialBoard), monitor(monitor), tt(64ull * 1024ull * 1024ull, 4) {
     monitor.setBestLineProvider([this](int i) {
-        return treeManager.getBestLine(i);
+        return i == 0 ? bestPath : MoveList();
     });
     monitor.setBestValueProvider([this]() {
-        return treeManager.getRootNode()->value;
+        return bestValue;
     });
 }
 
-bool Search::cutOffSearchedNode(stack<ABPNode>& stk) {
-    ABPNode &cur = stk.top();
-    Node* currentNode = treeManager.getNode();
-    bool cut = false;
+Value Search::abp(int depth, bool isMax, Value alpha, Value beta, MoveList* pv) {
+    monitor.updateElapsedTime();
+    if (!isRunning) return Value();
+    if (pv != nullptr) {
+        pv->clear();
+    }
 
-    if (currentNode->searchedDepth >= cur.depth && 
-        currentNode->value.getValue() != INITIAL_VALUE && 
-        currentNode->value.getType() != Value::Type::UNKNOWN && 
-        cur.childIdx == 0) {
-        Value cv = currentNode->value;
+    const Value originalAlpha = alpha;
+    const Value originalBeta = beta;
+    const uint64_t key = getTTKey(board);
+    const TTEntry* ttEntry = tt.probe(key);
 
-        if (currentNode->value.getType() == Value::Type::EXACT) {
-            cut = true;
-        } else if (currentNode->value.getType() == Value::Type::LOWER_BOUND) {
-            if (cv >= cur.beta) cut = true;
-        } else if (currentNode->value.getType() == Value::Type::UPPER_BOUND) {
-            if (cv <= cur.alpha) cut = true;
-        }
+    if (ttEntry != nullptr && ttEntry->depth >= getTTDepth(depth)) {
+        Value ttValue = getTTValue(*ttEntry);
 
-        if (cut) {
-            treeManager.undo();
-            stk.pop();
-
-            if (!stk.empty()) {
-                updateParent(stk, cv, cur.searchMode);
+        if (ttEntry->getFlag() == TTFlag::EXACT) {
+            if (pv != nullptr) {
+                appendTTPV(board, *pv);
             }
+            return ttValue;
+        }
+        if (ttEntry->getFlag() == TTFlag::LOWER_BOUND && ttValue >= beta) {
+            return ttValue;
+        }
+        if (ttEntry->getFlag() == TTFlag::UPPER_BOUND && ttValue <= alpha) {
+            return ttValue;
+        }
+
+        if (ttEntry->getFlag() == TTFlag::LOWER_BOUND && ttValue > alpha) {
+            alpha = ttValue;
+        } else if (ttEntry->getFlag() == TTFlag::UPPER_BOUND && ttValue < beta) {
+            beta = ttValue;
         }
     }
 
-    return cut;
-}
+    Evaluator evaluator(board);
+    MoveList moves = getCandidates(evaluator, isMax);
 
-void Search::searchNextNode(stack<ABPNode>& stk) {
-    ABPNode &cur = stk.top();
-
-    Pos move = cur.childMoves[cur.childIdx++];
-    treeManager.move(move);
-
-    Value nextAlpha = cur.alpha;
-    Value nextBeta = cur.beta;
-    nextAlpha.decreaseResultDepth();
-    nextBeta.decreaseResultDepth();
-
-    if (cur.searchMode == SearchMode::NULL_WINDOW) { // null window search in progress
-        stk.push({cur.depth - 1, !cur.isMax, nextAlpha, nextBeta, Value(), 0, {}, SearchMode::NULL_WINDOW});
-    } else if (cur.childIdx > 1) { // start new null window search
-        if (cur.isMax) {
-            nextBeta = nextAlpha;
-            nextBeta += 1;
-        } else {
-            nextAlpha = nextBeta;
-            nextAlpha -= 1;
+    if (depth == 0 || isGameOver(board) || moves.empty()) {
+        Value val = evaluateNode(evaluator);
+        if (!isMax) val.invert();
+        if (isRunning) {
+            storeTT(board, val, depth, Pos());
         }
-        stk.push({cur.depth - 1, !cur.isMax, nextAlpha, nextBeta, Value(), 0, {}, SearchMode::NULL_WINDOW});
-    } else {
-        stk.push({cur.depth - 1, !cur.isMax, nextAlpha, nextBeta, Value(), 0, {}, SearchMode::FULL_WINDOW});
+        return val;
     }
 
-    monitor.incVisitCnt();
-}
+    sortChildNodes(moves, isMax, ttEntry);
 
-void Search::updateParent(stack<ABPNode>& stk, Value childValue, SearchMode childMode) {
-    ABPNode& parent = stk.top();
-    Node* parentNode = treeManager.getNode();
-    Pos lastMove;
-    if (parent.childIdx > 0 && parent.childIdx - 1 < parent.childMoves.size()) {
-        lastMove = parent.childMoves[parent.childIdx - 1];
-    }
-    childValue.increaseResultDepth();
+    Value bestVal = isMax
+        ? Value(MIN_VALUE, Value::Type::UNKNOWN)
+        : Value(MAX_VALUE + 1, Value::Type::UNKNOWN);
+    Pos bestMove;
+    MoveList bestChildPV;
+    bool searchedAny = false;
 
-    // if null window search failed, re-search with full window
-    if (parent.searchMode == SearchMode::FULL_WINDOW && childMode == SearchMode::NULL_WINDOW) {
-        Value nextAlpha = parent.alpha;
-        Value nextBeta = parent.beta;
-        nextAlpha.decreaseResultDepth();
-        nextBeta.decreaseResultDepth();
-
-        stk.push({parent.depth - 1, !parent.isMax, nextAlpha, nextBeta, Value(), 0, {}, SearchMode::FULL_WINDOW});
-        Pos move = parent.childMoves[parent.childIdx - 1];
-        treeManager.move(move);
-        return;
-    }
-
-    if (parent.isMax) {
-        if (childValue > parent.bestVal && childValue.getType() == Value::Type::EXACT) {
-            parent.bestVal = childValue;
-            parentNode->value = childValue;
-            parentNode->bestMove = lastMove;
-        }
-        if (childValue > parent.alpha) {
-            parent.alpha = childValue;
-        }
-    } else {
-        if (childValue < parent.bestVal && childValue.getType() == Value::Type::EXACT) {
-            parent.bestVal = childValue;
-            parentNode->value = childValue;
-            parentNode->bestMove = lastMove;
-        }
-        if (childValue < parent.beta) {
-            parent.beta = childValue;
-        }
-    }
-
-    if (parent.beta <= parent.alpha) {
-        // pruning
-        if (parent.bestVal.getType() == Value::Type::UNKNOWN) {
-            parentNode->value = parent.isMax ? parent.alpha : parent.beta;
-            parentNode->bestMove = Pos();
-        } else {
-            parentNode->value.setType(parent.isMax ? Value::Type::LOWER_BOUND : Value::Type::UPPER_BOUND);
-        }
-        parentNode->searchedDepth = parent.depth;
-
-        treeManager.undo();
-        stk.pop();
-    }
-}
-
-Value Search::abp(int depth) {
-    stack<ABPNode> stk;
-    stk.push(ABPNode{depth, true, Value(MIN_VALUE, Value::Type::UNKNOWN), Value(MAX_VALUE + 1, Value::Type::UNKNOWN), Value(), 0, {}, SearchMode::FULL_WINDOW});
-
-    while (!stk.empty()) {
-        if (!isRunning) break;
-
-        monitor.updateElapsedTime();
-        ABPNode &cur = stk.top();
-        Node* currentNode = treeManager.getNode();
-
-        // if already searched
-        if (cutOffSearchedNode(stk)) continue;
-
-        // calculate child nodes & initialize best value
-        if (cur.childMoves.empty()) { // when first visit
-            Evaluator evaluator(currentNode->board);
-            cur.childMoves = getCandidates(evaluator, cur.isMax);
-            cur.bestVal = cur.isMax ? Value(MIN_VALUE, Value::Type::UNKNOWN) : Value(MAX_VALUE + 1, Value::Type::UNKNOWN);
-        }
-        
-        // if current node is leaf node
-        if (cur.depth == 0 || 
-            isGameOver(currentNode->board) || 
-            cur.childMoves.empty()) {
-            // evaluate leaf node value
-            Evaluator evaluator(currentNode->board);
-            Value val = evaluateNode(evaluator);
-            if (!cur.isMax) val.invert();
-            currentNode->value = val;
-
-            treeManager.undo();
-            stk.pop();
-
-            if (!stk.empty()) {
-                updateParent(stk, val, cur.searchMode);
-            }
-
+    for (size_t i = 0; i < moves.size(); ++i) {
+        const Pos move = moves[i];
+        if (!board.move(move)) {
             continue;
         }
 
-        if (cur.childIdx < cur.childMoves.size()) {
-            searchNextNode(stk);
-        } else { // if search every child nodes
-            if (cur.bestVal.getType() == Value::Type::UNKNOWN) {
-                cur.bestVal = cur.isMax ? cur.alpha : cur.beta;
-                cur.bestVal.setType(cur.isMax ? Value::Type::UPPER_BOUND : Value::Type::LOWER_BOUND);
-                currentNode->bestMove = Pos();
-            }
-            currentNode->searchedDepth = cur.depth;
-            currentNode->value = cur.bestVal;
-            
-            treeManager.undo();
-            stk.pop();
+        searchedAny = true;
+        monitor.incVisitCnt();
 
-            if (!stk.empty()) {
-                updateParent(stk, cur.bestVal, cur.searchMode);
+        Value nextAlpha = alpha;
+        Value nextBeta = beta;
+        nextAlpha.decreaseResultDepth();
+        nextBeta.decreaseResultDepth();
+
+        Value childValue;
+        MoveList childPV;
+        bool hasExactChildPV = false;
+        if (i == 0) {
+            childValue = abp(depth - 1, !isMax, nextAlpha, nextBeta, &childPV);
+            hasExactChildPV = childValue.getType() == Value::Type::EXACT;
+        } else {
+            Value nullAlpha = nextAlpha;
+            Value nullBeta = nextBeta;
+            if (isMax) {
+                nullBeta = nullAlpha;
+                nullBeta += 1;
+            } else {
+                nullAlpha = nullBeta;
+                nullAlpha -= 1;
+            }
+
+            childValue = abp(depth - 1, !isMax, nullAlpha, nullBeta, nullptr);
+
+            if (isRunning) {
+                const bool needResearch =
+                    (isMax && childValue > alpha && childValue < beta) ||
+                    (!isMax && childValue < beta && childValue > alpha);
+                if (needResearch) {
+                    childValue = abp(depth - 1, !isMax, nextAlpha, nextBeta, &childPV);
+                    hasExactChildPV = childValue.getType() == Value::Type::EXACT;
+                } else if (pv != nullptr) {
+                    const bool couldBecomeBest =
+                        (isMax && childValue > bestVal) ||
+                        (!isMax && childValue < bestVal);
+                    if (couldBecomeBest) {
+                        childValue = abp(depth - 1, !isMax, nextAlpha, nextBeta, &childPV);
+                        hasExactChildPV = childValue.getType() == Value::Type::EXACT;
+                    }
+                }
+            }
+        }
+
+        board.undo();
+
+        if (!isRunning) {
+            break;
+        }
+
+        childValue.increaseResultDepth();
+
+        if (isMax) {
+            if (childValue > bestVal) {
+                bestVal = childValue;
+                bestMove = move;
+                bestChildPV = hasExactChildPV ? childPV : MoveList();
+            }
+            if (childValue > alpha) {
+                alpha = childValue;
+            }
+        } else {
+            if (childValue < bestVal) {
+                bestVal = childValue;
+                bestMove = move;
+                bestChildPV = hasExactChildPV ? childPV : MoveList();
+            }
+            if (childValue < beta) {
+                beta = childValue;
+            }
+        }
+
+        if (beta <= alpha) {
+            break;
+        }
+    }
+
+    if (!searchedAny) {
+        Value val = evaluateNode(evaluator);
+        if (!isMax) val.invert();
+        if (isRunning) {
+            storeTT(board, val, depth, Pos());
+        }
+        return val;
+    }
+
+    Value result = bestVal;
+    if (result.getType() == Value::Type::UNKNOWN) {
+        result = isMax ? alpha : beta;
+    }
+
+    if (result <= originalAlpha) {
+        result.setType(Value::Type::UPPER_BOUND);
+    } else if (result >= originalBeta) {
+        result.setType(Value::Type::LOWER_BOUND);
+    } else {
+        result.setType(Value::Type::EXACT);
+    }
+
+    if (isRunning) {
+        storeTT(board, result, depth, bestMove);
+    }
+
+    if (pv != nullptr && !bestMove.isDefault()) {
+        pv->push_back(bestMove);
+        if (result.getType() == Value::Type::EXACT) {
+            if (!bestChildPV.empty()) {
+                pv->insert(pv->end(), bestChildPV.begin(), bestChildPV.end());
+            } else {
+                Board tempBoard = board;
+                if (tempBoard.move(bestMove)) {
+                    appendTTPV(tempBoard, *pv);
+                }
+            }
+        } else {
+            Board tempBoard = board;
+            if (tempBoard.move(bestMove)) {
+                appendTTPV(tempBoard, *pv);
             }
         }
     }
 
-    return treeManager.getNode()->value;
+    return result;
 }
 
 Value Search::evaluateNode(Evaluator& evaluator) {
@@ -264,68 +268,85 @@ MoveList Search::getCandidates(Evaluator& evaluator, bool isMax) {
         moves = evaluator.getThreats();
     }
 
-    sortChildNodes(moves, isMax);
+    sortChildNodes(moves, isMax, tt.probe(getTTKey(board)));
     return moves;
 }
 
-void Search::sortChildNodes(MoveList& moves, bool isMax) {
-    if (treeManager.getNode()->childNodes.empty()) {
+void Search::sortChildNodes(MoveList& moves, bool isMax, const TTEntry* entry) {
+    if (moves.size() < 2 || entry == nullptr) {
         return;
     }
-    Pos bestMove = treeManager.getNode()->bestMove;
 
-    auto getValueTypePriority = [&](Value::Type type) {
-        if (isMax) {
-            switch (type) {
-                case Value::Type::EXACT:       return 0;
-                case Value::Type::LOWER_BOUND: return 1;
-                case Value::Type::UNKNOWN:     return 2;
-                case Value::Type::UPPER_BOUND: return 3;
-                default: return 2;
-            }
-        } else { 
-            switch (type) {
-                case Value::Type::EXACT:       return 0;
-                case Value::Type::UPPER_BOUND: return 1;
-                case Value::Type::UNKNOWN:     return 2;
-                case Value::Type::LOWER_BOUND: return 3;
-                default: return 2;
-            }
-        }
+    struct MoveOrderInfo {
+        Pos move;
+        bool isTTBest;
+        bool hasTT;
+        int flagPriority;
+        int32_t ttScore;
+        int cellScore;
     };
 
-    sort(moves.begin(), moves.end(), [&](const Pos& a, const Pos& b) {
-        if (!bestMove.isDefault()) {
-            if (a == bestMove) return true;
-            if (b == bestMove) return false;
-        }
+    const Piece self = board.isBlackTurn() ? BLACK : WHITE;
+    const Pos ttBestMove = (entry->bestMove != TranspositionTable::INVALID_MOVE)
+        ? TranspositionTable::decodeMove(entry->bestMove)
+        : Pos();
 
-        Node* aNode = treeManager.getChildNode(a);
-        Node* bNode = treeManager.getChildNode(b);
-
-        bool aIsUnknown = (aNode == nullptr || aNode->value.getType() == Value::Type::UNKNOWN);
-        bool bIsUnknown = (bNode == nullptr || bNode->value.getType() == Value::Type::UNKNOWN);
-
-        if (aIsUnknown && bIsUnknown) return false;
-        if (aIsUnknown) return false;
-        if (bIsUnknown) return true;
-
-        Value aValue = aNode->value;
-        Value bValue = bNode->value;
-
-        int aPriority = getValueTypePriority(aValue.getType());
-        int bPriority = getValueTypePriority(bValue.getType());
-
-        if (aPriority != bPriority) {
-            return aPriority < bPriority;
-        }
-
+    auto getValueTypePriority = [&](TTFlag flag) {
         if (isMax) {
-            return aValue > bValue;
+            switch (flag) {
+                case TTFlag::EXACT:       return 0;
+                case TTFlag::LOWER_BOUND: return 1;
+                case TTFlag::NONE:        return 2;
+                case TTFlag::UPPER_BOUND: return 3;
+            }
         } else {
-            return aValue < bValue;
+            switch (flag) {
+                case TTFlag::EXACT:       return 0;
+                case TTFlag::UPPER_BOUND: return 1;
+                case TTFlag::NONE:        return 2;
+                case TTFlag::LOWER_BOUND: return 3;
+            }
         }
+        return 2;
+    };
+
+    vector<MoveOrderInfo> infos;
+    infos.reserve(moves.size());
+
+    for (const Pos& move : moves) {
+        const TTEntry* childEntry = tt.probe(getChildTTKey(move));
+        MoveOrderInfo info;
+        info.move = move;
+        info.isTTBest = !ttBestMove.isDefault() && move == ttBestMove;
+        info.hasTT = childEntry != nullptr;
+        info.flagPriority = childEntry != nullptr ? getValueTypePriority(childEntry->getFlag()) : getValueTypePriority(TTFlag::NONE);
+        info.ttScore = childEntry != nullptr ? childEntry->score : 0;
+        info.cellScore = board.getCell(move).getScore(self);
+        infos.push_back(info);
+    }
+
+    sort(infos.begin(), infos.end(), [&](const MoveOrderInfo& a, const MoveOrderInfo& b) {
+        if (a.isTTBest != b.isTTBest) {
+            return a.isTTBest;
+        }
+        if (a.hasTT != b.hasTT) {
+            return a.hasTT;
+        }
+        if (a.flagPriority != b.flagPriority) {
+            return a.flagPriority < b.flagPriority;
+        }
+        if (a.ttScore != b.ttScore) {
+            return isMax ? (a.ttScore > b.ttScore) : (a.ttScore < b.ttScore);
+        }
+        if (a.cellScore != b.cellScore) {
+            return a.cellScore > b.cellScore;
+        }
+        return a.move < b.move;
     });
+
+    for (size_t i = 0; i < moves.size(); ++i) {
+        moves[i] = infos[i].move;
+    }
 }
 
 bool Search::isGameOver(Board& board) {
@@ -335,18 +356,62 @@ bool Search::isGameOver(Board& board) {
 
 void Search::ids() {
     isRunning = true;
+    bestPath.clear();
+    bestValue = Value();
     monitor.incDepth(5);
     monitor.initStartTime();
+    tt.clear();
 
     while (true) {
-        Value result = abp(monitor.getDepth());
-        monitor.setBestPath(treeManager.getBestLine(0));
+        tt.nextGeneration();
 
-        if (result.isWin() && result.getResultDepth() <= monitor.getDepth()) 
+        MoveList iterationPV;
+        Value result = abp(
+            monitor.getDepth(),
+            true,
+            Value(MIN_VALUE, Value::Type::UNKNOWN),
+            Value(MAX_VALUE + 1, Value::Type::UNKNOWN),
+            &iterationPV
+        );
+
+        if (!isRunning) {
             break;
+        }
+
+        bestValue = result;
+        bestPath = iterationPV;
+        if (bestValue.isWin() && bestPath.size() < static_cast<size_t>(bestValue.getResultDepth())) {
+            const Board savedBoard = board;
+            Board tempBoard = rootBoard;
+            for (const Pos& move : bestPath) {
+                if (!tempBoard.move(move)) {
+                    break;
+                }
+            }
+
+            if (tempBoard.getResult() == ONGOING) {
+                board = tempBoard;
+                MoveList tailPV;
+                const int remainDepth = bestValue.getResultDepth() - static_cast<int>(bestPath.size());
+                const bool tailIsMax = (bestPath.size() % 2 == 0);
+                abp(
+                    remainDepth,
+                    tailIsMax,
+                    Value(MIN_VALUE, Value::Type::UNKNOWN),
+                    Value(MAX_VALUE + 1, Value::Type::UNKNOWN),
+                    &tailPV
+                );
+                bestPath.insert(bestPath.end(), tailPV.begin(), tailPV.end());
+                board = savedBoard;
+            }
+        }
+        monitor.setBestPath(bestPath);
+
+        if (result.isWin() && result.getResultDepth() <= monitor.getDepth()) {
+            break;
+        }
 
         monitor.incDepth(2);
-        if (!isRunning) break;
     }
 }
 
@@ -355,9 +420,101 @@ void Search::stop() {
 }
 
 size_t Search::getNodeCount() const {
-    return treeManager.getNodeCount();
+    return tt.getUsedEntryCount();
 }
 
 size_t Search::getEstimatedMemoryBytes() const {
-    return treeManager.getEstimatedMemoryBytes();
+    return tt.getMemoryBytes()
+        + (sizeof(Board) * 2)
+        + (bestPath.capacity() * sizeof(Pos));
+}
+
+uint64_t Search::getTTKey(Board& board) const {
+    uint64_t key = static_cast<uint64_t>(board.getCurrentHash());
+    key ^= board.isBlackTurn() ? TURN_KEY_BLACK : TURN_KEY_WHITE;
+    return key;
+}
+
+uint64_t Search::getChildTTKey(const Pos& move) {
+    uint64_t key = static_cast<uint64_t>(board.getChildHash(move));
+    key ^= board.isBlackTurn() ? TURN_KEY_WHITE : TURN_KEY_BLACK;
+    return key;
+}
+
+uint8_t Search::getTTDepth(int depth) const {
+    if (depth < 0) return 0;
+    if (depth > std::numeric_limits<uint8_t>::max()) {
+        return std::numeric_limits<uint8_t>::max();
+    }
+    return static_cast<uint8_t>(depth);
+}
+
+TTFlag Search::getTTFlag(Value::Type type) const {
+    if (type == Value::Type::EXACT) return TTFlag::EXACT;
+    if (type == Value::Type::LOWER_BOUND) return TTFlag::LOWER_BOUND;
+    if (type == Value::Type::UPPER_BOUND) return TTFlag::UPPER_BOUND;
+    return TTFlag::NONE;
+}
+
+Value Search::getTTValue(const TTEntry& entry) const {
+    Value value;
+    if (entry.score >= (MAX_VALUE - (BOARD_SIZE * BOARD_SIZE))) {
+        value = Value(Value::Result::WIN, MAX_VALUE - entry.score);
+    } else if (entry.score <= (MIN_VALUE + (BOARD_SIZE * BOARD_SIZE))) {
+        value = Value(Value::Result::LOSE, entry.score - MIN_VALUE);
+    } else {
+        value = Value(entry.score);
+    }
+
+    if (entry.getFlag() == TTFlag::LOWER_BOUND) {
+        value.setType(Value::Type::LOWER_BOUND);
+    } else if (entry.getFlag() == TTFlag::UPPER_BOUND) {
+        value.setType(Value::Type::UPPER_BOUND);
+    } else {
+        value.setType(Value::Type::EXACT);
+    }
+
+    return value;
+}
+
+int32_t Search::encodeTTScore(Value value) const {
+    if (value.getResult() == Value::Result::WIN) {
+        return MAX_VALUE - value.getResultDepth();
+    }
+    if (value.getResult() == Value::Result::LOSE) {
+        return MIN_VALUE + value.getResultDepth();
+    }
+    return value.getValue();
+}
+
+void Search::storeTT(Board& board, Value value, int depth, const Pos& bestMove) {
+    const TTFlag flag = getTTFlag(value.getType());
+    if (flag == TTFlag::NONE) return;
+
+    tt.store(
+        getTTKey(board),
+        encodeTTScore(value),
+        getTTDepth(depth),
+        flag,
+        TranspositionTable::encodeMove(bestMove)
+    );
+}
+
+void Search::appendTTPV(Board tempBoard, MoveList& pv) const {
+    for (int ply = 0; ply < BOARD_SIZE * BOARD_SIZE; ++ply) {
+        const TTEntry* entry = tt.probe(getTTKey(tempBoard));
+        if (entry == nullptr || entry->bestMove == TranspositionTable::INVALID_MOVE) {
+            break;
+        }
+
+        const Pos move = TranspositionTable::decodeMove(entry->bestMove);
+        if (move.isDefault() || !tempBoard.move(move)) {
+            break;
+        }
+
+        pv.push_back(move);
+        if (tempBoard.getResult() != ONGOING) {
+            break;
+        }
+    }
 }

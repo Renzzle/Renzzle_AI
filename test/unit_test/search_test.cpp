@@ -7,7 +7,6 @@ class SearchTest : public TestBase {
 PRIVATE
     void searchTest(string process) {
         Board board = getBoard(process);
-        int maxDepth = 4;
         SearchMonitor monitor;
         Search searcher(board, monitor);
 
@@ -24,7 +23,7 @@ PRIVATE
         monitor.setSearchListener([&searcher](SearchMonitor& monitor) {
             const double memMB = searcher.getEstimatedMemoryBytes() / (1024.0 * 1024.0);
             TEST_PRINT("Depth: " << monitor.getDepth() << ", Time: " << monitor.getElapsedTime() << 
-            "sec, Node: " << monitor.getVisitCnt() << ", Tree nodes: " << searcher.getNodeCount() <<
+            "sec, Node: " << monitor.getVisitCnt() << ", TT entries: " << searcher.getNodeCount() <<
             ", Mem: " << memMB << " MB, Value: " << monitor.getBestValue().getValue());
             printPath(monitor.getBestPath());
         });
@@ -35,7 +34,7 @@ PRIVATE
         searcher.ids();
         TEST_TIME_END("alpha-beta search");
         TEST_PRINT("Final visited node: " << monitor.getVisitCnt());
-        TEST_PRINT("Final tree nodes: " << searcher.getNodeCount() << 
+        TEST_PRINT("Final TT entries: " << searcher.getNodeCount() << 
             ", Mem: " << (searcher.getEstimatedMemoryBytes() / (1024.0 * 1024.0)) << " MB");
         printPath(monitor.getBestLine(0));
     }
