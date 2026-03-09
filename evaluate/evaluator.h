@@ -2,9 +2,59 @@
 
 #include "../game/board.h"
 #include "value.h"
+#include <array>
 #include <vector>
 #include <algorithm>
 #include <tuple>
+
+class MoveBucket {
+
+private:
+    static constexpr int CAPACITY = BOARD_SIZE * BOARD_SIZE;
+
+    array<uint8_t, CAPACITY> data;
+    int count = 0;
+
+    static uint8_t encode(const Pos& p) {
+        return static_cast<uint8_t>((p.getX() << 4) | p.getY());
+    }
+
+    static Pos decode(uint8_t code) {
+        return Pos(code >> 4, code & 0x0F);
+    }
+
+public:
+    void clear() {
+        count = 0;
+    }
+
+    void push_back(const Pos& p) {
+        data[count++] = encode(p);
+    }
+
+    bool empty() const {
+        return count == 0;
+    }
+
+    int size() const {
+        return count;
+    }
+
+    Pos front() const {
+        return decode(data[0]);
+    }
+
+    Pos operator[](int index) const {
+        return decode(data[index]);
+    }
+
+    void appendTo(MoveList& result) const {
+        for (int i = 0; i < count; ++i) {
+            result.push_back(decode(data[i]));
+        }
+    }
+
+};
 
 class Evaluator {
 
@@ -13,7 +63,7 @@ PRIVATE
     Piece self = BLACK;
     Piece oppo = WHITE;
 
-    MoveList patternMap[2][COMPOSITE_PATTERN_SIZE];
+    MoveBucket patternMap[2][COMPOSITE_PATTERN_SIZE];
 
     void classify();
     
@@ -37,6 +87,12 @@ Evaluator::Evaluator(Board& board) : board(board) {
 void Evaluator::classify() {
     self = board.isBlackTurn() ? BLACK : WHITE;
     oppo = !board.isBlackTurn() ? BLACK : WHITE;
+
+    for (int color = 0; color < 2; ++color) {
+        for (int pattern = 0; pattern < COMPOSITE_PATTERN_SIZE; ++pattern) {
+            patternMap[color][pattern].clear();
+        }
+    }
 
     if (board.getResult() != ONGOING) return;
 
@@ -78,19 +134,20 @@ MoveList Evaluator::getCandidates() {
         patternMap[self][B3_ANY].size() +
         patternMap[self][F2_ANY].size());
     
-    result.insert(result.end(), patternMap[self][B4_F3].begin(), patternMap[self][B4_F3].end());
-    for (const auto& p : patternMap[oppo][MATE]) {
+    patternMap[self][B4_F3].appendTo(result);
+    for (int i = 0; i < patternMap[oppo][MATE].size(); ++i) {
+        Pos p = patternMap[oppo][MATE][i];
         if (!isMoveForbidden(p)) result.push_back(p);
     }
-    result.insert(result.end(), patternMap[self][F3_2X].begin(), patternMap[self][F3_2X].end());
-    result.insert(result.end(), patternMap[self][B4_PLUS].begin(), patternMap[self][B4_PLUS].end());
-    result.insert(result.end(), patternMap[self][B4_ANY].begin(), patternMap[self][B4_ANY].end());
-    result.insert(result.end(), patternMap[self][F3_PLUS].begin(), patternMap[self][F3_PLUS].end());
-    result.insert(result.end(), patternMap[self][F3_ANY].begin(), patternMap[self][F3_ANY].end());
-    result.insert(result.end(), patternMap[self][B3_PLUS].begin(), patternMap[self][B3_PLUS].end());
-    result.insert(result.end(), patternMap[self][F2_2X].begin(), patternMap[self][F2_2X].end());
-    result.insert(result.end(), patternMap[self][B3_ANY].begin(), patternMap[self][B3_ANY].end());
-    result.insert(result.end(), patternMap[self][F2_ANY].begin(), patternMap[self][F2_ANY].end());
+    patternMap[self][F3_2X].appendTo(result);
+    patternMap[self][B4_PLUS].appendTo(result);
+    patternMap[self][B4_ANY].appendTo(result);
+    patternMap[self][F3_PLUS].appendTo(result);
+    patternMap[self][F3_ANY].appendTo(result);
+    patternMap[self][B3_PLUS].appendTo(result);
+    patternMap[self][F2_2X].appendTo(result);
+    patternMap[self][B3_ANY].appendTo(result);
+    patternMap[self][F2_ANY].appendTo(result);
     sort(result.begin(), result.end(), [&](const Pos& a, const Pos& b) {
         return board.getCell(a).getScore(self) > board.getCell(b).getScore(self);
     });
@@ -105,7 +162,8 @@ Pos Evaluator::getSureMove() {
     if (!patternMap[oppo][WINNING].empty()) {
         MoveList result;
         result.reserve(patternMap[oppo][WINNING].size());
-        for (const auto& p : patternMap[oppo][WINNING]) {
+        for (int i = 0; i < patternMap[oppo][WINNING].size(); ++i) {
+            Pos p = patternMap[oppo][WINNING][i];
             if (!isMoveForbidden(p)) result.push_back(p);
         }
         
@@ -143,15 +201,9 @@ MoveList Evaluator::getFours() {
         patternMap[self][B4_F3].size() +
         patternMap[self][B4_PLUS].size() +
         patternMap[self][B4_ANY].size());
-    if (!patternMap[self][B4_F3].empty()) {
-        result.insert(result.end(), patternMap[self][B4_F3].begin(), patternMap[self][B4_F3].end());
-    }
-    if (!patternMap[self][B4_PLUS].empty()) {
-        result.insert(result.end(), patternMap[self][B4_PLUS].begin(), patternMap[self][B4_PLUS].end());
-    }
-    if (!patternMap[self][B4_ANY].empty()) {
-        result.insert(result.end(), patternMap[self][B4_ANY].begin(), patternMap[self][B4_ANY].end());
-    }
+    patternMap[self][B4_F3].appendTo(result);
+    patternMap[self][B4_PLUS].appendTo(result);
+    patternMap[self][B4_ANY].appendTo(result);
 
     return result;
 }
@@ -173,24 +225,12 @@ MoveList Evaluator::getThreats() {
         patternMap[self][F3_ANY].size() +
         patternMap[self][B4_PLUS].size() +
         patternMap[self][B4_ANY].size());
-    if (!patternMap[self][B4_F3].empty()) {
-        result.insert(result.end(), patternMap[self][B4_F3].begin(), patternMap[self][B4_F3].end());
-    }
-    if (!patternMap[self][F3_2X].empty()) {
-        result.insert(result.end(), patternMap[self][F3_2X].begin(), patternMap[self][F3_2X].end());
-    }
-    if (!patternMap[self][F3_PLUS].empty()) {
-        result.insert(result.end(), patternMap[self][F3_PLUS].begin(), patternMap[self][F3_PLUS].end());
-    }
-    if (!patternMap[self][F3_ANY].empty()) {
-        result.insert(result.end(), patternMap[self][F3_ANY].begin(), patternMap[self][F3_ANY].end());
-    }
-    if (!patternMap[self][B4_PLUS].empty()) {
-        result.insert(result.end(), patternMap[self][B4_PLUS].begin(), patternMap[self][B4_PLUS].end());
-    }
-    if (!patternMap[self][B4_ANY].empty()) {
-        result.insert(result.end(), patternMap[self][B4_ANY].begin(), patternMap[self][B4_ANY].end());
-    }
+    patternMap[self][B4_F3].appendTo(result);
+    patternMap[self][F3_2X].appendTo(result);
+    patternMap[self][F3_PLUS].appendTo(result);
+    patternMap[self][F3_ANY].appendTo(result);
+    patternMap[self][B4_PLUS].appendTo(result);
+    patternMap[self][B4_ANY].appendTo(result);
 
     return result;
 }
@@ -203,19 +243,22 @@ MoveList Evaluator::getThreatDefend() {
     result.reserve(patternMap[oppo][WINNING].size() + patternMap[oppo][MATE].size() * 2);
 
     if (!patternMap[oppo][WINNING].empty()) {
-        for (const auto& p : patternMap[oppo][WINNING]) {
+        for (int i = 0; i < patternMap[oppo][WINNING].size(); ++i) {
+            Pos p = patternMap[oppo][WINNING][i];
             if (!isMoveForbidden(p)) result.push_back(p);
         }
     }
 
     if (!patternMap[oppo][MATE].empty()) {
-        for (const auto& p : patternMap[oppo][MATE]) {
+        for (int i = 0; i < patternMap[oppo][MATE].size(); ++i) {
+            Pos p = patternMap[oppo][MATE][i];
             if (!isMoveForbidden(p)) result.push_back(p);
         }
     }
 
     // check every mate move (free 3)
-    for (auto p : patternMap[oppo][MATE]) {
+    for (int i = 0; i < patternMap[oppo][MATE].size(); ++i) {
+        Pos p = patternMap[oppo][MATE][i];
         // check which direction has free 3
         for (Direction dir = DIRECTION_START; dir < DIRECTION_SIZE; dir++) {
             Cell& c = board.getCell(p);
