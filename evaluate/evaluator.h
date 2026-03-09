@@ -237,6 +237,14 @@ MoveList Evaluator::getThreats() {
 
 MoveList Evaluator::getThreatDefend() {
     MoveList result;
+    array<uint8_t, 256> seen = {};
+    auto appendUniqueLegal = [&](const Pos& p) {
+        if (isMoveForbidden(p)) return;
+        const uint8_t key = static_cast<uint8_t>((p.getX() << 4) | p.getY());
+        if (seen[key]) return;
+        seen[key] = 1;
+        result.push_back(p);
+    };
 
     if (!isOppoMateExist()) return result;
 
@@ -244,15 +252,13 @@ MoveList Evaluator::getThreatDefend() {
 
     if (!patternMap[oppo][WINNING].empty()) {
         for (int i = 0; i < patternMap[oppo][WINNING].size(); ++i) {
-            Pos p = patternMap[oppo][WINNING][i];
-            if (!isMoveForbidden(p)) result.push_back(p);
+            appendUniqueLegal(patternMap[oppo][WINNING][i]);
         }
     }
 
     if (!patternMap[oppo][MATE].empty()) {
         for (int i = 0; i < patternMap[oppo][MATE].size(); ++i) {
-            Pos p = patternMap[oppo][MATE][i];
-            if (!isMoveForbidden(p)) result.push_back(p);
+            appendUniqueLegal(patternMap[oppo][MATE][i]);
         }
     }
 
@@ -288,7 +294,7 @@ MoveList Evaluator::getThreatDefend() {
                 if (f4Cnt == 1) {
                     if (!defendB4.empty()) {
                         for (const auto& p : defendB4) {
-                            if (!isMoveForbidden(p)) result.push_back(p);
+                            appendUniqueLegal(p);
                         }
                     }
                 } 
