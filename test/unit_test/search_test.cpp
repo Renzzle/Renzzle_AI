@@ -22,8 +22,10 @@ PRIVATE
         });
 
         monitor.setSearchListener([&searcher](SearchMonitor& monitor) {
+            const double memMB = searcher.getEstimatedMemoryBytes() / (1024.0 * 1024.0);
             TEST_PRINT("Depth: " << monitor.getDepth() << ", Time: " << monitor.getElapsedTime() << 
-            "sec, Node: " << monitor.getVisitCnt() << ", Value: " << monitor.getBestValue().getValue());
+            "sec, Node: " << monitor.getVisitCnt() << ", Tree nodes: " << searcher.getNodeCount() <<
+            ", Mem: " << memMB << " MB, Value: " << monitor.getBestValue().getValue());
             printPath(monitor.getBestPath());
         });
 
@@ -33,6 +35,8 @@ PRIVATE
         searcher.ids();
         TEST_TIME_END("alpha-beta search");
         TEST_PRINT("Final visited node: " << monitor.getVisitCnt());
+        TEST_PRINT("Final tree nodes: " << searcher.getNodeCount() << 
+            ", Mem: " << (searcher.getEstimatedMemoryBytes() / (1024.0 * 1024.0)) << " MB");
         printPath(monitor.getBestLine(0));
     }
 

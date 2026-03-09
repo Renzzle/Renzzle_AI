@@ -46,6 +46,8 @@ PUBLIC
     Search(Board& board, SearchMonitor& monitor);
     void ids();
     void stop();
+    size_t getNodeCount() const;
+    size_t getEstimatedMemoryBytes() const;
 
 };
 
@@ -350,4 +352,12 @@ void Search::ids() {
 
 void Search::stop() {
     isRunning = false;
+}
+
+size_t Search::getNodeCount() const {
+    return treeManager.getNodeCount();
+}
+
+size_t Search::getEstimatedMemoryBytes() const {
+    return treeManager.getEstimatedMemoryBytes();
 }
