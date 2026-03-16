@@ -1,7 +1,6 @@
 #pragma once
 
 #include "../game/board.h"
-#include "../tree/tree_manager.h"
 #include "../test/test.h"
 #include <chrono>
 #include <functional>

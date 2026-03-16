@@ -6,4 +6,4 @@
 *.dSYM
 *.exe
 .DS_Store
-test/unit_test/tempCodeRunnerFile.cpp
+test/logs/*.log

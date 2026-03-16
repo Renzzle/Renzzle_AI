@@ -10,22 +10,24 @@ using namespace std;
 class Line {
 
 private:
-    array<Cell*, LINE_LENGTH> cells;
-    Cell deadCell;
+    array<Piece, LINE_LENGTH> pieces;
 
 public:
     Line() {
-        deadCell.setPiece(WALL);
+        pieces.fill(WALL);
     }
-    Cell*& operator[](size_t idx) {
-        return this->cells[idx];
+    Piece& operator[](size_t idx) {
+        return pieces[idx];
     }
-    tuple<int, int, int, int> countLine();
-    Line shiftLine(Line& line, int n);
+    const Piece& operator[](size_t idx) const {
+        return pieces[idx];
+    }
+    tuple<int, int, int, int> countLine() const;
+    Line shiftLine(int n) const;
 
 };
 
-tuple<int, int, int, int> Line::countLine() {
+tuple<int, int, int, int> Line::countLine() const {
     constexpr auto mid = LINE_LENGTH / 2;
     
     /*
@@ -38,12 +40,12 @@ tuple<int, int, int, int> Line::countLine() {
     int realLenInc = 1;
     int start = mid, end = mid;
 
-    int self = cells[mid]->getPiece();
-    int oppo = !self;
+    Piece self = pieces[mid];
+    Piece oppo = self == BLACK ? WHITE : BLACK;
     Piece piece;
 
     for (int i = mid - 1; i >=0; i--) {
-        piece = cells[i]->getPiece();
+        piece = pieces[i];
         if (piece == self)
             realLen += realLenInc;
         else if (piece == oppo || piece == WALL)
@@ -58,7 +60,7 @@ tuple<int, int, int, int> Line::countLine() {
     realLenInc = 1;
 
     for (int i = mid + 1; i < LINE_LENGTH; i++) {
-        piece = cells[i]->getPiece();
+        piece = pieces[i];
         if (piece == self)
             realLen += realLenInc;
         else if (piece == oppo || piece == WALL)
@@ -73,13 +75,13 @@ tuple<int, int, int, int> Line::countLine() {
     return make_tuple(realLen, fullLen, start, end);
 }
 
-Line Line::shiftLine(Line& line, int n) {
+Line Line::shiftLine(int n) const {
     constexpr auto len = LINE_LENGTH;
 
     Line shiftedLine;
     for (int i = 0; i < len; i++) {
         int idx = i + n - len / 2;
-        shiftedLine[i] = idx >= 0 && idx < len ? line[idx] : &deadCell;
+        shiftedLine[i] = idx >= 0 && idx < len ? pieces[idx] : WALL;
     }
     return shiftedLine;
 }

@@ -25,7 +25,7 @@ private:
             size_t memBytes = vcfSearcher.getEstimatedMemoryBytes();
             double memMB = memBytes / (1024.0 * 1024.0);
             TEST_PRINT("Time: " << monitor.getElapsedTime() << "sec, Node: " << monitor.getVisitCnt()
-                << ", Tree nodes: " << vcfSearcher.getNodeCount() << ", Mem: " << memMB << " MB");
+                << ", TT entries: " << vcfSearcher.getNodeCount() << ", Mem: " << memMB << " MB");
             printPath(monitor.getBestPath());
             //vcfSearcher.stop();
         });
@@ -42,7 +42,7 @@ private:
             TEST_PRINT("There is no VCF");
             size_t node = monitor.getVisitCnt();
             double memMB = vcfSearcher.getEstimatedMemoryBytes() / (1024.0 * 1024.0);
-            TEST_PRINT("Node: " << node << ", Tree nodes: " << vcfSearcher.getNodeCount() << ", Mem: " << memMB << " MB");
+            TEST_PRINT("Node: " << node << ", TT entries: " << vcfSearcher.getNodeCount() << ", Mem: " << memMB << " MB");
             return;
         }
 
@@ -50,7 +50,7 @@ private:
         int depth = resultPath.size();
         size_t node = monitor.getVisitCnt();
         double memMB = vcfSearcher.getEstimatedMemoryBytes() / (1024.0 * 1024.0);
-        TEST_PRINT("Find VCF. Depth: " << depth << ", Node: " << node << ", Tree nodes: " << vcfSearcher.getNodeCount() << ", Mem: " << memMB << " MB");
+        TEST_PRINT("Find VCF. Depth: " << depth << ", Node: " << node << ", TT entries: " << vcfSearcher.getNodeCount() << ", Mem: " << memMB << " MB");
         printPath(resultPath);
         TEST_PRINT("==================================");
     }

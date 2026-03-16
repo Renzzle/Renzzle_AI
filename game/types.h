@@ -1,25 +1,27 @@
 #pragma once
 
-enum Result {
+#include <cstdint>
+
+enum Result : uint8_t {
     ONGOING,
     BLACK_WIN,
     WHITE_WIN,
     DRAW
 };
 
-enum Color {
+enum Color : uint8_t {
     COLOR_BLACK,
     COLOR_WHITE
 };
 
-enum Piece {
+enum Piece : uint8_t {
     BLACK,
     WHITE,
     EMPTY,
     WALL
 };
 
-enum Pattern {
+enum Pattern : uint8_t {
     NONE,       // 00
     DEAD,       // 01. can never make a five
     OVERLINE,   // 02. overline
@@ -38,7 +40,7 @@ enum Pattern {
     PATTERN_SIZE
 };
 
-enum CompositePattern {
+enum CompositePattern : uint8_t {
     NOT_EMPTY,   // 00
     ETC,         // 01. etc
     FORBID,      // 02. forbidden move (double four, overline)
@@ -60,7 +62,7 @@ enum CompositePattern {
 
 #define DIRECTION_START HORIZONTAL
 
-enum Direction {
+enum Direction : uint8_t {
     HORIZONTAL,
     VERTICAL,
     UPWARD,
