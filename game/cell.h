@@ -1,6 +1,7 @@
 #pragma once
 
 #include "types.h"
+#include <array>
 #include <cassert>
 
 using Score = int;
@@ -9,6 +10,117 @@ using Score = int;
 const Score attackScore[PATTERN_SIZE] = { 0, 00, 00, 01, 01, 04, 05, 06, 07, 40, 40, 800, 4000, 100000};
 const Score defendScore[PATTERN_SIZE] = { 0, 00, 00, 00, 00, 02, 02, 02, 02, 10, 10, 10,   160, 20000};
 
+using PatternKey = uint16_t;
+constexpr int PATTERN_KEY_BITS = 4;
+constexpr int PATTERN_KEY_SIZE = 1 << (DIRECTION_SIZE * PATTERN_KEY_BITS);
+
+inline Pattern decodePatternKey(PatternKey key, int dir) {
+    return static_cast<Pattern>((key >> (dir * PATTERN_KEY_BITS)) & 0xF);
+}
+
+inline Score computeAttackScore(PatternKey key) {
+    Score score = 0;
+    for (int dir = 0; dir < DIRECTION_SIZE; ++dir) {
+        score += attackScore[decodePatternKey(key, dir)];
+    }
+    return score;
+}
+
+inline Score computeDefendScore(PatternKey key) {
+    Score score = 0;
+    for (int dir = 0; dir < DIRECTION_SIZE; ++dir) {
+        score += defendScore[decodePatternKey(key, dir)];
+    }
+    return score;
+}
+
+inline CompositePattern computeBlackComposite(PatternKey key) {
+    int pc[PATTERN_SIZE] = {0};
+    for (int dir = 0; dir < DIRECTION_SIZE; ++dir) {
+        pc[decodePatternKey(key, dir)]++;
+    }
+
+    if (pc[FIVE] > 0) return WINNING;
+    if (pc[OVERLINE] > 0 || pc[FREE_4] + pc[BLOCKED_4] >= 2) return FORBID;
+    if (pc[FREE_3] + pc[FREE_3A] >= 2) return FORBID_33;
+    if (pc[FREE_4] > 0 || pc[BLOCKED_4] >= 2) return MATE;
+    if (pc[BLOCKED_4] > 0 && pc[FREE_3] + pc[FREE_3A] > 0) return B4_F3;
+    if (pc[BLOCKED_4] > 0 && pc[FREE_2] + pc[FREE_2A] + pc[FREE_2B] + pc[BLOCKED_3] > 0) return B4_PLUS;
+    if (pc[BLOCKED_4] > 0) return B4_ANY;
+    if (pc[FREE_3] + pc[FREE_3A] > 0 && pc[FREE_2] + pc[FREE_2A] + pc[FREE_2B] + pc[BLOCKED_3] > 0) return F3_PLUS;
+    if (pc[FREE_3] + pc[FREE_3A] > 0) return F3_ANY;
+    if (pc[BLOCKED_3] > 0 && pc[FREE_2] + pc[FREE_2A] + pc[FREE_2B] + pc[BLOCKED_3] >= 2) return B3_PLUS;
+    if (pc[BLOCKED_3] > 0) return B3_ANY;
+    if (pc[FREE_2] + pc[FREE_2A] + pc[FREE_2B] >= 2) return F2_2X;
+    if (pc[FREE_2] + pc[FREE_2A] + pc[FREE_2B] > 0) return F2_ANY;
+    return ETC;
+}
+
+inline CompositePattern computeWhiteComposite(PatternKey key) {
+    int pc[PATTERN_SIZE] = {0};
+    for (int dir = 0; dir < DIRECTION_SIZE; ++dir) {
+        pc[decodePatternKey(key, dir)]++;
+    }
+
+    if (pc[FIVE] > 0) return WINNING;
+    if (pc[FREE_4] > 0 || pc[BLOCKED_4] >= 2) return MATE;
+    if (pc[BLOCKED_4] > 0 && pc[FREE_3] + pc[FREE_3A] > 0) return B4_F3;
+    if (pc[BLOCKED_4] > 0 && pc[FREE_2] + pc[FREE_2A] + pc[FREE_2B] + pc[BLOCKED_3] > 0) return B4_PLUS;
+    if (pc[BLOCKED_4] > 0) return B4_ANY;
+    if (pc[FREE_3] + pc[FREE_3A] >= 2) return F3_2X;
+    if (pc[FREE_3] + pc[FREE_3A] > 0 && pc[FREE_2] + pc[FREE_2A] + pc[FREE_2B] + pc[BLOCKED_3] > 0) return F3_PLUS;
+    if (pc[FREE_3] + pc[FREE_3A] > 0) return F3_ANY;
+    if (pc[BLOCKED_3] > 0 && pc[FREE_2] + pc[FREE_2A] + pc[FREE_2B] + pc[BLOCKED_3] >= 2) return B3_PLUS;
+    if (pc[BLOCKED_3] > 0) return B3_ANY;
+    if (pc[FREE_2] + pc[FREE_2A] + pc[FREE_2B] >= 2) return F2_2X;
+    if (pc[FREE_2] + pc[FREE_2A] + pc[FREE_2B] > 0) return F2_ANY;
+    return ETC;
+}
+
+inline const std::array<Score, PATTERN_KEY_SIZE>& attackScoreLUT() {
+    static const std::array<Score, PATTERN_KEY_SIZE> lut = []() {
+        std::array<Score, PATTERN_KEY_SIZE> table = {};
+        for (int key = 0; key < PATTERN_KEY_SIZE; ++key) {
+            table[key] = computeAttackScore(static_cast<PatternKey>(key));
+        }
+        return table;
+    }();
+    return lut;
+}
+
+inline const std::array<Score, PATTERN_KEY_SIZE>& defendScoreLUT() {
+    static const std::array<Score, PATTERN_KEY_SIZE> lut = []() {
+        std::array<Score, PATTERN_KEY_SIZE> table = {};
+        for (int key = 0; key < PATTERN_KEY_SIZE; ++key) {
+            table[key] = computeDefendScore(static_cast<PatternKey>(key));
+        }
+        return table;
+    }();
+    return lut;
+}
+
+inline const std::array<CompositePattern, PATTERN_KEY_SIZE>& blackCompositeLUT() {
+    static const std::array<CompositePattern, PATTERN_KEY_SIZE> lut = []() {
+        std::array<CompositePattern, PATTERN_KEY_SIZE> table = {};
+        for (int key = 0; key < PATTERN_KEY_SIZE; ++key) {
+            table[key] = computeBlackComposite(static_cast<PatternKey>(key));
+        }
+        return table;
+    }();
+    return lut;
+}
+
+inline const std::array<CompositePattern, PATTERN_KEY_SIZE>& whiteCompositeLUT() {
+    static const std::array<CompositePattern, PATTERN_KEY_SIZE> lut = []() {
+        std::array<CompositePattern, PATTERN_KEY_SIZE> table = {};
+        for (int key = 0; key < PATTERN_KEY_SIZE; ++key) {
+            table[key] = computeWhiteComposite(static_cast<PatternKey>(key));
+        }
+        return table;
+    }();
+    return lut;
+}
+
 class Cell {
 
 private:
@@ -16,6 +128,8 @@ private:
     Pattern patterns[2][DIRECTION_SIZE];
     CompositePattern cPattern[2];
     Piece piece;
+    
+    PatternKey getPatternKey(Piece piece) const;
 
 public:
     Cell();
@@ -28,6 +142,7 @@ public:
     void clearCompositePattern();
     void setCompositePattern();
     void setScore();
+    void updateDerived();
     
 };
 
@@ -72,85 +187,33 @@ void Cell::clearCompositePattern() {
     cPattern[WHITE] = NOT_EMPTY;
 }
 
+PatternKey Cell::getPatternKey(Piece piece) const {
+    PatternKey key = 0;
+    for (int dir = 0; dir < DIRECTION_SIZE; ++dir) {
+        key |= static_cast<PatternKey>(patterns[piece][dir]) << (dir * PATTERN_KEY_BITS);
+    }
+    return key;
+}
+
 void Cell::setCompositePattern() {
-    int bpc[PATTERN_SIZE] = {0};
-    int wpc[PATTERN_SIZE] = {0};
-
-    for (Direction dir = DIRECTION_START; dir < DIRECTION_SIZE; dir++) {
-        Pattern p = patterns[BLACK][dir];
-        bpc[p]++;
-        p = patterns[WHITE][dir];
-        wpc[p]++;
-    }
-
-    if (bpc[FIVE] > 0) {
-        cPattern[BLACK] = WINNING;
-    } else if (bpc[OVERLINE] > 0 || bpc[FREE_4] + bpc[BLOCKED_4] >= 2) {
-        cPattern[BLACK] = FORBID;
-    } else if (bpc[FREE_3] + bpc[FREE_3A] >= 2) {
-        cPattern[BLACK] = FORBID_33;
-    } else if (bpc[FREE_4] > 0 || bpc[BLOCKED_4] >= 2) {
-        cPattern[BLACK] = MATE;
-    } else if (bpc[BLOCKED_4] > 0 && bpc[FREE_3] + bpc[FREE_3A] > 0) {
-        cPattern[BLACK] = B4_F3;
-    } else if (bpc[BLOCKED_4] > 0 && bpc[FREE_2] + bpc[FREE_2A] + bpc[FREE_2B] + bpc[BLOCKED_3] > 0) {
-        cPattern[BLACK] = B4_PLUS;
-    } else if (bpc[BLOCKED_4] > 0) {
-        cPattern[BLACK] = B4_ANY;
-    } else if (bpc[FREE_3] + bpc[FREE_3A] > 0 && bpc[FREE_2] + bpc[FREE_2A] + bpc[FREE_2B] + bpc[BLOCKED_3] > 0) {
-        cPattern[BLACK] = F3_PLUS;
-    } else if (bpc[FREE_3] + bpc[FREE_3A] > 0) {
-        cPattern[BLACK] = F3_ANY;
-    } else if (bpc[BLOCKED_3] > 0 && bpc[FREE_2] + bpc[FREE_2A] + bpc[FREE_2B] + bpc[BLOCKED_3] >= 2) {
-        cPattern[BLACK] = B3_PLUS;
-    } else if (bpc[BLOCKED_3] > 0) {
-        cPattern[BLACK] = B3_ANY;
-    } else if (bpc[FREE_2] + bpc[FREE_2A] + bpc[FREE_2B] >= 2) {
-        cPattern[BLACK] = F2_2X;
-    } else if (bpc[FREE_2] + bpc[FREE_2A] + bpc[FREE_2B] > 0) {
-        cPattern[BLACK] = F2_ANY;
-    } else {
-        cPattern[BLACK] = ETC;
-    }
-
-    if (wpc[FIVE] > 0) {
-        cPattern[WHITE] = WINNING;
-    } else if (wpc[FREE_4] > 0 || wpc[BLOCKED_4] >= 2) {
-        cPattern[WHITE] = MATE;
-    } else if (wpc[BLOCKED_4] > 0 && wpc[FREE_3] + wpc[FREE_3A] > 0) {
-        cPattern[WHITE] = B4_F3;
-    } else if (wpc[BLOCKED_4] > 0 && wpc[FREE_2] + wpc[FREE_2A] + wpc[FREE_2B] + wpc[BLOCKED_3] > 0) {
-        cPattern[WHITE] = B4_PLUS;
-    } else if (wpc[BLOCKED_4] > 0) {
-        cPattern[WHITE] = B4_ANY;
-    } else if (wpc[FREE_3] + wpc[FREE_3A] >= 2) {
-        cPattern[WHITE] = F3_2X;
-    } else if (wpc[FREE_3] + wpc[FREE_3A] > 0 && wpc[FREE_2] + wpc[FREE_2A] + wpc[FREE_2B] + wpc[BLOCKED_3] > 0) {
-        cPattern[WHITE] = F3_PLUS;
-    } else if (wpc[FREE_3] + wpc[FREE_3A] > 0) {
-        cPattern[WHITE] = F3_ANY;
-    } else if (wpc[BLOCKED_3] > 0 && wpc[FREE_2] + wpc[FREE_2A] + wpc[FREE_2B] + wpc[BLOCKED_3] >= 2) {
-        cPattern[WHITE] = B3_PLUS;
-    } else if (wpc[BLOCKED_3] > 0) {
-        cPattern[WHITE] = B3_ANY;
-    } else if (wpc[FREE_2] + wpc[FREE_2A] + wpc[FREE_2B] >= 2) {
-        cPattern[WHITE] = F2_2X;
-    } else if (wpc[FREE_2] + wpc[FREE_2A] + wpc[FREE_2B] > 0) {
-        cPattern[WHITE] = F2_ANY;
-    } else {
-        cPattern[WHITE] = ETC;
-    }
+    const PatternKey blackKey = getPatternKey(BLACK);
+    const PatternKey whiteKey = getPatternKey(WHITE);
+    cPattern[BLACK] = blackCompositeLUT()[blackKey];
+    cPattern[WHITE] = whiteCompositeLUT()[whiteKey];
 }
 
 void Cell::setScore() {
-    Score bs = 0;
-    Score ws = 0;
-    for (int i = 0; i < DIRECTION_SIZE; i++) {
-        bs += attackScore[patterns[BLACK][i]];
-        bs += defendScore[patterns[WHITE][i]];
-        ws += attackScore[patterns[WHITE][i]];
-        ws += defendScore[patterns[BLACK][i]];
-    }
-    score[BLACK] = bs;
-    score[WHITE] = ws;
+    const PatternKey blackKey = getPatternKey(BLACK);
+    const PatternKey whiteKey = getPatternKey(WHITE);
+    score[BLACK] = attackScoreLUT()[blackKey] + defendScoreLUT()[whiteKey];
+    score[WHITE] = attackScoreLUT()[whiteKey] + defendScoreLUT()[blackKey];
+}
+
+void Cell::updateDerived() {
+    const PatternKey blackKey = getPatternKey(BLACK);
+    const PatternKey whiteKey = getPatternKey(WHITE);
+    score[BLACK] = attackScoreLUT()[blackKey] + defendScoreLUT()[whiteKey];
+    score[WHITE] = attackScoreLUT()[whiteKey] + defendScoreLUT()[blackKey];
+    cPattern[BLACK] = blackCompositeLUT()[blackKey];
+    cPattern[WHITE] = whiteCompositeLUT()[whiteKey];
 }

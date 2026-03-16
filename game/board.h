@@ -50,7 +50,9 @@ PUBLIC
     bool isBlackTurn();
     CellArray& getBoardStatus();
     Cell& getCell(int x, int y);
+    const Cell& getCell(int x, int y) const;
     Cell& getCell(const Pos& p);
+    const Cell& getCell(const Pos& p) const;
     bool move(const Pos& p);
     void undo();
     bool pass();
@@ -96,7 +98,15 @@ Cell& Board::getCell(int x, int y) {
     return cells[x][y];
 }
 
+const Cell& Board::getCell(int x, int y) const {
+    return cells[x][y];
+}
+
 Cell& Board::getCell(const Pos& p) {
+    return cells[p.x][p.y];
+}
+
+const Cell& Board::getCell(const Pos& p) const {
     return cells[p.x][p.y];
 }
 
@@ -140,9 +150,7 @@ void Board::undo() {
     setBitKeys(p.x, p.y, EMPTY);
 
     path.pop_back();
-
     setPatterns(p);
-
     result = ONGOING;
 }
 
@@ -405,8 +413,7 @@ void Board::setPatterns(const Pos& p) {
 
     for (size_t i = 0; i < touchedCount; i++) {
         Cell& c = getCell(touchedCells[i]);
-        c.setScore();
-        c.setCompositePattern();
+        c.updateDerived();
     }
 }
 
