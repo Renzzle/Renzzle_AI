@@ -268,7 +268,6 @@ MoveList Search::getCandidates(Evaluator& evaluator, bool isMax) {
         moves = evaluator.getThreats();
     }
 
-    sortChildNodes(moves, isMax, tt.probe(getTTKey(board)));
     return moves;
 }
 
