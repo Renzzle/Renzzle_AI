@@ -15,16 +15,35 @@ using CellArray = array<array<Cell, BOARD_SIZE + 2>, BOARD_SIZE + 2>;
 class Board {
 
 PRIVATE
+    static constexpr int LINE_PADDING = LINE_LENGTH / 2;
+    static constexpr int BIT_LINE_SIZE = BOARD_SIZE + (LINE_PADDING * 2);
+    static constexpr int BIT_DIAG_SIZE = (BIT_LINE_SIZE * 2) - 1;
+    static constexpr uint64_t LINE_KEY_MASK = (1ull << (LINE_LENGTH * 2)) - 1ull;
+    static constexpr int CENTER_SHIFT = (LINE_LENGTH / 2) * 2;
+
     CellArray cells;
     MoveList path;
     Result result;
     size_t currentHash;
+    array<uint64_t, BIT_LINE_SIZE> horizontalKeys;
+    array<uint64_t, BIT_LINE_SIZE> verticalKeys;
+    array<uint64_t, BIT_DIAG_SIZE> upwardKeys;
+    array<uint64_t, BIT_DIAG_SIZE> downwardKeys;
 
     void clearPattern(Cell& cell);
     void setPatterns(const Pos& p);
     void setResult(const Pos& p);
     Line getLine(int x, int y, Direction dir);
     Pattern getPattern(const Line& line, Color color);
+    Pattern getPattern(uint32_t lineKey, Color color);
+    void setBitKeys(int x, int y, Piece piece);
+    uint32_t getLineKey(int x, int y, Direction dir) const;
+    static int toBitCoord(int coord);
+    static uint64_t makeFilledBitLine(Piece piece);
+    static Piece getLineKeyPiece(uint32_t lineKey, int index);
+    static uint32_t setLineKeyPiece(uint32_t lineKey, int index, Piece piece);
+    static tuple<int, int, int, int> countLineKey(uint32_t lineKey);
+    static uint32_t shiftLineKey(uint32_t lineKey, int n);
 
 PUBLIC
     Board();
@@ -47,6 +66,10 @@ Board::Board() {
     currentHash = 0;
     result = ONGOING;
     path.reserve(BOARD_SIZE * BOARD_SIZE);
+    horizontalKeys.fill(makeFilledBitLine(WALL));
+    verticalKeys.fill(makeFilledBitLine(WALL));
+    upwardKeys.fill(makeFilledBitLine(WALL));
+    downwardKeys.fill(makeFilledBitLine(WALL));
 
     for (int i = 0; i < BOARD_SIZE + 2; i++) {
         for (int j = 0; j < BOARD_SIZE + 2; j++) {
@@ -55,6 +78,7 @@ Board::Board() {
                 currentHash ^= getZobristValue(i, j, WALL);
             } else {
                 cells[i][j].setPiece(EMPTY);
+                setBitKeys(i, j, EMPTY);
             }
         }
     }
@@ -89,6 +113,7 @@ bool Board::move(const Pos& p) {
     Piece piece = isBlackTurn() ? WHITE : BLACK;
     currentHash ^= getZobristValue(p.x, p.y, piece);
     targetCell.setPiece(piece);
+    setBitKeys(p.x, p.y, piece);
 
     clearPattern(targetCell);
     targetCell.clearCompositePattern();
@@ -112,6 +137,7 @@ void Board::undo() {
     currentHash ^= getZobristValue(p.x, p.y, piece);
     
     targetCell.setPiece(EMPTY);
+    setBitKeys(p.x, p.y, EMPTY);
 
     path.pop_back();
 
@@ -151,6 +177,7 @@ bool Board::isForbidden(const Pos& p) {
     // recursive 3-3
     // move
     targetCell.setPiece(BLACK);
+    setBitKeys(p.x, p.y, BLACK);
     setPatterns(p);
 
     const int originX = p.x;
@@ -198,6 +225,7 @@ bool Board::isForbidden(const Pos& p) {
 
     // undo
     targetCell.setPiece(EMPTY);
+    setBitKeys(p.x, p.y, EMPTY);
     setPatterns(p);
 
     return winByThree >= 2;
@@ -218,6 +246,118 @@ size_t Board::getChildHash(const Pos& p) {
     return result;
 }
 
+int Board::toBitCoord(int coord) {
+    return coord + LINE_PADDING - 1;
+}
+
+uint64_t Board::makeFilledBitLine(Piece piece) {
+    uint64_t line = 0;
+    for (int i = 0; i < BIT_LINE_SIZE; ++i) {
+        line |= static_cast<uint64_t>(piece) << (i * 2);
+    }
+    return line;
+}
+
+Piece Board::getLineKeyPiece(uint32_t lineKey, int index) {
+    return static_cast<Piece>((lineKey >> (index * 2)) & 0x3u);
+}
+
+uint32_t Board::setLineKeyPiece(uint32_t lineKey, int index, Piece piece) {
+    const uint32_t mask = 0x3u << (index * 2);
+    return (lineKey & ~mask) | (static_cast<uint32_t>(piece) << (index * 2));
+}
+
+tuple<int, int, int, int> Board::countLineKey(uint32_t lineKey) {
+    constexpr int mid = LINE_LENGTH / 2;
+
+    int realLen = 1;
+    int fullLen = 1;
+    int realLenInc = 1;
+    int start = mid;
+    int end = mid;
+
+    Piece self = getLineKeyPiece(lineKey, mid);
+    Piece oppo = self == BLACK ? WHITE : BLACK;
+
+    for (int i = mid - 1; i >= 0; --i) {
+        Piece piece = getLineKeyPiece(lineKey, i);
+        if (piece == self) {
+            realLen += realLenInc;
+        } else if (piece == oppo || piece == WALL) {
+            break;
+        } else {
+            realLenInc = 0;
+        }
+
+        fullLen++;
+        start = i;
+    }
+
+    realLenInc = 1;
+
+    for (int i = mid + 1; i < LINE_LENGTH; ++i) {
+        Piece piece = getLineKeyPiece(lineKey, i);
+        if (piece == self) {
+            realLen += realLenInc;
+        } else if (piece == oppo || piece == WALL) {
+            break;
+        } else {
+            realLenInc = 0;
+        }
+
+        fullLen++;
+        end = i;
+    }
+
+    return make_tuple(realLen, fullLen, start, end);
+}
+
+uint32_t Board::shiftLineKey(uint32_t lineKey, int n) {
+    uint32_t shiftedLineKey = 0;
+    for (int i = 0; i < LINE_LENGTH; ++i) {
+        int idx = i + n - (LINE_LENGTH / 2);
+        Piece piece = (idx >= 0 && idx < LINE_LENGTH)
+            ? getLineKeyPiece(lineKey, idx)
+            : WALL;
+        shiftedLineKey = setLineKeyPiece(shiftedLineKey, i, piece);
+    }
+    return shiftedLineKey;
+}
+
+void Board::setBitKeys(int x, int y, Piece piece) {
+    const int bx = toBitCoord(x);
+    const int by = toBitCoord(y);
+    const uint64_t value = static_cast<uint64_t>(piece);
+    const uint64_t xShift = static_cast<uint64_t>(bx * 2);
+    const uint64_t yShift = static_cast<uint64_t>(by * 2);
+    const uint64_t xMask = 0x3ull << xShift;
+    const uint64_t yMask = 0x3ull << yShift;
+
+    horizontalKeys[bx] = (horizontalKeys[bx] & ~yMask) | (value << yShift);
+    verticalKeys[by] = (verticalKeys[by] & ~xMask) | (value << xShift);
+    upwardKeys[bx - by + (BIT_LINE_SIZE - 1)] =
+        (upwardKeys[bx - by + (BIT_LINE_SIZE - 1)] & ~xMask) | (value << xShift);
+    downwardKeys[bx + by] = (downwardKeys[bx + by] & ~xMask) | (value << xShift);
+}
+
+uint32_t Board::getLineKey(int x, int y, Direction dir) const {
+    const int bx = toBitCoord(x);
+    const int by = toBitCoord(y);
+
+    switch (dir) {
+        case HORIZONTAL:
+            return static_cast<uint32_t>((horizontalKeys[bx] >> ((by - LINE_PADDING) * 2)) & LINE_KEY_MASK);
+        case VERTICAL:
+            return static_cast<uint32_t>((verticalKeys[by] >> ((bx - LINE_PADDING) * 2)) & LINE_KEY_MASK);
+        case UPWARD:
+            return static_cast<uint32_t>((upwardKeys[bx - by + (BIT_LINE_SIZE - 1)] >> ((bx - LINE_PADDING) * 2)) & LINE_KEY_MASK);
+        case DOWNWARD:
+            return static_cast<uint32_t>((downwardKeys[bx + by] >> ((bx - LINE_PADDING) * 2)) & LINE_KEY_MASK);
+        default:
+            return 0;
+    }
+}
+
 void Board::clearPattern(Cell& cell) {
     for(Direction dir = DIRECTION_START; dir < DIRECTION_SIZE; dir++) {
         cell.setPattern(BLACK, dir, PATTERN_SIZE);
@@ -228,34 +368,6 @@ void Board::clearPattern(Cell& cell) {
 void Board::setPatterns(const Pos& p) {
     const int originX = p.x;
     const int originY = p.y;
-
-    if (getCell(p).getPiece() != EMPTY) {
-        for (Direction dir = DIRECTION_START; dir < DIRECTION_SIZE; dir++) {
-            const int dx = getDirectionDx(dir);
-            const int dy = getDirectionDy(dir);
-            for (int i = 0; i < LINE_LENGTH; i++) {
-                const int offset = i - (LINE_LENGTH / 2);
-                const int x = originX + (dx * offset);
-                const int y = originY + (dy * offset);
-                if (!isBoardCoord(x, y)) {
-                    continue;
-                }
-
-                Cell& c = getCell(x, y);
-                if (c.getPiece() == EMPTY) {
-                    Line line = getLine(x, y, dir);
-                    constexpr int mid = LINE_LENGTH / 2;
-                    line[mid] = BLACK;
-                    c.setPattern(BLACK, dir, getPattern(line, COLOR_BLACK));
-                    line[mid] = WHITE;
-                    c.setPattern(WHITE, dir, getPattern(line, COLOR_WHITE));
-                    c.setScore();
-                    c.setCompositePattern();
-                }
-            }
-        }
-        return;
-    }
 
     std::array<Pos, LINE_LENGTH * DIRECTION_SIZE> touchedCells;
     size_t touchedCount = 0;
@@ -274,12 +386,14 @@ void Board::setPatterns(const Pos& p) {
 
             Cell& c = getCell(x, y);
             if (c.getPiece() == EMPTY) {
-                Line line = getLine(x, y, dir);
-                constexpr int mid = LINE_LENGTH / 2;
-                line[mid] = BLACK;
-                c.setPattern(BLACK, dir, getPattern(line, COLOR_BLACK));
-                line[mid] = WHITE;
-                c.setPattern(WHITE, dir, getPattern(line, COLOR_WHITE));
+                const uint32_t lineKey = getLineKey(x, y, dir);
+                const uint32_t blackLineKey =
+                    (lineKey & ~(0x3u << CENTER_SHIFT)) | (static_cast<uint32_t>(BLACK) << CENTER_SHIFT);
+                const uint32_t whiteLineKey =
+                    (lineKey & ~(0x3u << CENTER_SHIFT)) | (static_cast<uint32_t>(WHITE) << CENTER_SHIFT);
+
+                c.setPattern(BLACK, dir, getPattern(blackLineKey, COLOR_BLACK));
+                c.setPattern(WHITE, dir, getPattern(whiteLineKey, COLOR_WHITE));
 
                 if (!isTouched[x][y]) {
                     isTouched[x][y] = true;
@@ -316,6 +430,14 @@ Line Board::getLine(int x, int y, Direction dir) {
 }
 
 Pattern Board::getPattern(const Line& line, Color color) {
+    uint32_t lineKey = 0;
+    for (int i = 0; i < LINE_LENGTH; ++i) {
+        lineKey |= static_cast<uint32_t>(line[i]) << (i * 2);
+    }
+    return getPattern(lineKey, color);
+}
+
+Pattern Board::getPattern(uint32_t lineKey, Color color) {
     constexpr uint32_t PIECE_BITS = 2;
     constexpr uint32_t COLOR_SHIFT = LINE_LENGTH * PIECE_BITS;
     constexpr uint32_t CACHE_SIZE = 1u << (COLOR_SHIFT + 1);
@@ -324,9 +446,7 @@ Pattern Board::getPattern(const Line& line, Color color) {
     static array<uint8_t, CACHE_SIZE> patternCache = {};
 
     uint32_t key = (color == COLOR_WHITE) ? (1u << COLOR_SHIFT) : 0u;
-    for (int i = 0; i < LINE_LENGTH; ++i) {
-        key |= static_cast<uint32_t>(line[i]) << (i * PIECE_BITS);
-    }
+    key |= lineKey;
 
     const uint8_t cachedPattern = patternCache[key];
     if (cachedPattern != CACHE_UNSET) {
@@ -338,7 +458,7 @@ Pattern Board::getPattern(const Line& line, Color color) {
     Piece self = isBlack ? BLACK : WHITE;
 
     int realLen, fullLen, start, end;
-    tie(realLen, fullLen, start, end) = line.countLine();
+    tie(realLen, fullLen, start, end) = countLineKey(lineKey);
 
     if (isBlack && realLen >= 6) {
         patternCache[key] = static_cast<uint8_t>(OVERLINE) + 1;
@@ -358,11 +478,11 @@ Pattern Board::getPattern(const Line& line, Color color) {
     Pattern p = DEAD;
 
     for (int i = start; i <= end; i++) {
-        Piece piece = line[i];
+        Piece piece = getLineKeyPiece(lineKey, i);
         if (piece == EMPTY) {
-            Line sl = line.shiftLine(i);
-            sl[mid] = self;
-            Pattern slp = getPattern(sl, color);
+            uint32_t shiftedLineKey = shiftLineKey(lineKey, i);
+            shiftedLineKey = setLineKeyPiece(shiftedLineKey, mid, self);
+            Pattern slp = getPattern(shiftedLineKey, color);
         
             if (slp == FIVE && patternCnt[FIVE] < 2) {
                 fiveIdx[patternCnt[FIVE]] = i;
