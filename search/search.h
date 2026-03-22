@@ -5,6 +5,7 @@
 #include "search_monitor.h"
 #include "transposition_table.h"
 #include <algorithm>
+#include <array>
 #include <cstddef>
 #include <cstdint>
 #include <limits>
@@ -20,11 +21,14 @@ PRIVATE
     TranspositionTable tt;
     MoveList bestPath;
     Value bestValue;
+    std::array<std::array<int, BOARD_SIZE * BOARD_SIZE>, 2> historyScores = {};
 
     //  Random salts to distinguish the side to move in TT keys
     static constexpr uint64_t TURN_KEY_BLACK = 0x9e3779b97f4a7c15ULL;
     static constexpr uint64_t TURN_KEY_WHITE = 0xc2b2ae3d27d4eb4fULL;
+    static constexpr int HISTORY_ABS_LIMIT = 16384;
 
+    // Principal variation search with TT-assisted alpha-beta pruning
     Value abp(int depth, bool isMax, Value alpha, Value beta, MoveList* pv = nullptr);
     Value evaluateNode(Evaluator& evaluator);
     MoveList getCandidates(Evaluator& evaluator, bool isMax);
@@ -38,6 +42,10 @@ PRIVATE
     int32_t encodeTTScore(Value value) const;
     void storeTT(Board& board, Value value, int depth, const Pos& bestMove);
     void appendTTPV(Board tempBoard, MoveList& pv) const;
+    int getHistoryIndex(const Pos& move) const;
+    int getHistoryScore(const Pos& move, bool isBlackTurn) const;
+    void updateHistoryScore(const Pos& move, bool isBlackTurn, int delta);
+    void clearHistory();
 
 PUBLIC
     Search(Board& board, SearchMonitor& monitor);
@@ -70,6 +78,7 @@ Value Search::abp(int depth, bool isMax, Value alpha, Value beta, MoveList* pv) 
     const uint64_t key = getTTKey(board);
     const TTEntry* ttEntry = tt.probe(key);
 
+    // Reuse cached bounds or an exact score when the stored depth is sufficient
     if (ttEntry != nullptr && ttEntry->depth >= getTTDepth(depth)) {
         Value ttValue = getTTValue(*ttEntry);
 
@@ -96,6 +105,7 @@ Value Search::abp(int depth, bool isMax, Value alpha, Value beta, MoveList* pv) 
     Evaluator evaluator(board);
     MoveList moves = getCandidates(evaluator, isMax);
 
+    // Stop on leaf, terminal, or forced-empty nodes and evaluate statically
     if (depth == 0 || isGameOver(board) || moves.empty()) {
         Value val = evaluateNode(evaluator);
         if (!isMax) val.invert();
@@ -105,6 +115,7 @@ Value Search::abp(int depth, bool isMax, Value alpha, Value beta, MoveList* pv) 
         return val;
     }
 
+    // Good move ordering makes PVS and cutoffs much cheaper
     sortChildNodes(moves, isMax, ttEntry);
 
     Value bestVal = isMax
@@ -112,7 +123,12 @@ Value Search::abp(int depth, bool isMax, Value alpha, Value beta, MoveList* pv) 
         : Value(MAX_VALUE + 1, Value::Type::UNKNOWN);
     Pos bestMove;
     MoveList bestChildPV;
+    MoveList searchedMoves;
     bool searchedAny = false;
+    const bool sideToMoveIsBlack = board.isBlackTurn();
+    bool causedCutoff = false;
+
+    searchedMoves.reserve(moves.size());
 
     for (size_t i = 0; i < moves.size(); ++i) {
         const Pos move = moves[i];
@@ -121,6 +137,7 @@ Value Search::abp(int depth, bool isMax, Value alpha, Value beta, MoveList* pv) 
         }
 
         searchedAny = true;
+        searchedMoves.push_back(move);
         monitor.incVisitCnt();
 
         Value nextAlpha = alpha;
@@ -132,9 +149,11 @@ Value Search::abp(int depth, bool isMax, Value alpha, Value beta, MoveList* pv) 
         MoveList childPV;
         bool hasExactChildPV = false;
         if (i == 0) {
+            // Search the first move with the full window
             childValue = abp(depth - 1, !isMax, nextAlpha, nextBeta, &childPV);
             hasExactChildPV = childValue.getType() == Value::Type::EXACT;
         } else {
+            // Probe later moves with a null window, then re-search only on improvement
             Value nullAlpha = nextAlpha;
             Value nullBeta = nextBeta;
             if (isMax) {
@@ -194,7 +213,9 @@ Value Search::abp(int depth, bool isMax, Value alpha, Value beta, MoveList* pv) 
             }
         }
 
+        // Cut once the current node can no longer improve the parent decision
         if (beta <= alpha) {
+            causedCutoff = true;
             break;
         }
     }
@@ -221,11 +242,28 @@ Value Search::abp(int depth, bool isMax, Value alpha, Value beta, MoveList* pv) 
         result.setType(Value::Type::EXACT);
     }
 
+    if (isRunning && !bestMove.isDefault()) {
+        const int bonus = std::max(1, std::min(depth * depth, 256));
+        if (causedCutoff || result.getType() == Value::Type::LOWER_BOUND) {
+            updateHistoryScore(bestMove, sideToMoveIsBlack, bonus);
+
+            const int penalty = std::max(1, bonus / 2);
+            for (const Pos& move : searchedMoves) {
+                if (!(move == bestMove)) {
+                    updateHistoryScore(move, sideToMoveIsBlack, -penalty);
+                }
+            }
+        } else if (result.getType() == Value::Type::EXACT) {
+            updateHistoryScore(bestMove, sideToMoveIsBlack, std::max(1, bonus / 2));
+        }
+    }
+
     if (isRunning) {
         storeTT(board, result, depth, bestMove);
     }
 
     if (pv != nullptr && !bestMove.isDefault()) {
+        // Rebuild the PV from the best child or fall back to TT continuation
         pv->push_back(bestMove);
         if (result.getType() == Value::Type::EXACT) {
             if (!bestChildPV.empty()) {
@@ -248,18 +286,21 @@ Value Search::abp(int depth, bool isMax, Value alpha, Value beta, MoveList* pv) 
 }
 
 Value Search::evaluateNode(Evaluator& evaluator) {
+    // Use the evaluator directly for static node scoring
     return evaluator.evaluate();
 }
 
 MoveList Search::getCandidates(Evaluator& evaluator, bool isMax) {
     MoveList moves;
     
+    // A forced winning or forced-blocking move takes priority over everything else
     Pos sureMove = evaluator.getSureMove();
     if (!sureMove.isDefault()) {
         moves.push_back(sureMove);
         return moves;
     }
 
+    // Defend immediate threats first; otherwise expand tactical attacking moves
     if (evaluator.isOppoMateExist()) {
         moves = evaluator.getThreatDefend();
         MoveList fours = evaluator.getFours();
@@ -272,7 +313,8 @@ MoveList Search::getCandidates(Evaluator& evaluator, bool isMax) {
 }
 
 void Search::sortChildNodes(MoveList& moves, bool isMax, const TTEntry* entry) {
-    if (moves.size() < 2 || entry == nullptr) {
+    // Prefer TT-backed or history-backed moves while preserving evaluator order by default.
+    if (moves.size() < 2) {
         return;
     }
 
@@ -282,13 +324,25 @@ void Search::sortChildNodes(MoveList& moves, bool isMax, const TTEntry* entry) {
         bool hasTT;
         int flagPriority;
         int32_t ttScore;
-        int cellScore;
+        int historyScore;
     };
 
-    const Piece self = board.isBlackTurn() ? BLACK : WHITE;
-    const Pos ttBestMove = (entry->bestMove != TranspositionTable::INVALID_MOVE)
+    const Pos ttBestMove = (entry != nullptr && entry->bestMove != TranspositionTable::INVALID_MOVE)
         ? TranspositionTable::decodeMove(entry->bestMove)
         : Pos();
+    const bool sideToMoveIsBlack = board.isBlackTurn();
+    bool hasHistorySignal = false;
+
+    for (const Pos& move : moves) {
+        if (getHistoryScore(move, sideToMoveIsBlack) != 0) {
+            hasHistorySignal = true;
+            break;
+        }
+    }
+
+    if (entry == nullptr && !hasHistorySignal) {
+        return;
+    }
 
     auto getValueTypePriority = [&](TTFlag flag) {
         if (isMax) {
@@ -313,18 +367,18 @@ void Search::sortChildNodes(MoveList& moves, bool isMax, const TTEntry* entry) {
     infos.reserve(moves.size());
 
     for (const Pos& move : moves) {
-        const TTEntry* childEntry = tt.probe(getChildTTKey(move));
+        const TTEntry* childEntry = (entry != nullptr || hasHistorySignal) ? tt.probe(getChildTTKey(move)) : nullptr;
         MoveOrderInfo info;
         info.move = move;
         info.isTTBest = !ttBestMove.isDefault() && move == ttBestMove;
         info.hasTT = childEntry != nullptr;
         info.flagPriority = childEntry != nullptr ? getValueTypePriority(childEntry->getFlag()) : getValueTypePriority(TTFlag::NONE);
         info.ttScore = childEntry != nullptr ? childEntry->score : 0;
-        info.cellScore = board.getCell(move).getScore(self);
+        info.historyScore = getHistoryScore(move, sideToMoveIsBlack);
         infos.push_back(info);
     }
 
-    sort(infos.begin(), infos.end(), [&](const MoveOrderInfo& a, const MoveOrderInfo& b) {
+    std::stable_sort(infos.begin(), infos.end(), [&](const MoveOrderInfo& a, const MoveOrderInfo& b) {
         if (a.isTTBest != b.isTTBest) {
             return a.isTTBest;
         }
@@ -337,10 +391,10 @@ void Search::sortChildNodes(MoveList& moves, bool isMax, const TTEntry* entry) {
         if (a.ttScore != b.ttScore) {
             return isMax ? (a.ttScore > b.ttScore) : (a.ttScore < b.ttScore);
         }
-        if (a.cellScore != b.cellScore) {
-            return a.cellScore > b.cellScore;
+        if (a.historyScore != b.historyScore) {
+            return a.historyScore > b.historyScore;
         }
-        return a.move < b.move;
+        return false;
     });
 
     for (size_t i = 0; i < moves.size(); ++i) {
@@ -349,6 +403,7 @@ void Search::sortChildNodes(MoveList& moves, bool isMax, const TTEntry* entry) {
 }
 
 bool Search::isGameOver(Board& board) {
+    // Any resolved board result is terminal for search
     Result result = board.getResult();
     return result != ONGOING;
 }
@@ -357,10 +412,12 @@ void Search::ids() {
     isRunning = true;
     bestPath.clear();
     bestValue = Value();
+    clearHistory();
     monitor.incDepth(5);
     monitor.initStartTime();
     tt.clear();
 
+    // Deepen gradually and keep the latest principal variation as the best line
     while (true) {
         tt.nextGeneration();
 
@@ -425,22 +482,26 @@ size_t Search::getNodeCount() const {
 size_t Search::getEstimatedMemoryBytes() const {
     return tt.getMemoryBytes()
         + (sizeof(Board) * 2)
-        + (bestPath.capacity() * sizeof(Pos));
+        + (bestPath.capacity() * sizeof(Pos))
+        + sizeof(historyScores);
 }
 
 uint64_t Search::getTTKey(Board& board) const {
+    // Mix side-to-move into the board hash to avoid key collisions
     uint64_t key = static_cast<uint64_t>(board.getCurrentHash());
     key ^= board.isBlackTurn() ? TURN_KEY_BLACK : TURN_KEY_WHITE;
     return key;
 }
 
 uint64_t Search::getChildTTKey(const Pos& move) {
+    // Predict the child key without making the move on the board
     uint64_t key = static_cast<uint64_t>(board.getChildHash(move));
     key ^= board.isBlackTurn() ? TURN_KEY_WHITE : TURN_KEY_BLACK;
     return key;
 }
 
 uint8_t Search::getTTDepth(int depth) const {
+    // Clamp the depth into the compact TT storage range
     if (depth < 0) return 0;
     if (depth > std::numeric_limits<uint8_t>::max()) {
         return std::numeric_limits<uint8_t>::max();
@@ -449,6 +510,7 @@ uint8_t Search::getTTDepth(int depth) const {
 }
 
 TTFlag Search::getTTFlag(Value::Type type) const {
+    // Convert search result semantics into TT flag semantics
     if (type == Value::Type::EXACT) return TTFlag::EXACT;
     if (type == Value::Type::LOWER_BOUND) return TTFlag::LOWER_BOUND;
     if (type == Value::Type::UPPER_BOUND) return TTFlag::UPPER_BOUND;
@@ -456,6 +518,7 @@ TTFlag Search::getTTFlag(Value::Type type) const {
 }
 
 Value Search::getTTValue(const TTEntry& entry) const {
+    // Decode mate-distance-aware TT scores back into a search Value
     Value value;
     if (entry.score >= (MAX_VALUE - (BOARD_SIZE * BOARD_SIZE))) {
         value = Value(Value::Result::WIN, MAX_VALUE - entry.score);
@@ -477,6 +540,7 @@ Value Search::getTTValue(const TTEntry& entry) const {
 }
 
 int32_t Search::encodeTTScore(Value value) const {
+    // Encode mate distance so shorter wins and longer losses stay ordered
     if (value.getResult() == Value::Result::WIN) {
         return MAX_VALUE - value.getResultDepth();
     }
@@ -487,6 +551,7 @@ int32_t Search::encodeTTScore(Value value) const {
 }
 
 void Search::storeTT(Board& board, Value value, int depth, const Pos& bestMove) {
+    // Skip unknown values because TT entries must carry a usable bound
     const TTFlag flag = getTTFlag(value.getType());
     if (flag == TTFlag::NONE) return;
 
@@ -500,6 +565,7 @@ void Search::storeTT(Board& board, Value value, int depth, const Pos& bestMove) 
 }
 
 void Search::appendTTPV(Board tempBoard, MoveList& pv) const {
+    // Follow stored best moves to extend the PV after the searched prefix
     for (int ply = 0; ply < BOARD_SIZE * BOARD_SIZE; ++ply) {
         const TTEntry* entry = tt.probe(getTTKey(tempBoard));
         if (entry == nullptr || entry->bestMove == TranspositionTable::INVALID_MOVE) {
@@ -515,5 +581,34 @@ void Search::appendTTPV(Board tempBoard, MoveList& pv) const {
         if (tempBoard.getResult() != ONGOING) {
             break;
         }
+    }
+}
+
+int Search::getHistoryIndex(const Pos& move) const {
+    const uint16_t encoded = TranspositionTable::encodeMove(move);
+    return encoded == TranspositionTable::INVALID_MOVE ? -1 : static_cast<int>(encoded);
+}
+
+int Search::getHistoryScore(const Pos& move, bool isBlackTurn) const {
+    const int index = getHistoryIndex(move);
+    if (index < 0) {
+        return 0;
+    }
+    return historyScores[isBlackTurn ? BLACK : WHITE][index];
+}
+
+void Search::updateHistoryScore(const Pos& move, bool isBlackTurn, int delta) {
+    const int index = getHistoryIndex(move);
+    if (index < 0) {
+        return;
+    }
+
+    int& score = historyScores[isBlackTurn ? BLACK : WHITE][index];
+    score = std::max(-HISTORY_ABS_LIMIT, std::min(score + delta, HISTORY_ABS_LIMIT));
+}
+
+void Search::clearHistory() {
+    for (auto& sideHistory : historyScores) {
+        sideHistory.fill(0);
     }
 }
