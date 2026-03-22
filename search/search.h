@@ -27,9 +27,11 @@ PRIVATE
     static constexpr uint64_t TURN_KEY_BLACK = 0x9e3779b97f4a7c15ULL;
     static constexpr uint64_t TURN_KEY_WHITE = 0xc2b2ae3d27d4eb4fULL;
     static constexpr int HISTORY_ABS_LIMIT = 16384;
+    static constexpr int ASPIRATION_START_DELTA = 32;
 
     // Principal variation search with TT-assisted alpha-beta pruning
     Value abp(int depth, bool isMax, Value alpha, Value beta, MoveList* pv = nullptr);
+    Value searchRootWithAspiration(int depth, MoveList* pv);
     Value evaluateNode(Evaluator& evaluator);
     MoveList getCandidates(Evaluator& evaluator, bool isMax);
     void sortChildNodes(MoveList& moves, bool isMax, const TTEntry* entry);
@@ -408,6 +410,45 @@ bool Search::isGameOver(Board& board) {
     return result != ONGOING;
 }
 
+Value Search::searchRootWithAspiration(int depth, MoveList* pv) {
+    const Value fullAlpha(MIN_VALUE, Value::Type::UNKNOWN);
+    const Value fullBeta(MAX_VALUE + 1, Value::Type::UNKNOWN);
+
+    if (bestValue.getType() == Value::Type::UNKNOWN || !bestValue.isOnGoing()) {
+        return abp(depth, true, fullAlpha, fullBeta, pv);
+    }
+
+    const int center = bestValue.getValue();
+    int delta = ASPIRATION_START_DELTA;
+
+    while (delta < (MAX_VALUE - MIN_VALUE)) {
+        const int alphaScore = std::max(MIN_VALUE, center - delta);
+        const int betaScore = std::min(MAX_VALUE + 1, center + delta);
+
+        Value result = abp(
+            depth,
+            true,
+            Value(alphaScore, Value::Type::UNKNOWN),
+            Value(betaScore, Value::Type::UNKNOWN),
+            pv
+        );
+
+        if (!isRunning || result.getType() == Value::Type::EXACT) {
+            return result;
+        }
+
+        const bool canWidenLow = (result.getType() == Value::Type::UPPER_BOUND) && alphaScore > MIN_VALUE;
+        const bool canWidenHigh = (result.getType() == Value::Type::LOWER_BOUND) && betaScore < (MAX_VALUE + 1);
+        if (!canWidenLow && !canWidenHigh) {
+            break;
+        }
+
+        delta *= 2;
+    }
+
+    return abp(depth, true, fullAlpha, fullBeta, pv);
+}
+
 void Search::ids() {
     isRunning = true;
     bestPath.clear();
@@ -422,13 +463,7 @@ void Search::ids() {
         tt.nextGeneration();
 
         MoveList iterationPV;
-        Value result = abp(
-            monitor.getDepth(),
-            true,
-            Value(MIN_VALUE, Value::Type::UNKNOWN),
-            Value(MAX_VALUE + 1, Value::Type::UNKNOWN),
-            &iterationPV
-        );
+        Value result = searchRootWithAspiration(monitor.getDepth(), &iterationPV);
 
         if (!isRunning) {
             break;
