@@ -44,6 +44,7 @@ PRIVATE
     int32_t encodeTTScore(Value value) const;
     void storeTT(Board& board, Value value, int depth, const Pos& bestMove);
     void appendTTPV(Board tempBoard, MoveList& pv) const;
+    void moveRootBestFirst(MoveList& moves) const;
     int getHistoryIndex(const Pos& move) const;
     int getHistoryScore(const Pos& move, bool isBlackTurn) const;
     void updateHistoryScore(const Pos& move, bool isBlackTurn, int delta);
@@ -105,7 +106,14 @@ Value Search::abp(int depth, bool isMax, Value alpha, Value beta, MoveList* pv) 
     }
 
     Evaluator evaluator(board);
+    const bool isDefendingNode = evaluator.isOppoMateExist();
+    const int shallowMoveLimit = isDefendingNode
+        ? std::numeric_limits<int>::max()
+        : (depth <= 3) ? 4 : (depth <= 5) ? 6 : std::numeric_limits<int>::max();
     MoveList moves = getCandidates(evaluator, isMax);
+    if (board.getPath().size() == rootBoard.getPath().size()) {
+        moveRootBestFirst(moves);
+    }
 
     // Stop on leaf, terminal, or forced-empty nodes and evaluate statically
     if (depth == 0 || isGameOver(board) || moves.empty()) {
@@ -133,6 +141,9 @@ Value Search::abp(int depth, bool isMax, Value alpha, Value beta, MoveList* pv) 
     searchedMoves.reserve(moves.size());
 
     for (size_t i = 0; i < moves.size(); ++i) {
+        if (static_cast<int>(i) >= shallowMoveLimit) {
+            break;
+        }
         const Pos move = moves[i];
         if (!board.move(move)) {
             continue;
@@ -294,6 +305,7 @@ Value Search::evaluateNode(Evaluator& evaluator) {
 
 MoveList Search::getCandidates(Evaluator& evaluator, bool isMax) {
     MoveList moves;
+    const bool attackerTurn = (board.isBlackTurn() == rootBoard.isBlackTurn());
     
     // A forced winning or forced-blocking move takes priority over everything else
     Pos sureMove = evaluator.getSureMove();
@@ -304,6 +316,10 @@ MoveList Search::getCandidates(Evaluator& evaluator, bool isMax) {
 
     // Defend immediate threats first; otherwise expand tactical attacking moves
     if (evaluator.isOppoMateExist()) {
+        if (attackerTurn) {
+            return evaluator.getThreats();
+        }
+
         moves = evaluator.getThreatDefend();
         MoveList fours = evaluator.getFours();
         moves.insert(moves.end(), fours.begin(), fours.end());
@@ -616,6 +632,18 @@ void Search::appendTTPV(Board tempBoard, MoveList& pv) const {
         if (tempBoard.getResult() != ONGOING) {
             break;
         }
+    }
+}
+
+void Search::moveRootBestFirst(MoveList& moves) const {
+    if (bestPath.empty()) {
+        return;
+    }
+
+    const Pos& rootBestMove = bestPath.front();
+    const auto it = std::find(moves.begin(), moves.end(), rootBestMove);
+    if (it != moves.end() && it != moves.begin()) {
+        std::iter_swap(moves.begin(), it);
     }
 }
 
