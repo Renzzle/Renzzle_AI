@@ -7,3 +7,4 @@
 *.exe
 .DS_Store
 test/logs/*.log
+test/logs/**/*.log

@@ -106,22 +106,39 @@ private:
 #endif
     }
 
-    static string buildLogPath() {
-        time_t now = time(nullptr);
+    static tm getLocalTime(time_t now) {
         tm localTime;
 #ifdef _WIN32
         localtime_s(&localTime, &now);
-        const int pid = _getpid();
 #else
         localtime_r(&now, &localTime);
-        const int pid = getpid();
 #endif
+        return localTime;
+    }
 
+    static int getProcessId() {
+#ifdef _WIN32
+        return _getpid();
+#else
+        return getpid();
+#endif
+    }
+
+    static string buildLogDirectory(const tm& localTime) {
+        char dateBuf[16];
+        strftime(dateBuf, sizeof(dateBuf), "%Y-%m-%d", &localTime);
+
+        ostringstream oss;
+        oss << "test/logs/" << dateBuf;
+        return oss.str();
+    }
+
+    static string buildLogPath(const string& directory, const tm& localTime, int pid) {
         char timeBuf[32];
         strftime(timeBuf, sizeof(timeBuf), "%Y%m%d_%H%M%S", &localTime);
 
         ostringstream oss;
-        oss << "test/logs/test_" << timeBuf << "_" << pid << ".log";
+        oss << directory << "/test_" << timeBuf << "_" << pid << ".log";
         return oss.str();
     }
 
@@ -134,10 +151,16 @@ public:
     void init() {
         if (initialized) return;
 
+        const time_t now = time(nullptr);
+        const tm localTime = getLocalTime(now);
+        const int pid = getProcessId();
+        const string logDirectory = buildLogDirectory(localTime);
+
         createDir("test");
         createDir("test/logs");
+        createDir(logDirectory.c_str());
 
-        logPath = buildLogPath();
+        logPath = buildLogPath(logDirectory, localTime, pid);
         logFile.open(logPath.c_str(), ios::out | ios::app);
 
         if (!logFile.is_open()) {
