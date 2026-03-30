@@ -173,8 +173,8 @@ PRIVATE
 
 PUBLIC
     SearchTest() {
-        //registerTestMethod("alpha_beta_search_suite", [this]() { testAlphaBetaSearch(); });
-        registerTestMethod("deep_single_case_profile", [this]() { testDeepSingleCaseProfile(); });
+        registerTestMethod("alpha_beta_search_suite", [this]() { testAlphaBetaSearch(); });
+        //registerTestMethod("deep_single_case_profile", [this]() { testDeepSingleCaseProfile(); });
     }
 
     void testAlphaBetaSearch() {

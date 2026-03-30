@@ -58,7 +58,6 @@ PRIVATE
     int32_t encodeTTScore(Value value) const;
     void storeTT(Board& board, Value value, int depth, const Pos& bestMove);
     void appendTTPV(Board tempBoard, MoveList& pv) const;
-    void moveRootBestFirst(MoveList& moves) const;
     int getHistoryIndex(const Pos& move) const;
     int getHistoryScore(const Pos& move, bool isBlackTurn) const;
     void updateHistoryScore(const Pos& move, bool isBlackTurn, int delta);
@@ -131,9 +130,6 @@ Value Search::abp(int depth, bool isMax, Value alpha, Value beta, MoveList* pv) 
         ? std::numeric_limits<int>::max()
         : (depth <= 3) ? 4 : (depth <= 5) ? 6 : std::numeric_limits<int>::max();
     MoveList moves = getCandidates(evaluator, isMax);
-    if (isRootNode) {
-        moveRootBestFirst(moves);
-    }
 
     // Stop on leaf, terminal, or forced-empty nodes and evaluate statically
     if (depth == 0 || isGameOver(board) || moves.empty()) {
@@ -689,18 +685,6 @@ void Search::appendTTPV(Board tempBoard, MoveList& pv) const {
         if (tempBoard.getResult() != ONGOING) {
             break;
         }
-    }
-}
-
-void Search::moveRootBestFirst(MoveList& moves) const {
-    if (bestPath.empty()) {
-        return;
-    }
-
-    const Pos& rootBestMove = bestPath.front();
-    const auto it = std::find(moves.begin(), moves.end(), rootBestMove);
-    if (it != moves.end() && it != moves.begin()) {
-        std::iter_swap(moves.begin(), it);
     }
 }
 

@@ -166,7 +166,7 @@ Pos Evaluator::getSureMove() {
             Pos p = patternMap[oppo][WINNING][i];
             if (!isMoveForbidden(p)) result.push_back(p);
         }
-        
+
         if (!result.empty()) return result.front();
         
         for (int r = 1; r <= BOARD_SIZE; ++r) {
@@ -205,6 +205,10 @@ MoveList Evaluator::getFours() {
     patternMap[self][B4_PLUS].appendTo(result);
     patternMap[self][B4_ANY].appendTo(result);
 
+    stable_sort(result.begin(), result.end(), [&](const Pos& a, const Pos& b) {
+        return board.getCell(a).getScore(self) > board.getCell(b).getScore(self);
+    });
+
     return result;
 }
 
@@ -231,6 +235,10 @@ MoveList Evaluator::getThreats() {
     patternMap[self][F3_ANY].appendTo(result);
     patternMap[self][B4_PLUS].appendTo(result);
     patternMap[self][B4_ANY].appendTo(result);
+
+    stable_sort(result.begin(), result.end(), [&](const Pos& a, const Pos& b) {
+        return board.getCell(a).getScore(self) > board.getCell(b).getScore(self);
+    });
 
     return result;
 }
@@ -315,7 +323,7 @@ MoveList Evaluator::getThreatDefend() {
             }
         }
     }
-    
+
     return result;
 }
 
