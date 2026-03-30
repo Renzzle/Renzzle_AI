@@ -13,6 +13,19 @@
 
 class Search {
 
+PUBLIC
+    struct RootMoveStat {
+        size_t order = 0;
+        Pos move;
+        Value value;
+        size_t nodeCount = 0;
+        double elapsedTime = 0.0;
+        bool wasTTBest = false;
+        bool wasResearched = false;
+        bool causedCutoff = false;
+        MoveList pv;
+    };
+
 PRIVATE
     Board rootBoard;
     Board board;
@@ -21,6 +34,7 @@ PRIVATE
     TranspositionTable tt;
     MoveList bestPath;
     Value bestValue;
+    std::vector<RootMoveStat> lastRootStats;
     std::array<std::array<int, BOARD_SIZE * BOARD_SIZE>, 2> historyScores = {};
 
     //  Random salts to distinguish the side to move in TT keys
@@ -56,6 +70,7 @@ PUBLIC
     void stop();
     size_t getNodeCount() const;
     size_t getEstimatedMemoryBytes() const;
+    const std::vector<RootMoveStat>& getLastRootStats() const;
 
 };
 
@@ -74,6 +89,11 @@ Value Search::abp(int depth, bool isMax, Value alpha, Value beta, MoveList* pv) 
     if (!isRunning) return Value();
     if (pv != nullptr) {
         pv->clear();
+    }
+
+    const bool isRootNode = board.getPath().size() == rootBoard.getPath().size();
+    if (isRootNode) {
+        lastRootStats.clear();
     }
 
     const Value originalAlpha = alpha;
@@ -111,7 +131,7 @@ Value Search::abp(int depth, bool isMax, Value alpha, Value beta, MoveList* pv) 
         ? std::numeric_limits<int>::max()
         : (depth <= 3) ? 4 : (depth <= 5) ? 6 : std::numeric_limits<int>::max();
     MoveList moves = getCandidates(evaluator, isMax);
-    if (board.getPath().size() == rootBoard.getPath().size()) {
+    if (isRootNode) {
         moveRootBestFirst(moves);
     }
 
@@ -139,6 +159,9 @@ Value Search::abp(int depth, bool isMax, Value alpha, Value beta, MoveList* pv) 
     bool causedCutoff = false;
 
     searchedMoves.reserve(moves.size());
+    const Pos ttBestMove = (ttEntry != nullptr && ttEntry->bestMove != TranspositionTable::INVALID_MOVE)
+        ? TranspositionTable::decodeMove(ttEntry->bestMove)
+        : Pos();
 
     for (size_t i = 0; i < moves.size(); ++i) {
         if (static_cast<int>(i) >= shallowMoveLimit) {
@@ -152,6 +175,8 @@ Value Search::abp(int depth, bool isMax, Value alpha, Value beta, MoveList* pv) 
         searchedAny = true;
         searchedMoves.push_back(move);
         monitor.incVisitCnt();
+        const size_t nodeCountBeforeMove = isRootNode ? monitor.getVisitCnt() : 0;
+        const double elapsedBeforeMove = isRootNode ? monitor.getElapsedTime() : 0.0;
 
         Value nextAlpha = alpha;
         Value nextBeta = beta;
@@ -161,6 +186,7 @@ Value Search::abp(int depth, bool isMax, Value alpha, Value beta, MoveList* pv) 
         Value childValue;
         MoveList childPV;
         bool hasExactChildPV = false;
+        bool wasResearched = false;
         if (i == 0) {
             // Search the first move with the full window
             childValue = abp(depth - 1, !isMax, nextAlpha, nextBeta, &childPV);
@@ -186,6 +212,7 @@ Value Search::abp(int depth, bool isMax, Value alpha, Value beta, MoveList* pv) 
                 if (needResearch) {
                     childValue = abp(depth - 1, !isMax, nextAlpha, nextBeta, &childPV);
                     hasExactChildPV = childValue.getType() == Value::Type::EXACT;
+                    wasResearched = true;
                 } else if (pv != nullptr) {
                     const bool couldBecomeBest =
                         (isMax && childValue > bestVal) ||
@@ -193,6 +220,7 @@ Value Search::abp(int depth, bool isMax, Value alpha, Value beta, MoveList* pv) 
                     if (couldBecomeBest) {
                         childValue = abp(depth - 1, !isMax, nextAlpha, nextBeta, &childPV);
                         hasExactChildPV = childValue.getType() == Value::Type::EXACT;
+                        wasResearched = true;
                     }
                 }
             }
@@ -226,8 +254,33 @@ Value Search::abp(int depth, bool isMax, Value alpha, Value beta, MoveList* pv) 
             }
         }
 
+        const bool moveCausedCutoff = beta <= alpha;
+        if (isRootNode) {
+            monitor.updateElapsedTime();
+
+            RootMoveStat stat;
+            stat.order = i + 1;
+            stat.move = move;
+            stat.value = childValue;
+            stat.nodeCount = (monitor.getVisitCnt() - nodeCountBeforeMove) + 1;
+            stat.elapsedTime = monitor.getElapsedTime() - elapsedBeforeMove;
+            stat.wasTTBest = !ttBestMove.isDefault() && move == ttBestMove;
+            stat.wasResearched = wasResearched;
+            stat.causedCutoff = moveCausedCutoff;
+            stat.pv.push_back(move);
+            if (hasExactChildPV) {
+                stat.pv.insert(stat.pv.end(), childPV.begin(), childPV.end());
+            } else {
+                Board tempBoard = board;
+                if (tempBoard.move(move)) {
+                    appendTTPV(tempBoard, stat.pv);
+                }
+            }
+            lastRootStats.push_back(stat);
+        }
+
         // Cut once the current node can no longer improve the parent decision
-        if (beta <= alpha) {
+        if (moveCausedCutoff) {
             causedCutoff = true;
             break;
         }
@@ -535,6 +588,10 @@ size_t Search::getEstimatedMemoryBytes() const {
         + (sizeof(Board) * 2)
         + (bestPath.capacity() * sizeof(Pos))
         + sizeof(historyScores);
+}
+
+const std::vector<Search::RootMoveStat>& Search::getLastRootStats() const {
+    return lastRootStats;
 }
 
 uint64_t Search::getTTKey(Board& board) const {
