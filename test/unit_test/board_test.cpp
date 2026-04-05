@@ -1,5 +1,5 @@
-#include "../test.h"
 #include "../util.h"
+#include "../test.h"
 #include "../../game/board.h"
 
 class BoardTest : public TestBase {

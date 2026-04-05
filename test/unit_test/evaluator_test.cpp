@@ -1,5 +1,5 @@
-#include "../test.h"
 #include "../util.h"
+#include "../test.h"
 #include "../../evaluate/evaluator.h"
 
 class EvaluatorTest : public TestBase {

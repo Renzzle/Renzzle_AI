@@ -66,6 +66,7 @@ PRIVATE
     MoveBucket patternMap[2][COMPOSITE_PATTERN_SIZE];
 
     void classify();
+    int evaluatePatternBalance();
     
 PUBLIC
     Evaluator(Board& board);
@@ -77,6 +78,7 @@ PUBLIC
     bool isOppoMateExist();
     bool isMoveForbidden(const Pos& p);
     Value evaluate();
+    Value evaluateTactical();
 
 }; 
 
@@ -106,6 +108,34 @@ void Evaluator::classify() {
             }
         }
     }
+}
+
+int Evaluator::evaluatePatternBalance() {
+    int val = 0;
+    val += patternMap[self][B4_F3].size() * 150;
+    val += patternMap[self][B4_PLUS].size() * 25;
+    val += patternMap[self][F3_2X].size() * 35;
+    val += patternMap[self][F3_PLUS].size() * 25;
+
+    val += patternMap[self][B4_ANY].size() * 25;
+    val += patternMap[self][F3_ANY].size() * 25;
+    val += patternMap[self][B3_PLUS].size() * 10;
+    val += patternMap[self][F2_2X].size() * 9;
+    val += patternMap[self][B3_ANY].size() * 5;
+    val += patternMap[self][F2_ANY].size() * 4;
+
+    val -= patternMap[oppo][B4_PLUS].size() * 20;
+    val -= patternMap[oppo][B4_ANY].size() * 20;
+    val -= patternMap[oppo][F3_2X].size() * 20;
+    val -= patternMap[oppo][F3_PLUS].size() * 20;
+    val -= patternMap[oppo][F3_ANY].size() * 20;
+
+    val -= patternMap[oppo][B3_PLUS].size() * 8;
+    val -= patternMap[oppo][F2_2X].size() * 7;
+    val -= patternMap[oppo][B3_ANY].size() * 3;
+    val -= patternMap[oppo][F2_ANY].size() * 2;
+
+    return val;
 }
 
 MoveList Evaluator::getCandidates() {
@@ -371,29 +401,76 @@ Value Evaluator::evaluate() {
         return Value(Value::Result::WIN, 3);
     }
 
+    return Value(evaluatePatternBalance());
+}
+
+Value Evaluator::evaluateTactical() {
+    // case 1: finish
+    Result result = board.getResult();
+    if (result != ONGOING) {
+        if (result == DRAW) return Value(0);
+        
+        // black turn & white win = white 5
+        if (self == BLACK && result == WHITE_WIN)
+            return Value(Value::Result::LOSE);
+        // white turn & black win = black 5
+        if (self == WHITE && result == BLACK_WIN)
+            return Value(Value::Result::LOSE);
+        // white turn & white win = black forbidden
+        if (self == WHITE && result == WHITE_WIN)
+            return Value(Value::Result::WIN);
+    }
+    
+    // case 2: there is sure winning path
+    // 1 step before win
+    if (!patternMap[self][WINNING].empty()) {
+        return Value(Value::Result::WIN, 1);
+    }
+    // 2 step before lose
+    if (patternMap[oppo][WINNING].size() > 1) {
+        return Value(Value::Result::LOSE, 2);
+    }
+    // 3 step before win
+    if (!patternMap[self][MATE].empty() && patternMap[oppo][WINNING].empty()) {
+        return Value(Value::Result::WIN, 3);
+    }
+
     int val = 0;
-    val += patternMap[self][B4_F3].size() * 150;
-    val += patternMap[self][B4_PLUS].size() * 25;
-    val += patternMap[self][F3_2X].size() * 35;
-    val += patternMap[self][F3_PLUS].size() * 25;
-
-    val += patternMap[self][B4_ANY].size() * 25;
-    val += patternMap[self][F3_ANY].size() * 25;
-    val += patternMap[self][B3_PLUS].size() * 10;
-    val += patternMap[self][F2_2X].size() * 9;
-    val += patternMap[self][B3_ANY].size() * 5;
+    // Self tactical pressure
+    val += patternMap[self][NOT_EMPTY].size() * 0;
+    val += patternMap[self][ETC].size() * 0;
+    val += patternMap[self][FORBID].size() * 0;
+    val += patternMap[self][FORBID_33].size() * 0;
     val += patternMap[self][F2_ANY].size() * 4;
+    val += patternMap[self][B3_ANY].size() * 5;
+    val += patternMap[self][F2_2X].size() * 9;
+    val += patternMap[self][B3_PLUS].size() * 10;
+    val += patternMap[self][F3_ANY].size() * 25;
+    val += patternMap[self][F3_PLUS].size() * 25;
+    val += patternMap[self][F3_2X].size() * 35;
+    val += patternMap[self][B4_ANY].size() * 25;
+    val += patternMap[self][B4_PLUS].size() * 25;
+    val += patternMap[self][B4_F3].size() * 150;
+    val += patternMap[self][MATE].size() * 0;
+    val += patternMap[self][WINNING].size() * 0;
 
-    val -= patternMap[oppo][B4_PLUS].size() * 20;
-    val -= patternMap[oppo][B4_ANY].size() * 20;
-    val -= patternMap[oppo][F3_2X].size() * 20;
-    val -= patternMap[oppo][F3_PLUS].size() * 20;
-    val -= patternMap[oppo][F3_ANY].size() * 20;
-
-    val -= patternMap[oppo][B3_PLUS].size() * 8;
-    val -= patternMap[oppo][F2_2X].size() * 7;
-    val -= patternMap[oppo][B3_ANY].size() * 3;
+    // Opponent tactical pressure
+    val -= patternMap[oppo][NOT_EMPTY].size() * 0;
+    val -= patternMap[oppo][ETC].size() * 0;
+    val -= patternMap[oppo][FORBID].size() * 0;
+    val -= patternMap[oppo][FORBID_33].size() * 0;
     val -= patternMap[oppo][F2_ANY].size() * 2;
+    val -= patternMap[oppo][B3_ANY].size() * 3;
+    val -= patternMap[oppo][F2_2X].size() * 7;
+    val -= patternMap[oppo][B3_PLUS].size() * 8;
+    val -= patternMap[oppo][F3_ANY].size() * 20;
+    val -= patternMap[oppo][F3_PLUS].size() * 20;
+    val -= patternMap[oppo][F3_2X].size() * 20;
+    val -= patternMap[oppo][B4_ANY].size() * 20;
+    val -= patternMap[oppo][B4_PLUS].size() * 20;
+    val -= patternMap[oppo][B4_F3].size() * 0;
+    val -= patternMap[oppo][MATE].size() * 0;
+    val -= patternMap[oppo][WINNING].size() * 0;
 
     return Value(val);
 }

@@ -1,5 +1,5 @@
-#include "../test.h"
 #include "../util.h"
+#include "../test.h"
 #include "../../search/search_win.h"
 #include <cmath>
 

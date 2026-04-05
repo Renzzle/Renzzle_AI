@@ -349,7 +349,7 @@ Value Search::abp(int depth, bool isMax, Value alpha, Value beta, MoveList* pv) 
 
 Value Search::evaluateNode(Evaluator& evaluator) {
     // Use the evaluator directly for static node scoring
-    return evaluator.evaluate();
+    return evaluator.evaluateTactical();
 }
 
 MoveList Search::getCandidates(Evaluator& evaluator, bool isMax) {
