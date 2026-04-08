@@ -108,14 +108,19 @@ public:
         return Pos();
     }
 
-    void appendTo(std::vector<Pos>& result) const {
+    template <typename Fn>
+    void forEach(Fn&& fn) const {
         for (int wordIndex = 0; wordIndex < WORD_COUNT; ++wordIndex) {
             uint64_t word = words[wordIndex];
             while (word != 0) {
                 const int bitIndex = __builtin_ctzll(word);
-                result.push_back(decode(static_cast<uint8_t>((wordIndex * WORD_BITS) + bitIndex)));
+                fn(decode(static_cast<uint8_t>((wordIndex * WORD_BITS) + bitIndex)));
                 word &= (word - 1);
             }
         }
+    }
+
+    void appendTo(std::vector<Pos>& result) const {
+        forEach([&](const Pos& p) { result.push_back(p); });
     }
 };

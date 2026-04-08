@@ -62,7 +62,9 @@ PUBLIC
     bool pass();
     Result getResult();
     bool isForbidden(const Pos& p);
+    bool hasCompositePattern(Piece piece, CompositePattern pattern) const;
     int getCompositePatternCount(Piece piece, CompositePattern pattern) const;
+    Pos getFirstPatternPos(Piece piece, CompositePattern pattern) const;
     const MoveBucket& getPatternBucket(Piece piece, CompositePattern pattern) const;
     MoveList& getPath();
     size_t getCurrentHash() const;
@@ -259,8 +261,16 @@ MoveList& Board::getPath() {
     return path;
 }
 
+bool Board::hasCompositePattern(Piece piece, CompositePattern pattern) const {
+    return !patternBuckets[piece][pattern].empty();
+}
+
 int Board::getCompositePatternCount(Piece piece, CompositePattern pattern) const {
     return patternBuckets[piece][pattern].size();
+}
+
+Pos Board::getFirstPatternPos(Piece piece, CompositePattern pattern) const {
+    return patternBuckets[piece][pattern].front();
 }
 
 const MoveBucket& Board::getPatternBucket(Piece piece, CompositePattern pattern) const {
