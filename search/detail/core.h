@@ -43,8 +43,8 @@ int Search::getShallowMoveLimit(Evaluator& evaluator, int depth) const {
         : (depth <= 3) ? 4 : (depth <= 5) ? 6 : std::numeric_limits<int>::max();
 }
 
-Value Search::evaluateLeafNode(Evaluator& evaluator, bool isMax, int depth) {
-    Value val = evaluateNode(evaluator);
+Value Search::evaluateLeafNode(bool isMax, int depth) {
+    Value val = evaluateTacticalSummary(board);
     if (!isMax) {
         val.invert();
     }
@@ -236,14 +236,14 @@ Value Search::abp(int depth, bool isMax, Value alpha, Value beta, MoveList* pv) 
         return resolvedValue;
     }
 
-    Evaluator evaluator(board);
     if (depth == 0 || isGameOver(board)) {
-        return evaluateLeafNode(evaluator, isMax, depth);
+        return evaluateLeafNode(isMax, depth);
     }
 
+    Evaluator evaluator(board);
     MoveList moves = getCandidates(evaluator, isMax);
     if (moves.empty()) {
-        return evaluateLeafNode(evaluator, isMax, depth);
+        return evaluateLeafNode(isMax, depth);
     }
 
     sortChildNodes(moves, isMax, ttEntry);
@@ -318,7 +318,7 @@ Value Search::abp(int depth, bool isMax, Value alpha, Value beta, MoveList* pv) 
     }
 
     if (!searchedAny) {
-        return evaluateLeafNode(evaluator, isMax, depth);
+        return evaluateLeafNode(isMax, depth);
     }
 
     Value result = finalizeNodeValue(isMax, originalAlpha, originalBeta, alpha, beta, bestVal);

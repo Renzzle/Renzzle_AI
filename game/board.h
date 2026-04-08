@@ -2,6 +2,7 @@
 
 #include "../test/profiler.h"
 #include "line.h"
+#include "move_bucket.h"
 #include "pos.h"
 #include "zobrist.h"
 #include "../test/test.h"
@@ -29,10 +30,13 @@ PRIVATE
     array<uint64_t, BIT_LINE_SIZE> verticalKeys;
     array<uint64_t, BIT_DIAG_SIZE> upwardKeys;
     array<uint64_t, BIT_DIAG_SIZE> downwardKeys;
+    MoveBucket patternBuckets[2][COMPOSITE_PATTERN_SIZE];
 
     void clearPattern(Cell& cell);
     void setPatterns(const Pos& p);
     void setResult(const Pos& p);
+    void addPatternBucketState(const Pos& p, const Cell& cell);
+    void removePatternBucketState(const Pos& p, const Cell& cell);
     Line getLine(int x, int y, Direction dir);
     Pattern getPattern(const Line& line, Color color);
     Pattern getPattern(uint32_t lineKey, Color color);
@@ -58,6 +62,8 @@ PUBLIC
     bool pass();
     Result getResult();
     bool isForbidden(const Pos& p);
+    int getCompositePatternCount(Piece piece, CompositePattern pattern) const;
+    const MoveBucket& getPatternBucket(Piece piece, CompositePattern pattern) const;
     MoveList& getPath();
     size_t getCurrentHash() const;
     size_t getChildHash(const Pos& p);
@@ -82,6 +88,12 @@ Board::Board() {
                 cells[i][j].setPiece(EMPTY);
                 setBitKeys(i, j, EMPTY);
             }
+        }
+    }
+
+    for (int i = 1; i <= BOARD_SIZE; ++i) {
+        for (int j = 1; j <= BOARD_SIZE; ++j) {
+            addPatternBucketState(Pos(i, j), cells[i][j]);
         }
     }
 }
@@ -121,6 +133,7 @@ bool Board::move(const Pos& p) {
     setResult(p);
 
     Piece piece = isBlackTurn() ? WHITE : BLACK;
+    removePatternBucketState(p, targetCell);
     currentHash ^= getZobristValue(p.x, p.y, piece);
     targetCell.setPiece(piece);
     setBitKeys(p.x, p.y, piece);
@@ -184,8 +197,11 @@ bool Board::isForbidden(const Pos& p) {
 
     // recursive 3-3
     // move
+    removePatternBucketState(p, targetCell);
     targetCell.setPiece(BLACK);
     setBitKeys(p.x, p.y, BLACK);
+    clearPattern(targetCell);
+    targetCell.clearCompositePattern();
     setPatterns(p);
 
     const int originX = p.x;
@@ -241,6 +257,14 @@ bool Board::isForbidden(const Pos& p) {
 
 MoveList& Board::getPath() {
     return path;
+}
+
+int Board::getCompositePatternCount(Piece piece, CompositePattern pattern) const {
+    return patternBuckets[piece][pattern].size();
+}
+
+const MoveBucket& Board::getPatternBucket(Piece piece, CompositePattern pattern) const {
+    return patternBuckets[piece][pattern];
 }
 
 size_t Board::getCurrentHash() const {
@@ -332,6 +356,30 @@ uint32_t Board::shiftLineKey(uint32_t lineKey, int n) {
     return shiftedLineKey;
 }
 
+void Board::addPatternBucketState(const Pos& p, const Cell& cell) {
+    if (cell.getPiece() != EMPTY) return;
+    const CompositePattern blackPattern = cell.getCompositePattern(BLACK);
+    const CompositePattern whitePattern = cell.getCompositePattern(WHITE);
+    if (blackPattern != NOT_EMPTY) {
+        patternBuckets[BLACK][blackPattern].insert(p);
+    }
+    if (whitePattern != NOT_EMPTY) {
+        patternBuckets[WHITE][whitePattern].insert(p);
+    }
+}
+
+void Board::removePatternBucketState(const Pos& p, const Cell& cell) {
+    if (cell.getPiece() != EMPTY) return;
+    const CompositePattern blackPattern = cell.getCompositePattern(BLACK);
+    const CompositePattern whitePattern = cell.getCompositePattern(WHITE);
+    if (blackPattern != NOT_EMPTY) {
+        patternBuckets[BLACK][blackPattern].erase(p);
+    }
+    if (whitePattern != NOT_EMPTY) {
+        patternBuckets[WHITE][whitePattern].erase(p);
+    }
+}
+
 void Board::setBitKeys(int x, int y, Piece piece) {
     const int bx = toBitCoord(x);
     const int by = toBitCoord(y);
@@ -394,6 +442,9 @@ void Board::setPatterns(const Pos& p) {
 
             Cell& c = getCell(x, y);
             if (c.getPiece() == EMPTY) {
+                if (!isTouched[x][y]) {
+                    removePatternBucketState(Pos(x, y), c);
+                }
                 const uint32_t lineKey = getLineKey(x, y, dir);
                 const uint32_t blackLineKey =
                     (lineKey & ~(0x3u << CENTER_SHIFT)) | (static_cast<uint32_t>(BLACK) << CENTER_SHIFT);
@@ -412,8 +463,10 @@ void Board::setPatterns(const Pos& p) {
     }
 
     for (size_t i = 0; i < touchedCount; i++) {
-        Cell& c = getCell(touchedCells[i]);
+        const Pos touchedPos = touchedCells[i];
+        Cell& c = getCell(touchedPos);
         c.updateDerived();
+        addPatternBucketState(touchedPos, c);
     }
 }
 

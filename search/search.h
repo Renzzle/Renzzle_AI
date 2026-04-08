@@ -137,7 +137,7 @@ PRIVATE
     bool tryResolveFromTT(int depth, Value& alpha, Value& beta, MoveList* pv,
         TTEntry& ttEntryStorage, const TTEntry*& ttEntry, Value& resolvedValue);
     int getShallowMoveLimit(Evaluator& evaluator, int depth) const;
-    Value evaluateLeafNode(Evaluator& evaluator, bool isMax, int depth);
+    Value evaluateLeafNode(bool isMax, int depth);
     ChildSearchResult searchChildPVS(int depth, bool isMax, size_t moveIndex, Value alpha, Value beta,
         Value bestVal, MoveList* pv, bool requireExactBest);
     void updateBestFromChild(bool isMax, const Pos& move, const ChildSearchResult& childResult,

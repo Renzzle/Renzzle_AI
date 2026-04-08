@@ -135,9 +135,9 @@ public:
     Cell();
     Piece getPiece() const;
     void setPiece(const Piece& piece);
-    Pattern getPattern(Piece piece, Direction dir);
-    CompositePattern getCompositePattern(Piece piece);
-    Score getScore(Piece piece);
+    Pattern getPattern(Piece piece, Direction dir) const;
+    CompositePattern getCompositePattern(Piece piece) const;
+    Score getScore(Piece piece) const;
     void setPattern(Piece piece, Direction dir, Pattern pattern);
     void clearCompositePattern();
     void setCompositePattern();
@@ -166,15 +166,15 @@ void Cell::setPiece(const Piece& piece) {
     this->piece = piece;
 }
 
-Pattern Cell::getPattern(Piece piece, Direction dir) {
+Pattern Cell::getPattern(Piece piece, Direction dir) const {
     return patterns[piece][dir];
 }
 
-CompositePattern Cell::getCompositePattern(Piece piece) {
+CompositePattern Cell::getCompositePattern(Piece piece) const {
     return cPattern[piece];
 }
 
-Score Cell::getScore(Piece piece) {
+Score Cell::getScore(Piece piece) const {
     return score[piece];
 }
 

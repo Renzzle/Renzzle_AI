@@ -2,59 +2,9 @@
 
 #include "../game/board.h"
 #include "value.h"
-#include <array>
 #include <vector>
 #include <algorithm>
 #include <tuple>
-
-class MoveBucket {
-
-private:
-    static constexpr int CAPACITY = BOARD_SIZE * BOARD_SIZE;
-
-    array<uint8_t, CAPACITY> data;
-    int count = 0;
-
-    static uint8_t encode(const Pos& p) {
-        return static_cast<uint8_t>((p.getX() << 4) | p.getY());
-    }
-
-    static Pos decode(uint8_t code) {
-        return Pos(code >> 4, code & 0x0F);
-    }
-
-public:
-    void clear() {
-        count = 0;
-    }
-
-    void push_back(const Pos& p) {
-        data[count++] = encode(p);
-    }
-
-    bool empty() const {
-        return count == 0;
-    }
-
-    int size() const {
-        return count;
-    }
-
-    Pos front() const {
-        return decode(data[0]);
-    }
-
-    Pos operator[](int index) const {
-        return decode(data[index]);
-    }
-
-    void appendTo(MoveList& result) const {
-        for (int i = 0; i < count; ++i) {
-            result.push_back(decode(data[i]));
-        }
-    }
-
-};
 
 class Evaluator {
 
@@ -82,6 +32,58 @@ PUBLIC
 
 }; 
 
+inline Value evaluateTacticalSummary(Board& board) {
+    Piece self = board.isBlackTurn() ? BLACK : WHITE;
+    Piece oppo = !board.isBlackTurn() ? BLACK : WHITE;
+
+    Result result = board.getResult();
+    if (result != ONGOING) {
+        if (result == DRAW) return Value(0);
+
+        if (self == BLACK && result == WHITE_WIN)
+            return Value(Value::Result::LOSE);
+        if (self == WHITE && result == BLACK_WIN)
+            return Value(Value::Result::LOSE);
+        if (self == WHITE && result == WHITE_WIN)
+            return Value(Value::Result::WIN);
+    }
+
+    if (board.getCompositePatternCount(self, WINNING) > 0) {
+        return Value(Value::Result::WIN, 1);
+    }
+    if (board.getCompositePatternCount(oppo, WINNING) > 1) {
+        return Value(Value::Result::LOSE, 2);
+    }
+    if (board.getCompositePatternCount(self, MATE) > 0 &&
+        board.getCompositePatternCount(oppo, WINNING) == 0) {
+        return Value(Value::Result::WIN, 3);
+    }
+
+    int val = 0;
+    val += board.getCompositePatternCount(self, F2_ANY) * 4;
+    val += board.getCompositePatternCount(self, B3_ANY) * 5;
+    val += board.getCompositePatternCount(self, F2_2X) * 9;
+    val += board.getCompositePatternCount(self, B3_PLUS) * 10;
+    val += board.getCompositePatternCount(self, F3_ANY) * 25;
+    val += board.getCompositePatternCount(self, F3_PLUS) * 25;
+    val += board.getCompositePatternCount(self, F3_2X) * 35;
+    val += board.getCompositePatternCount(self, B4_ANY) * 25;
+    val += board.getCompositePatternCount(self, B4_PLUS) * 25;
+    val += board.getCompositePatternCount(self, B4_F3) * 150;
+
+    val -= board.getCompositePatternCount(oppo, F2_ANY) * 2;
+    val -= board.getCompositePatternCount(oppo, B3_ANY) * 3;
+    val -= board.getCompositePatternCount(oppo, F2_2X) * 7;
+    val -= board.getCompositePatternCount(oppo, B3_PLUS) * 8;
+    val -= board.getCompositePatternCount(oppo, F3_ANY) * 20;
+    val -= board.getCompositePatternCount(oppo, F3_PLUS) * 20;
+    val -= board.getCompositePatternCount(oppo, F3_2X) * 20;
+    val -= board.getCompositePatternCount(oppo, B4_ANY) * 20;
+    val -= board.getCompositePatternCount(oppo, B4_PLUS) * 20;
+
+    return Value(val);
+}
+
 Evaluator::Evaluator(Board& board) : board(board) {
     classify();
 }
@@ -92,20 +94,8 @@ void Evaluator::classify() {
 
     for (int color = 0; color < 2; ++color) {
         for (int pattern = 0; pattern < COMPOSITE_PATTERN_SIZE; ++pattern) {
-            patternMap[color][pattern].clear();
-        }
-    }
-
-    if (board.getResult() != ONGOING) return;
-
-    for (int i = 1; i <= BOARD_SIZE; i++) {
-        for (int j = 1; j <= BOARD_SIZE; j++) {
-            Cell& c = board.getCell(i, j);
-            if (c.getPiece() == EMPTY) {
-                Pos p(i, j);
-                patternMap[BLACK][c.getCompositePattern(BLACK)].push_back(p);
-                patternMap[WHITE][c.getCompositePattern(WHITE)].push_back(p);
-            }
+            patternMap[color][pattern] =
+                board.getPatternBucket(static_cast<Piece>(color), static_cast<CompositePattern>(pattern));
         }
     }
 }
