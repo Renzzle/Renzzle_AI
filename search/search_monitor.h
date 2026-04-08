@@ -37,6 +37,7 @@ PUBLIC
     void incDepth(int val) { depth += val; executeTrigger(); };
     void decDepth(int val) { depth -= val; executeTrigger(); };
     void incVisitCnt() { visitCnt++; executeTrigger(); };
+    void addVisitCnt(size_t delta) { visitCnt += delta; executeTrigger(); };
     void setBestPath(MoveList path) { bestPath = path; executeTrigger(); };
 
     // getter
@@ -53,9 +54,6 @@ SearchMonitor::SearchMonitor() {
     elapsedTime = 0.0;
     depth = 0;
     visitCnt = 0;
-
-    trigger = [](SearchMonitor monitor) { return false; };
-    searchListener = [](SearchMonitor monitor) { return; };
 }
 
 void SearchMonitor::updateElapsedTime() {
@@ -66,6 +64,10 @@ void SearchMonitor::updateElapsedTime() {
 }
 
 void SearchMonitor::executeTrigger() {
+    if (!trigger || !searchListener) {
+        return;
+    }
+
     if(trigger(*this)) {
         searchListener(*this);
     }

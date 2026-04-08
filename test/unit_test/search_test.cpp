@@ -304,6 +304,7 @@ PRIVATE
         Board board = getBoard(process);
         SearchMonitor monitor;
         Search searcher(board, monitor);
+        //searcher.setLazyThreadCount(8);
 
         monitor.setTrigger([](SearchMonitor& monitor) {
             static int depth = 0;
@@ -344,9 +345,9 @@ PRIVATE
         printBoard(board);
         TEST_PRINT("");
 
-        searcher.isRunning = true;
-        searcher.bestPath.clear();
-        searcher.bestValue = Value();
+        searcher.state.isRunning = true;
+        searcher.state.bestPath.clear();
+        searcher.state.bestValue = Value();
         searcher.clearHistory();
         monitor.initStartTime();
         searcher.tt.clear();
@@ -361,12 +362,12 @@ PRIVATE
             MoveList pv;
             Value result = searcher.searchRootWithAspiration(depth, &pv);
 
-            if (!searcher.isRunning) {
+            if (!searcher.state.isRunning) {
                 break;
             }
 
-            searcher.bestValue = result;
-            searcher.bestPath = pv;
+            searcher.state.bestValue = result;
+            searcher.state.bestPath = pv;
             monitor.setBestPath(pv);
             monitor.updateElapsedTime();
             completedDepth = depth;
@@ -403,8 +404,8 @@ PRIVATE
 
 PUBLIC
     SearchTest() {
-        //registerTestMethod("alpha_beta_search_suite", [this]() { testAlphaBetaSearch(); });
-        registerTestMethod("deep_single_case_profile", [this]() { testDeepSingleCaseProfile(); });
+        registerTestMethod("alpha_beta_search_suite", [this]() { testAlphaBetaSearch(); });
+        //registerTestMethod("deep_single_case_profile", [this]() { testDeepSingleCaseProfile(); });
     }
 
     void testAlphaBetaSearch() {

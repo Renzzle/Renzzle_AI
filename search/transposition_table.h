@@ -1,9 +1,13 @@
 #pragma once
 
 #include "../game/pos.h"
+#include <atomic>
 #include <cstddef>
 #include <cstdint>
 #include <limits>
+#include <memory>
+#include <mutex>
+#include <shared_mutex>
 #include <vector>
 
 enum class TTFlag : uint8_t {
@@ -49,15 +53,20 @@ class TranspositionTable {
 private:
     static constexpr size_t DEFAULT_BYTES = 64ull * 1024ull * 1024ull; // 64MB
 
-    std::vector<TTEntry> entries;
-    size_t bucketCount = 0;
-    size_t associativity = 4;
-    size_t memoryBytes = 0;
-    size_t usedEntries = 0;
-    uint8_t generation = 0;
+    struct SharedState {
+        std::vector<TTEntry> entries;
+        size_t bucketCount = 0;
+        size_t associativity = 4;
+        size_t memoryBytes = 0;
+        std::atomic<size_t> usedEntries {0};
+        std::atomic<unsigned int> generation {0};
+        mutable std::atomic<size_t> probeCount {0};
+        mutable std::atomic<size_t> hitCount {0};
+        bool sharedMode = false;
+        mutable std::vector<std::shared_mutex> stripeLocks;
+    };
 
-    mutable size_t probeCount = 0;
-    mutable size_t hitCount = 0;
+    std::shared_ptr<SharedState> state = std::make_shared<SharedState>();
 
     static size_t floorPowerOfTwo(size_t v) {
         size_t p = 1;
@@ -68,17 +77,48 @@ private:
     }
 
     size_t getBucketBase(size_t bucketIndex) const {
-        return bucketIndex * associativity;
+        return bucketIndex * state->associativity;
     }
 
     size_t getBucketIndex(uint64_t key) const {
-        return static_cast<size_t>(key) & (bucketCount - 1);
+        return static_cast<size_t>(key) & (state->bucketCount - 1);
     }
 
     int getReplacementScore(const TTEntry& entry) const {
+        const unsigned int generation = state->generation.load(std::memory_order_relaxed) & TTEntry::AGE_MASK;
         const int ageDist = static_cast<int>((generation - entry.getAge()) & TTEntry::AGE_MASK);
         // Keep deeper and newer entries. Low score means easy victim.
         return static_cast<int>(entry.depth) - (ageDist * 2);
+    }
+
+    bool isSharedModeEnabled() const {
+        return state->sharedMode && !state->stripeLocks.empty();
+    }
+
+    std::unique_lock<std::shared_mutex> lockBucket(size_t bucketIndex, bool nonBlocking = false) const {
+        if (!isSharedModeEnabled()) {
+            return std::unique_lock<std::shared_mutex>();
+        }
+
+        const size_t stripeIndex = bucketIndex % state->stripeLocks.size();
+        if (nonBlocking) {
+            return std::unique_lock<std::shared_mutex>(
+                state->stripeLocks[stripeIndex], std::try_to_lock);
+        }
+        return std::unique_lock<std::shared_mutex>(state->stripeLocks[stripeIndex]);
+    }
+
+    std::shared_lock<std::shared_mutex> lockBucketShared(size_t bucketIndex, bool nonBlocking = false) const {
+        if (!isSharedModeEnabled()) {
+            return std::shared_lock<std::shared_mutex>();
+        }
+
+        const size_t stripeIndex = bucketIndex % state->stripeLocks.size();
+        if (nonBlocking) {
+            return std::shared_lock<std::shared_mutex>(
+                state->stripeLocks[stripeIndex], std::try_to_lock);
+        }
+        return std::shared_lock<std::shared_mutex>(state->stripeLocks[stripeIndex]);
     }
 
 public:
@@ -95,58 +135,97 @@ public:
         size_t rawBucketCount = bytes / (entryBytes * assoc);
         if (rawBucketCount == 0) rawBucketCount = 1;
 
-        associativity = assoc;
-        bucketCount = floorPowerOfTwo(rawBucketCount);
-
-        entries.assign(bucketCount * associativity, TTEntry());
-        memoryBytes = entries.size() * sizeof(TTEntry);
-        usedEntries = 0;
-        generation = 0;
+        state->associativity = assoc;
+        state->bucketCount = floorPowerOfTwo(rawBucketCount);
+        state->entries.assign(state->bucketCount * state->associativity, TTEntry());
+        state->memoryBytes = state->entries.size() * sizeof(TTEntry);
+        state->usedEntries.store(0, std::memory_order_relaxed);
+        state->generation.store(0, std::memory_order_relaxed);
         resetStats();
     }
 
     void clear() {
-        for (auto& entry : entries) {
+        for (auto& entry : state->entries) {
             entry = TTEntry();
         }
-        usedEntries = 0;
-        generation = 0;
+        state->usedEntries.store(0, std::memory_order_relaxed);
+        state->generation.store(0, std::memory_order_relaxed);
         resetStats();
     }
 
     void nextGeneration() {
-        generation = (generation + 1) & TTEntry::AGE_MASK;
+        const unsigned int next =
+            (state->generation.load(std::memory_order_relaxed) + 1u) & TTEntry::AGE_MASK;
+        state->generation.store(next, std::memory_order_relaxed);
     }
 
-    const TTEntry* probe(uint64_t key) const {
-        if (bucketCount == 0) return nullptr;
+    void enableSharedMode(size_t stripeCount = 256) {
+        if (stripeCount == 0) {
+            stripeCount = 1;
+        }
 
-        probeCount++;
-        const size_t base = getBucketBase(getBucketIndex(key));
+        state->sharedMode = true;
+        state->stripeLocks = std::vector<std::shared_mutex>(stripeCount);
+    }
 
-        for (size_t i = 0; i < associativity; i++) {
-            const TTEntry& entry = entries[base + i];
+    void disableSharedMode() {
+        state->sharedMode = false;
+        state->stripeLocks.clear();
+    }
+
+    bool probeCopy(uint64_t key, TTEntry* out, bool nonBlocking = false) const {
+        if (state->bucketCount == 0 || out == nullptr) {
+            return false;
+        }
+
+        state->probeCount.fetch_add(1, std::memory_order_relaxed);
+        const size_t bucketIndex = getBucketIndex(key);
+        const auto lock = lockBucketShared(bucketIndex, nonBlocking);
+        if (isSharedModeEnabled() && nonBlocking && !lock.owns_lock()) {
+            return false;
+        }
+        const size_t base = getBucketBase(bucketIndex);
+
+        for (size_t i = 0; i < state->associativity; i++) {
+            const TTEntry& entry = state->entries[base + i];
             if (!entry.isEmpty() && entry.key == key) {
-                hitCount++;
-                return &entry;
+                *out = entry;
+                state->hitCount.fetch_add(1, std::memory_order_relaxed);
+                return true;
             }
         }
-        return nullptr;
+
+        return false;
     }
 
-    void store(uint64_t key, int32_t score, uint8_t depth, TTFlag flag, uint16_t bestMove = INVALID_MOVE) {
-        if (bucketCount == 0) return;
+    const TTEntry* probe(uint64_t key, bool nonBlocking = false) const {
+        static thread_local TTEntry entryBuffer;
+        return probeCopy(key, &entryBuffer, nonBlocking) ? &entryBuffer : nullptr;
+    }
 
-        const size_t base = getBucketBase(getBucketIndex(key));
+    bool isSharedMode() const {
+        return state->sharedMode;
+    }
+
+    void store(uint64_t key, int32_t score, uint8_t depth, TTFlag flag,
+        uint16_t bestMove = INVALID_MOVE, bool nonBlocking = false) {
+        if (state->bucketCount == 0) return;
+
+        const size_t bucketIndex = getBucketIndex(key);
+        const auto lock = lockBucket(bucketIndex, nonBlocking);
+        if (isSharedModeEnabled() && nonBlocking && !lock.owns_lock()) {
+            return;
+        }
+        const size_t base = getBucketBase(bucketIndex);
 
         size_t slotIdx = std::numeric_limits<size_t>::max();
         size_t emptyIdx = std::numeric_limits<size_t>::max();
         size_t victimIdx = base;
         int victimScore = std::numeric_limits<int>::max();
 
-        for (size_t i = 0; i < associativity; i++) {
+        for (size_t i = 0; i < state->associativity; i++) {
             const size_t idx = base + i;
-            const TTEntry& entry = entries[idx];
+            const TTEntry& entry = state->entries[idx];
 
             if (!entry.isEmpty() && entry.key == key) {
                 slotIdx = idx;
@@ -168,8 +247,10 @@ public:
             slotIdx = (emptyIdx != std::numeric_limits<size_t>::max()) ? emptyIdx : victimIdx;
         }
 
-        TTEntry& target = entries[slotIdx];
+        TTEntry& target = state->entries[slotIdx];
         const bool wasEmpty = target.isEmpty();
+        const uint8_t generation =
+            static_cast<uint8_t>(state->generation.load(std::memory_order_relaxed) & TTEntry::AGE_MASK);
 
         // Existing key: keep deeper info unless new one is EXACT.
         if (!target.isEmpty() && target.key == key) {
@@ -189,55 +270,58 @@ public:
         target.depth = depth;
         target.setMeta(flag, generation);
         if (wasEmpty) {
-            usedEntries++;
+            state->usedEntries.fetch_add(1, std::memory_order_relaxed);
         }
     }
 
     size_t getUsedEntryCount() const {
-        return usedEntries;
+        return state->usedEntries.load(std::memory_order_relaxed);
     }
 
     double getLoadFactor() const {
-        if (entries.empty()) return 0.0;
-        return static_cast<double>(usedEntries) / static_cast<double>(entries.size());
+        if (state->entries.empty()) return 0.0;
+        return static_cast<double>(state->usedEntries.load(std::memory_order_relaxed))
+            / static_cast<double>(state->entries.size());
     }
 
     size_t getEntryCount() const {
-        return entries.size();
+        return state->entries.size();
     }
 
     size_t getBucketCount() const {
-        return bucketCount;
+        return state->bucketCount;
     }
 
     size_t getAssociativity() const {
-        return associativity;
+        return state->associativity;
     }
 
     size_t getMemoryBytes() const {
-        return memoryBytes;
+        return state->memoryBytes;
     }
 
     uint8_t getGeneration() const {
-        return generation;
+        return static_cast<uint8_t>(state->generation.load(std::memory_order_relaxed) & TTEntry::AGE_MASK);
     }
 
     void resetStats() const {
-        probeCount = 0;
-        hitCount = 0;
+        state->probeCount.store(0, std::memory_order_relaxed);
+        state->hitCount.store(0, std::memory_order_relaxed);
     }
 
     size_t getProbeCount() const {
-        return probeCount;
+        return state->probeCount.load(std::memory_order_relaxed);
     }
 
     size_t getHitCount() const {
-        return hitCount;
+        return state->hitCount.load(std::memory_order_relaxed);
     }
 
     double getHitRate() const {
+        const size_t probeCount = state->probeCount.load(std::memory_order_relaxed);
         if (probeCount == 0) return 0.0;
-        return static_cast<double>(hitCount) / static_cast<double>(probeCount);
+        return static_cast<double>(state->hitCount.load(std::memory_order_relaxed))
+            / static_cast<double>(probeCount);
     }
 
     static uint16_t encodeMove(const Pos& move) {
