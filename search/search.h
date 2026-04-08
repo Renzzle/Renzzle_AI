@@ -35,7 +35,6 @@ namespace search_detail {
         std::mutex mutex;
         int completedDepth = 0;
         Value bestValue;
-        MoveList bestPath;
         std::vector<Pos> rootMoves;
     };
 
@@ -140,7 +139,7 @@ PRIVATE
     int getShallowMoveLimit(Evaluator& evaluator, int depth) const;
     Value evaluateLeafNode(Evaluator& evaluator, bool isMax, int depth);
     ChildSearchResult searchChildPVS(int depth, bool isMax, size_t moveIndex, Value alpha, Value beta,
-        Value bestVal, MoveList* pv);
+        Value bestVal, MoveList* pv, bool requireExactBest);
     void updateBestFromChild(bool isMax, const Pos& move, const ChildSearchResult& childResult,
         Value& bestVal, Pos& bestMove, MoveList& bestChildPV, Value& alpha, Value& beta);
     void recordRootMoveStat(size_t order, const Pos& move, const Value& childValue,

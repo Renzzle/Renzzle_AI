@@ -52,7 +52,6 @@ void Search::ids() {
             std::lock_guard<std::mutex> lock(lazySnapshot->mutex);
             lazySnapshot->completedDepth = monitor.getDepth();
             lazySnapshot->bestValue = state.bestValue;
-            lazySnapshot->bestPath = state.bestPath;
             lazySnapshot->rootMoves.clear();
             for (const RootMoveStat& stat : state.lastRootStats) {
                 if (!stat.move.isDefault()) {

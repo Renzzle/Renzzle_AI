@@ -51,6 +51,7 @@ Search::RootParallelResult Search::searchRootMoveFullWindow(
     result.nodeCount = monitor.getVisitCnt() - nodeCountBeforeMove;
     result.elapsedTime = monitor.getElapsedTime() - elapsedBeforeMove;
     result.searched = true;
+    result.causedCutoff = childValue >= beta;
     result.pv.push_back(move);
 
     if (childValue.getType() == Value::Type::EXACT && !childPV.empty()) {
@@ -92,6 +93,7 @@ Value Search::searchRootParallel(int depth, Value alpha, Value beta, const MoveL
     if (results[0].value > parallelAlpha) {
         parallelAlpha = results[0].value;
     }
+    std::mutex parallelAlphaMutex;
 
     const size_t maxThreads = std::min(getEffectiveRootThreadCount(), moves.size());
     const size_t workerCount = maxThreads > 1 ? std::min(maxThreads - 1, moves.size() - 1) : 0;
@@ -106,7 +108,6 @@ Value Search::searchRootParallel(int depth, Value alpha, Value beta, const MoveL
             Search worker(workerBoard, workerMonitor, 1, ROOT_PARALLEL_WORKER_TT_BYTES, state.sharedRunning);
             worker.state.isRunning = true;
             worker.state.historyScores = state.historyScores;
-            worker.state.bestValue = state.bestValue;
             workerMonitor.initStartTime();
 
             while (state.sharedRunning->load(std::memory_order_relaxed)) {
@@ -115,15 +116,29 @@ Value Search::searchRootParallel(int depth, Value alpha, Value beta, const MoveL
                     break;
                 }
 
+                Value workerAlpha;
+                {
+                    std::lock_guard<std::mutex> lock(parallelAlphaMutex);
+                    workerAlpha = parallelAlpha;
+                }
+
                 worker.board = worker.rootBoard;
-                results[moveIndex] = worker.searchRootMoveFullWindow(
+                RootParallelResult result = worker.searchRootMoveFullWindow(
                     depth,
                     moves[moveIndex],
-                    parallelAlpha,
+                    workerAlpha,
                     beta,
                     moveIndex + 1,
                     !ttBestMove.isDefault() && moves[moveIndex] == ttBestMove
                 );
+
+                if (result.searched) {
+                    std::lock_guard<std::mutex> lock(parallelAlphaMutex);
+                    if (result.value > parallelAlpha) {
+                        parallelAlpha = result.value;
+                    }
+                }
+                results[moveIndex] = result;
             }
         }));
     }

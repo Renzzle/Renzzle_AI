@@ -55,7 +55,7 @@ Value Search::evaluateLeafNode(Evaluator& evaluator, bool isMax, int depth) {
 }
 
 Search::ChildSearchResult Search::searchChildPVS(int depth, bool isMax, size_t moveIndex, Value alpha, Value beta,
-    Value bestVal, MoveList* pv) {
+    Value bestVal, MoveList* pv, bool requireExactBest) {
     ChildSearchResult result;
 
     Value nextAlpha = alpha;
@@ -89,7 +89,8 @@ Search::ChildSearchResult Search::searchChildPVS(int depth, bool isMax, size_t m
         (isMax && result.value > alpha && result.value < beta) ||
         (!isMax && result.value < beta && result.value > alpha);
     const bool couldBecomeBest =
-        pv != nullptr
+        requireExactBest
+            && pv != nullptr
             && ((isMax && result.value > bestVal) || (!isMax && result.value < bestVal));
 
     if (needResearch || couldBecomeBest) {
@@ -214,7 +215,7 @@ void Search::rebuildPV(const Pos& bestMove, const MoveList& bestChildPV, Value r
 }
 
 Value Search::abp(int depth, bool isMax, Value alpha, Value beta, MoveList* pv) {
-    monitor.updateElapsedTime();
+    updateMonitorElapsedTime();
     if (!searchActive()) return Value();
     if (pv != nullptr) {
         pv->clear();
@@ -236,8 +237,12 @@ Value Search::abp(int depth, bool isMax, Value alpha, Value beta, MoveList* pv) 
     }
 
     Evaluator evaluator(board);
+    if (depth == 0 || isGameOver(board)) {
+        return evaluateLeafNode(evaluator, isMax, depth);
+    }
+
     MoveList moves = getCandidates(evaluator, isMax);
-    if (depth == 0 || isGameOver(board) || moves.empty()) {
+    if (moves.empty()) {
         return evaluateLeafNode(evaluator, isMax, depth);
     }
 
@@ -279,7 +284,8 @@ Value Search::abp(int depth, bool isMax, Value alpha, Value beta, MoveList* pv) 
         const size_t nodeCountBeforeMove = isRootNode ? monitor.getVisitCnt() : 0;
         const double elapsedBeforeMove = isRootNode ? monitor.getElapsedTime() : 0.0;
 
-        ChildSearchResult childResult = searchChildPVS(depth, isMax, i, alpha, beta, bestVal, pv);
+        ChildSearchResult childResult =
+            searchChildPVS(depth, isMax, i, alpha, beta, bestVal, pv, isRootNode);
 
         board.undo();
         if (!searchActive()) {
