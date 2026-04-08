@@ -1,6 +1,7 @@
 #pragma once
 
 #include "../game/board.h"
+#include "../game/fixed_move_list.h"
 #include "value.h"
 #include <vector>
 #include <algorithm>
@@ -144,12 +145,12 @@ int Evaluator::evaluatePatternBalance() {
 }
 
 MoveList Evaluator::getCandidates() {
-    MoveList result;
+    FixedMoveList<BOARD_SIZE * BOARD_SIZE> result;
 
     Pos sureMove = getSureMove();
     if (!sureMove.isDefault()) {
         result.push_back(sureMove);
-        return result;
+        return result.toMoveList();
     }
 
     if (isOppoMateExist()) {
@@ -169,24 +170,24 @@ MoveList Evaluator::getCandidates() {
         patternCount(self, B3_ANY) +
         patternCount(self, F2_ANY));
     
-    bucket(self, B4_F3).appendTo(result);
+    bucket(self, B4_F3).forEach([&](const Pos& p) { result.push_back(p); });
     bucket(oppo, MATE).forEach([&](const Pos& p) {
         if (!isMoveForbidden(p)) result.push_back(p);
     });
-    bucket(self, F3_2X).appendTo(result);
-    bucket(self, B4_PLUS).appendTo(result);
-    bucket(self, B4_ANY).appendTo(result);
-    bucket(self, F3_PLUS).appendTo(result);
-    bucket(self, F3_ANY).appendTo(result);
-    bucket(self, B3_PLUS).appendTo(result);
-    bucket(self, F2_2X).appendTo(result);
-    bucket(self, B3_ANY).appendTo(result);
-    bucket(self, F2_ANY).appendTo(result);
+    bucket(self, F3_2X).forEach([&](const Pos& p) { result.push_back(p); });
+    bucket(self, B4_PLUS).forEach([&](const Pos& p) { result.push_back(p); });
+    bucket(self, B4_ANY).forEach([&](const Pos& p) { result.push_back(p); });
+    bucket(self, F3_PLUS).forEach([&](const Pos& p) { result.push_back(p); });
+    bucket(self, F3_ANY).forEach([&](const Pos& p) { result.push_back(p); });
+    bucket(self, B3_PLUS).forEach([&](const Pos& p) { result.push_back(p); });
+    bucket(self, F2_2X).forEach([&](const Pos& p) { result.push_back(p); });
+    bucket(self, B3_ANY).forEach([&](const Pos& p) { result.push_back(p); });
+    bucket(self, F2_ANY).forEach([&](const Pos& p) { result.push_back(p); });
     sort(result.begin(), result.end(), [&](const Pos& a, const Pos& b) {
         return board.getCell(a).getScore(self) > board.getCell(b).getScore(self);
     });
 
-    return result;
+    return result.toMoveList();
 }
 
 Pos Evaluator::getSureMove() {
@@ -221,39 +222,39 @@ Pos Evaluator::getSureMove() {
 }
 
 MoveList Evaluator::getFours() {
-    MoveList result;
+    FixedMoveList<BOARD_SIZE * BOARD_SIZE> result;
     if (hasPattern(self, WINNING)) {
         result.push_back(bucket(self, WINNING).front()); 
-        return result;
+        return result.toMoveList();
     }
     if (hasPattern(self, MATE)) {
         result.push_back(bucket(self, MATE).front());
-        return result;
+        return result.toMoveList();
     }
     result.reserve(
         patternCount(self, B4_F3) +
         patternCount(self, B4_PLUS) +
         patternCount(self, B4_ANY));
-    bucket(self, B4_F3).appendTo(result);
-    bucket(self, B4_PLUS).appendTo(result);
-    bucket(self, B4_ANY).appendTo(result);
+    bucket(self, B4_F3).forEach([&](const Pos& p) { result.push_back(p); });
+    bucket(self, B4_PLUS).forEach([&](const Pos& p) { result.push_back(p); });
+    bucket(self, B4_ANY).forEach([&](const Pos& p) { result.push_back(p); });
 
     stable_sort(result.begin(), result.end(), [&](const Pos& a, const Pos& b) {
         return board.getCell(a).getScore(self) > board.getCell(b).getScore(self);
     });
 
-    return result;
+    return result.toMoveList();
 }
 
 MoveList Evaluator::getThreats() {
-    MoveList result;
+    FixedMoveList<BOARD_SIZE * BOARD_SIZE> result;
     if (hasPattern(self, WINNING)) {
         result.push_back(bucket(self, WINNING).front()); 
-        return result;
+        return result.toMoveList();
     }
     if (hasPattern(self, MATE)) {
         result.push_back(bucket(self, MATE).front());
-        return result;
+        return result.toMoveList();
     }
     result.reserve(
         patternCount(self, B4_F3) +
@@ -262,22 +263,22 @@ MoveList Evaluator::getThreats() {
         patternCount(self, F3_ANY) +
         patternCount(self, B4_PLUS) +
         patternCount(self, B4_ANY));
-    bucket(self, B4_F3).appendTo(result);
-    bucket(self, F3_2X).appendTo(result);
-    bucket(self, F3_PLUS).appendTo(result);
-    bucket(self, F3_ANY).appendTo(result);
-    bucket(self, B4_PLUS).appendTo(result);
-    bucket(self, B4_ANY).appendTo(result);
+    bucket(self, B4_F3).forEach([&](const Pos& p) { result.push_back(p); });
+    bucket(self, F3_2X).forEach([&](const Pos& p) { result.push_back(p); });
+    bucket(self, F3_PLUS).forEach([&](const Pos& p) { result.push_back(p); });
+    bucket(self, F3_ANY).forEach([&](const Pos& p) { result.push_back(p); });
+    bucket(self, B4_PLUS).forEach([&](const Pos& p) { result.push_back(p); });
+    bucket(self, B4_ANY).forEach([&](const Pos& p) { result.push_back(p); });
 
     stable_sort(result.begin(), result.end(), [&](const Pos& a, const Pos& b) {
         return board.getCell(a).getScore(self) > board.getCell(b).getScore(self);
     });
 
-    return result;
+    return result.toMoveList();
 }
 
 MoveList Evaluator::getThreatDefend() {
-    MoveList result;
+    FixedMoveList<BOARD_SIZE * BOARD_SIZE> result;
     array<uint8_t, 256> seen = {};
     auto appendUniqueLegal = [&](const Pos& p) {
         if (isMoveForbidden(p)) return;
@@ -287,7 +288,7 @@ MoveList Evaluator::getThreatDefend() {
         result.push_back(p);
     };
 
-    if (!isOppoMateExist()) return result;
+    if (!isOppoMateExist()) return result.toMoveList();
 
     if (hasPattern(oppo, WINNING)) {
         result.reserve(patternCount(oppo, WINNING));
@@ -295,7 +296,7 @@ MoveList Evaluator::getThreatDefend() {
             appendUniqueLegal(p);
         });
         if (!result.empty()) {
-            return result;
+            return result.toMoveList();
         }
     }
 
@@ -314,7 +315,7 @@ MoveList Evaluator::getThreatDefend() {
             Cell& c = board.getCell(p);
             if (c.getPiece() == EMPTY && c.getPattern(oppo, dir) == FREE_4) {
                 p.setDirection(dir);
-                MoveList defendB4;
+                FixedMoveList<LINE_LENGTH> defendB4;
                 defendB4.reserve(LINE_LENGTH);
                 int f4Cnt = 0;
                 const int baseX = p.getX();
@@ -353,14 +354,14 @@ MoveList Evaluator::getThreatDefend() {
                     Pos cp(r, c);
                     if (!isMoveForbidden(cp)) {
                         result.push_back(cp);
-                        return result;
+                        return result.toMoveList();
                     }
                 }
             }
         }
     }
 
-    return result;
+    return result.toMoveList();
 }
 
 bool Evaluator::isOppoMateExist() {
