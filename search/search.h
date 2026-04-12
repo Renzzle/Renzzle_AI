@@ -102,7 +102,6 @@ PRIVATE
     static constexpr int LAZY_SMP_MIN_COMPLETED_DEPTH = 15;
     static constexpr int LAZY_SMP_CHILD_DEPTH_BONUS = 1;
     static constexpr int LAZY_SMP_ASPIRATION_DELTA = 64;
-
     Value abp(int depth, bool isMax, Value alpha, Value beta, MoveList* pv = nullptr);
     Value searchRootWithAspiration(int depth, MoveList* pv);
     Value evaluateNode(Evaluator& evaluator);
@@ -138,6 +137,7 @@ PRIVATE
         TTEntry& ttEntryStorage, const TTEntry*& ttEntry, Value& resolvedValue);
     int getShallowMoveLimit(Evaluator& evaluator, int depth) const;
     Value evaluateLeafNode(bool isMax, int depth);
+    Value evaluateThreatBrokenLeaf(bool isMax, int depth);
     ChildSearchResult searchChildPVS(int depth, bool isMax, size_t moveIndex, Value alpha, Value beta,
         Value bestVal, MoveList* pv, bool requireExactBest);
     void updateBestFromChild(bool isMax, const Pos& move, const ChildSearchResult& childResult,

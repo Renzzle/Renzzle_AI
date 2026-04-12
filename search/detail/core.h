@@ -54,6 +54,18 @@ Value Search::evaluateLeafNode(bool isMax, int depth) {
     return val;
 }
 
+Value Search::evaluateThreatBrokenLeaf(bool isMax, int depth) {
+    static_cast<void>(depth);
+    Value val(Value::Result::WIN, 0);
+    if (!isMax) {
+        val.invert();
+    }
+    if (searchActive()) {
+        storeTT(board, val, depth, Pos());
+    }
+    return val;
+}
+
 Search::ChildSearchResult Search::searchChildPVS(int depth, bool isMax, size_t moveIndex, Value alpha, Value beta,
     Value bestVal, MoveList* pv, bool requireExactBest) {
     ChildSearchResult result;
@@ -241,9 +253,13 @@ Value Search::abp(int depth, bool isMax, Value alpha, Value beta, MoveList* pv) 
     }
 
     Evaluator evaluator(board);
+    const bool attackerTurn = (board.isBlackTurn() == rootBoard.isBlackTurn());
+    const bool threatBrokenLeaf = !attackerTurn && !evaluator.isOppoMateExist();
     MoveList moves = getCandidates(evaluator, isMax);
     if (moves.empty()) {
-        return evaluateLeafNode(isMax, depth);
+        return threatBrokenLeaf
+            ? evaluateThreatBrokenLeaf(isMax, depth)
+            : evaluateLeafNode(isMax, depth);
     }
 
     sortChildNodes(moves, isMax, ttEntry);
@@ -354,7 +370,7 @@ MoveList Search::getCandidates(Evaluator& evaluator, bool isMax) {
         moves = evaluator.getThreatDefend();
         MoveList fours = evaluator.getFours();
         moves.insert(moves.end(), fours.begin(), fours.end());
-    } else {
+    } else if (attackerTurn) {
         moves = evaluator.getThreats();
     }
 
