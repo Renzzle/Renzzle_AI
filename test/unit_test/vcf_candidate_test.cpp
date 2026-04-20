@@ -84,18 +84,23 @@ PRIVATE
             const auto searchEnd = std::chrono::high_resolution_clock::now();
             const double candidateSearchSeconds = elapsedSeconds(searchStart, searchEnd);
             const double ttMemoryMB = finder.getEstimatedMemoryBytes() / (1024.0 * 1024.0);
+            const VCFCandidateProbeResult& rootProbe = finder.getRootProbeResult();
 
+            TEST_PRINT("Existing root VCF: " << (finder.rootAlreadyHasVCF() ? "Y" : "N")
+                << " | nodes=" << rootProbe.nodeCount
+                << " | time=" << fixed << setprecision(3) << (rootProbe.elapsedTime * 1000.0) << " ms"
+                << " | vcf=" << convertPath2String(rootProbe.vcfPath));
             TEST_PRINT("VCF creators: " << movesToString(creators));
             TEST_PRINT("TT init time: "
                 << fixed << setprecision(3) << (ttInitSeconds * 1000.0) << " ms"
                 << " | TT memory: " << ttMemoryMB << " MB");
-            TEST_PRINT("Candidate-only VCF search time: "
+            TEST_PRINT("Root-check + candidate VCF search time: "
                 << fixed << setprecision(3) << (candidateSearchSeconds * 1000.0) << " ms"
-                << " | visited nodes: " << sumProbeNodes(finder)
+                << " | candidate visited nodes: " << sumProbeNodes(finder)
                 << " | cached TT entries: " << finder.getCachedNodeCount());
             printProbeResults(finder);
 
-            TEST_ASSERT(!creators.empty());
+            TEST_ASSERT(finder.rootAlreadyHasVCF() || !creators.empty());
         }
     }
 

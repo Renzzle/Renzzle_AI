@@ -14,8 +14,10 @@
 struct VCFCandidateFinderOptions {
     double perMoveTimeLimitSeconds = 0.0;
     size_t perMoveNodeLimit = 0;
-    size_t ttBytes = 8ull * 1024ull * 1024ull;
+    size_t ttBytes = 4ull * 1024ull * 1024ull;
     size_t ttAssociativity = 4;
+    size_t timeCheckNodeInterval = 64;
+    bool skipCandidatesWhenRootHasVCF = true;
 };
 
 struct VCFCandidateProbeResult {
@@ -34,6 +36,8 @@ PRIVATE
     VCFCandidateFinderOptions options;
     TranspositionTable vcfTT;
     std::vector<VCFCandidateProbeResult> lastProbeResults;
+    VCFCandidateProbeResult rootProbeResult;
+    bool rootHasVCF = false;
 
     struct VCFProbeContext {
         Color targetColor = COLOR_BLACK;
@@ -58,7 +62,8 @@ PRIVATE
     static void moveTTBestFirst(MoveList& moves, const TTEntry* entry);
     bool shouldStopProbe(VCFProbeContext& context) const;
     bool dfsVCF(Board& board, VCFProbeContext& context);
-    bool createsVCFAfterPass(const Pos& move, VCFCandidateProbeResult* probeResult);
+    bool probeRootVCF(Board& probeBoard, VCFCandidateProbeResult* probeResult);
+    bool createsVCFAfterPass(Board& probeBoard, const Pos& move, VCFCandidateProbeResult* probeResult);
 
 PUBLIC
     explicit VCFCandidateFinder(Board& board, VCFCandidateFinderOptions options = VCFCandidateFinderOptions());
@@ -68,6 +73,8 @@ PUBLIC
     MoveList findFromAllLegalMoves();
 
     const std::vector<VCFCandidateProbeResult>& getLastProbeResults() const;
+    bool rootAlreadyHasVCF() const;
+    const VCFCandidateProbeResult& getRootProbeResult() const;
     size_t getCachedNodeCount() const;
     size_t getEstimatedMemoryBytes() const;
 };
@@ -169,7 +176,9 @@ bool VCFCandidateFinder::shouldStopProbe(VCFProbeContext& context) const {
         return true;
     }
 
+    const size_t interval = options.timeCheckNodeInterval == 0 ? 1 : options.timeCheckNodeInterval;
     if (options.perMoveTimeLimitSeconds > 0.0 &&
+        (context.nodeCount % interval) == 0 &&
         getElapsedSeconds(context) >= options.perMoveTimeLimitSeconds) {
         context.stopped = true;
         return true;
@@ -229,11 +238,34 @@ bool VCFCandidateFinder::dfsVCF(Board& board, VCFProbeContext& context) {
     return false;
 }
 
-bool VCFCandidateFinder::createsVCFAfterPass(const Pos& move, VCFCandidateProbeResult* probeResult) {
+bool VCFCandidateFinder::probeRootVCF(Board& probeBoard, VCFCandidateProbeResult* probeResult) {
+    VCFCandidateProbeResult localResult;
+
+    VCFProbeContext context;
+    context.targetColor = rootBoard.isBlackTurn() ? COLOR_BLACK : COLOR_WHITE;
+    context.targetResult = (context.targetColor == COLOR_BLACK) ? BLACK_WIN : WHITE_WIN;
+    context.rootPathSize = probeBoard.getPath().size();
+    context.startTime = std::chrono::high_resolution_clock::now();
+
+    const bool hasVCF = dfsVCF(probeBoard, context);
+
+    localResult.createsVCF = hasVCF;
+    localResult.stopped = context.stopped;
+    localResult.nodeCount = context.nodeCount;
+    localResult.elapsedTime = getElapsedSeconds(context);
+    localResult.vcfPath = context.bestPath;
+
+    if (probeResult != nullptr) {
+        *probeResult = localResult;
+    }
+
+    return hasVCF;
+}
+
+bool VCFCandidateFinder::createsVCFAfterPass(Board& probeBoard, const Pos& move, VCFCandidateProbeResult* probeResult) {
     VCFCandidateProbeResult localResult;
     localResult.move = move;
 
-    Board probeBoard(rootBoard);
     if (!probeBoard.move(move)) {
         if (probeResult != nullptr) {
             *probeResult = localResult;
@@ -242,6 +274,7 @@ bool VCFCandidateFinder::createsVCFAfterPass(const Pos& move, VCFCandidateProbeR
     }
 
     if (!probeBoard.pass()) {
+        probeBoard.undo();
         if (probeResult != nullptr) {
             *probeResult = localResult;
         }
@@ -255,6 +288,8 @@ bool VCFCandidateFinder::createsVCFAfterPass(const Pos& move, VCFCandidateProbeR
     context.startTime = std::chrono::high_resolution_clock::now();
 
     const bool createsVCF = dfsVCF(probeBoard, context);
+    probeBoard.undo();
+    probeBoard.undo();
 
     localResult.createsVCF = createsVCF;
     localResult.stopped = context.stopped;
@@ -271,13 +306,24 @@ bool VCFCandidateFinder::createsVCFAfterPass(const Pos& move, VCFCandidateProbeR
 
 MoveList VCFCandidateFinder::findFromCandidates(const MoveList& candidates) {
     MoveList result;
-    MoveList uniqueCandidates = makeUniqueMoves(candidates);
+    Board probeBoard(rootBoard);
+    rootProbeResult = VCFCandidateProbeResult();
+    rootHasVCF = false;
     lastProbeResults.clear();
+
+    if (options.skipCandidatesWhenRootHasVCF) {
+        rootHasVCF = probeRootVCF(probeBoard, &rootProbeResult);
+        if (rootHasVCF) {
+            return result;
+        }
+    }
+
+    MoveList uniqueCandidates = makeUniqueMoves(candidates);
     lastProbeResults.reserve(uniqueCandidates.size());
 
     for (const Pos& move : uniqueCandidates) {
         VCFCandidateProbeResult probeResult;
-        if (createsVCFAfterPass(move, &probeResult)) {
+        if (createsVCFAfterPass(probeBoard, move, &probeResult)) {
             result.push_back(move);
         }
         lastProbeResults.push_back(probeResult);
@@ -310,6 +356,14 @@ MoveList VCFCandidateFinder::findFromAllLegalMoves() {
 
 const std::vector<VCFCandidateProbeResult>& VCFCandidateFinder::getLastProbeResults() const {
     return lastProbeResults;
+}
+
+bool VCFCandidateFinder::rootAlreadyHasVCF() const {
+    return rootHasVCF;
+}
+
+const VCFCandidateProbeResult& VCFCandidateFinder::getRootProbeResult() const {
+    return rootProbeResult;
 }
 
 size_t VCFCandidateFinder::getCachedNodeCount() const {
