@@ -66,14 +66,38 @@ Value Search::evaluateThreatBrokenLeaf(bool isMax, int depth) {
     return val;
 }
 
+bool Search::tryResolveQuickWin(Evaluator& evaluator, bool isMax, int depth, MoveList* pv, Value& resolvedValue) {
+    Pos bestMove;
+    Value value = evaluator.quickWinCheck(&bestMove);
+    if (value.isOnGoing()) {
+        return false;
+    }
+
+    if (!isMax) {
+        value.invert();
+    }
+
+    if (pv != nullptr && !bestMove.isDefault()) {
+        pv->push_back(bestMove);
+    }
+    if (searchActive()) {
+        storeTT(board, value, depth, bestMove);
+    }
+
+    resolvedValue = value;
+    return true;
+}
+
 Search::ChildSearchResult Search::searchChildPVS(int depth, bool isMax, size_t moveIndex, Value alpha, Value beta,
     Value bestVal, MoveList* pv, bool requireExactBest) {
     ChildSearchResult result;
 
     Value nextAlpha = alpha;
     Value nextBeta = beta;
+    Value nextBestVal = bestVal;
     nextAlpha.decreaseResultDepth();
     nextBeta.decreaseResultDepth();
+    nextBestVal.decreaseResultDepth();
 
     if (moveIndex == 0) {
         result.value = abp(depth - 1, !isMax, nextAlpha, nextBeta, &result.pv);
@@ -98,12 +122,12 @@ Search::ChildSearchResult Search::searchChildPVS(int depth, bool isMax, size_t m
     }
 
     const bool needResearch =
-        (isMax && result.value > alpha && result.value < beta) ||
-        (!isMax && result.value < beta && result.value > alpha);
+        (isMax && result.value > nextAlpha && result.value < nextBeta) ||
+        (!isMax && result.value < nextBeta && result.value > nextAlpha);
     const bool couldBecomeBest =
         requireExactBest
             && pv != nullptr
-            && ((isMax && result.value > bestVal) || (!isMax && result.value < bestVal));
+            && ((isMax && result.value > nextBestVal) || (!isMax && result.value < nextBestVal));
 
     if (needResearch || couldBecomeBest) {
         result.value = abp(depth - 1, !isMax, nextAlpha, nextBeta, &result.pv);
@@ -248,11 +272,20 @@ Value Search::abp(int depth, bool isMax, Value alpha, Value beta, MoveList* pv) 
         return resolvedValue;
     }
 
-    if (depth == 0 || isGameOver(board)) {
+    if (isGameOver(board)) {
         return evaluateLeafNode(isMax, depth);
     }
 
     Evaluator evaluator(board);
+    Value quickValue;
+    if (tryResolveQuickWin(evaluator, isMax, depth, pv, quickValue)) {
+        return quickValue;
+    }
+
+    if (depth == 0) {
+        return evaluateLeafNode(isMax, depth);
+    }
+
     const bool attackerTurn = (board.isBlackTurn() == rootBoard.isBlackTurn());
     const bool threatBrokenLeaf = !attackerTurn && !evaluator.isOppoMateExist();
     MoveList moves = getCandidates(evaluator, isMax);

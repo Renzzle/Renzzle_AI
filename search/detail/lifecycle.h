@@ -20,6 +20,7 @@ void Search::ids() {
             break;
         }
 
+        const bool provenWin = result.isWin() && result.getType() == Value::Type::EXACT;
         state.bestValue = result;
         state.bestPath = iterationPV;
         if (state.bestValue.isWin()
@@ -32,26 +33,46 @@ void Search::ids() {
                 }
             }
 
-            if (tempBoard.getResult() == ONGOING) {
+            while (searchActive()
+                && tempBoard.getResult() == ONGOING
+                && state.bestPath.size() < static_cast<size_t>(state.bestValue.getResultDepth())) {
                 board = tempBoard;
                 MoveList tailPV;
                 const int remainDepth =
                     state.bestValue.getResultDepth() - static_cast<int>(state.bestPath.size());
                 const bool tailIsMax = (state.bestPath.size() % 2 == 0);
-                abp(
+                static_cast<void>(abp(
                     remainDepth,
                     tailIsMax,
                     Value(MIN_VALUE, Value::Type::UNKNOWN),
                     Value(MAX_VALUE + 1, Value::Type::UNKNOWN),
                     &tailPV
-                );
-                state.bestPath.insert(state.bestPath.end(), tailPV.begin(), tailPV.end());
-                board = savedBoard;
+                ));
+
+                size_t appended = 0;
+                for (const Pos& move : tailPV) {
+                    if (state.bestPath.size() >= static_cast<size_t>(state.bestValue.getResultDepth())) {
+                        break;
+                    }
+                    if (!tempBoard.move(move)) {
+                        break;
+                    }
+                    state.bestPath.push_back(move);
+                    appended += 1;
+                    if (tempBoard.getResult() != ONGOING) {
+                        break;
+                    }
+                }
+
+                if (appended == 0) {
+                    break;
+                }
             }
+            board = savedBoard;
         }
         monitor.setBestPath(state.bestPath);
 
-        if (result.isWin() && result.getResultDepth() <= monitor.getDepth()) {
+        if (provenWin) {
             break;
         }
 

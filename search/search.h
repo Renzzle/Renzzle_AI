@@ -92,6 +92,7 @@ PRIVATE
     int getShallowMoveLimit(Evaluator& evaluator, int depth) const;
     Value evaluateLeafNode(bool isMax, int depth);
     Value evaluateThreatBrokenLeaf(bool isMax, int depth);
+    bool tryResolveQuickWin(Evaluator& evaluator, bool isMax, int depth, MoveList* pv, Value& resolvedValue);
     ChildSearchResult searchChildPVS(int depth, bool isMax, size_t moveIndex, Value alpha, Value beta,
         Value bestVal, MoveList* pv, bool requireExactBest);
     void updateBestFromChild(bool isMax, const Pos& move, const ChildSearchResult& childResult,

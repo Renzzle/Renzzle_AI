@@ -20,10 +20,12 @@ PRIVATE
     int evaluatePatternBalance();
     const MoveBucket& bucket(Piece piece, CompositePattern pattern) const;
     bool hasPattern(Piece piece, CompositePattern pattern) const;
+    bool hasFourLevelPressure(Piece piece) const;
     int patternCount(Piece piece, CompositePattern pattern) const;
     
 PUBLIC
     Evaluator(Board& board);
+    Value quickWinCheck(Pos* bestMove = nullptr);
     MoveList getCandidates();
     Pos getSureMove();
     MoveList getFours();
@@ -100,6 +102,14 @@ bool Evaluator::hasPattern(Piece piece, CompositePattern pattern) const {
     return !bucket(piece, pattern).empty();
 }
 
+bool Evaluator::hasFourLevelPressure(Piece piece) const {
+    return hasPattern(piece, WINNING)
+        || hasPattern(piece, MATE)
+        || hasPattern(piece, B4_F3)
+        || hasPattern(piece, B4_PLUS)
+        || hasPattern(piece, B4_ANY);
+}
+
 int Evaluator::patternCount(Piece piece, CompositePattern pattern) const {
     return bucket(piece, pattern).size();
 }
@@ -142,6 +152,49 @@ int Evaluator::evaluatePatternBalance() {
     val -= patternCount(oppo, F2_ANY) * 2;
 
     return val;
+}
+
+Value Evaluator::quickWinCheck(Pos* bestMove) {
+    if (bestMove != nullptr) {
+        *bestMove = Pos();
+    }
+
+    if (hasPattern(self, WINNING)) {
+        if (bestMove != nullptr) {
+            *bestMove = bucket(self, WINNING).front();
+        }
+        return Value(Value::Result::WIN, 1);
+    }
+
+    if (patternCount(oppo, WINNING) > 1) {
+        if (bestMove != nullptr) {
+            *bestMove = getSureMove();
+        }
+        return Value(Value::Result::LOSE, 2);
+    }
+
+    if (hasPattern(self, MATE) && !hasPattern(oppo, WINNING)) {
+        if (bestMove != nullptr) {
+            *bestMove = bucket(self, MATE).front();
+        }
+        return Value(Value::Result::WIN, 3);
+    }
+
+    if (hasPattern(self, B4_F3) && !hasFourLevelPressure(oppo)) {
+        if (bestMove != nullptr) {
+            *bestMove = bucket(self, B4_F3).front();
+        }
+        return Value(Value::Result::WIN, 5);
+    }
+
+    if (hasPattern(self, F3_2X) && !hasFourLevelPressure(oppo)) {
+        if (bestMove != nullptr) {
+            *bestMove = bucket(self, F3_2X).front();
+        }
+        return Value(Value::Result::WIN, 5);
+    }
+
+    return Value();
 }
 
 MoveList Evaluator::getCandidates() {
