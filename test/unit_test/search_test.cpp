@@ -304,7 +304,6 @@ PRIVATE
         Board board = getBoard(process);
         SearchMonitor monitor;
         Search searcher(board, monitor);
-        //searcher.setLazyThreadCount(8);
 
         monitor.setTrigger([](SearchMonitor& monitor) {
             static int depth = 0;

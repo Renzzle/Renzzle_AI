@@ -69,8 +69,7 @@ void Search::storeTT(Board& board, Value value, int depth, const Pos& bestMove) 
         encodeTTScore(value),
         getTTDepth(depth),
         flag,
-        TranspositionTable::encodeMove(bestMove),
-        options.nonBlockingTTAccess
+        TranspositionTable::encodeMove(bestMove)
     );
 }
 
@@ -78,7 +77,7 @@ void Search::appendTTPV(Board tempBoard, MoveList& pv) const {
     for (int ply = 0; ply < BOARD_SIZE * BOARD_SIZE; ++ply) {
         TTEntry entryStorage;
         const TTEntry* entry =
-            tt.probeCopy(getTTKey(tempBoard), &entryStorage, options.nonBlockingTTAccess)
+            tt.probeCopy(getTTKey(tempBoard), &entryStorage)
                 ? &entryStorage
                 : nullptr;
         if (entry == nullptr || entry->bestMove == TranspositionTable::INVALID_MOVE) {

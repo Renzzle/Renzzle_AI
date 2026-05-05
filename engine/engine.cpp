@@ -1,18 +1,8 @@
 #include "../search/search.h"
 #include "../search/search_win.h"
 #include "../test/util.h"
-#include <thread>
-#include <future>
-#include <atomic>
-#include <condition_variable>
-#include <optional>
 
 #define MAX_THINKING_TIME 10.0 // second
-
-size_t getDefaultSearchThreadCount() {
-    const unsigned int hw = std::thread::hardware_concurrency();
-    return hw > 1 ? 2u : 1u;
-}
 
 string validatePuzzle(string boardStr) {
     Board board = getBoard(boardStr);
@@ -42,7 +32,6 @@ string validatePuzzle(string boardStr) {
     
     SearchMonitor vctMonitor;
     Search vctSearcher(board, vctMonitor);
-    vctSearcher.setLazyThreadCount(getDefaultSearchThreadCount());
 
     lastTriggerTime = 0.0;
     vctMonitor.setTrigger([&lastTriggerTime](SearchMonitor& monitor) {
@@ -99,7 +88,6 @@ int findNextMove(string boardStr) {
     
     SearchMonitor searchMonitor;
     Search searcher(board, searchMonitor);
-    searcher.setLazyThreadCount(getDefaultSearchThreadCount());
 
     searchMonitor.setTrigger([](SearchMonitor& monitor) {
         if (monitor.getElapsedTime() >= 3) {

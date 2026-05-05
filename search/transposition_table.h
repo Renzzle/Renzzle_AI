@@ -6,8 +6,6 @@
 #include <cstdint>
 #include <limits>
 #include <memory>
-#include <mutex>
-#include <shared_mutex>
 #include <vector>
 
 enum class TTFlag : uint8_t {
@@ -62,8 +60,6 @@ private:
         std::atomic<unsigned int> generation {0};
         mutable std::atomic<size_t> probeCount {0};
         mutable std::atomic<size_t> hitCount {0};
-        bool sharedMode = false;
-        mutable std::vector<std::shared_mutex> stripeLocks;
     };
 
     std::shared_ptr<SharedState> state = std::make_shared<SharedState>();
@@ -89,36 +85,6 @@ private:
         const int ageDist = static_cast<int>((generation - entry.getAge()) & TTEntry::AGE_MASK);
         // Keep deeper and newer entries. Low score means easy victim.
         return static_cast<int>(entry.depth) - (ageDist * 2);
-    }
-
-    bool isSharedModeEnabled() const {
-        return state->sharedMode && !state->stripeLocks.empty();
-    }
-
-    std::unique_lock<std::shared_mutex> lockBucket(size_t bucketIndex, bool nonBlocking = false) const {
-        if (!isSharedModeEnabled()) {
-            return std::unique_lock<std::shared_mutex>();
-        }
-
-        const size_t stripeIndex = bucketIndex % state->stripeLocks.size();
-        if (nonBlocking) {
-            return std::unique_lock<std::shared_mutex>(
-                state->stripeLocks[stripeIndex], std::try_to_lock);
-        }
-        return std::unique_lock<std::shared_mutex>(state->stripeLocks[stripeIndex]);
-    }
-
-    std::shared_lock<std::shared_mutex> lockBucketShared(size_t bucketIndex, bool nonBlocking = false) const {
-        if (!isSharedModeEnabled()) {
-            return std::shared_lock<std::shared_mutex>();
-        }
-
-        const size_t stripeIndex = bucketIndex % state->stripeLocks.size();
-        if (nonBlocking) {
-            return std::shared_lock<std::shared_mutex>(
-                state->stripeLocks[stripeIndex], std::try_to_lock);
-        }
-        return std::shared_lock<std::shared_mutex>(state->stripeLocks[stripeIndex]);
     }
 
 public:
@@ -159,31 +125,13 @@ public:
         state->generation.store(next, std::memory_order_relaxed);
     }
 
-    void enableSharedMode(size_t stripeCount = 256) {
-        if (stripeCount == 0) {
-            stripeCount = 1;
-        }
-
-        state->sharedMode = true;
-        state->stripeLocks = std::vector<std::shared_mutex>(stripeCount);
-    }
-
-    void disableSharedMode() {
-        state->sharedMode = false;
-        state->stripeLocks.clear();
-    }
-
-    bool probeCopy(uint64_t key, TTEntry* out, bool nonBlocking = false) const {
+    bool probeCopy(uint64_t key, TTEntry* out) const {
         if (state->bucketCount == 0 || out == nullptr) {
             return false;
         }
 
         state->probeCount.fetch_add(1, std::memory_order_relaxed);
         const size_t bucketIndex = getBucketIndex(key);
-        const auto lock = lockBucketShared(bucketIndex, nonBlocking);
-        if (isSharedModeEnabled() && nonBlocking && !lock.owns_lock()) {
-            return false;
-        }
         const size_t base = getBucketBase(bucketIndex);
 
         for (size_t i = 0; i < state->associativity; i++) {
@@ -198,24 +146,16 @@ public:
         return false;
     }
 
-    const TTEntry* probe(uint64_t key, bool nonBlocking = false) const {
+    const TTEntry* probe(uint64_t key) const {
         static thread_local TTEntry entryBuffer;
-        return probeCopy(key, &entryBuffer, nonBlocking) ? &entryBuffer : nullptr;
-    }
-
-    bool isSharedMode() const {
-        return state->sharedMode;
+        return probeCopy(key, &entryBuffer) ? &entryBuffer : nullptr;
     }
 
     void store(uint64_t key, int32_t score, uint8_t depth, TTFlag flag,
-        uint16_t bestMove = INVALID_MOVE, bool nonBlocking = false) {
+        uint16_t bestMove = INVALID_MOVE) {
         if (state->bucketCount == 0) return;
 
         const size_t bucketIndex = getBucketIndex(key);
-        const auto lock = lockBucket(bucketIndex, nonBlocking);
-        if (isSharedModeEnabled() && nonBlocking && !lock.owns_lock()) {
-            return;
-        }
         const size_t base = getBucketBase(bucketIndex);
 
         size_t slotIdx = std::numeric_limits<size_t>::max();

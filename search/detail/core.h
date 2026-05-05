@@ -3,7 +3,7 @@
 bool Search::tryResolveFromTT(int depth, Value& alpha, Value& beta, MoveList* pv,
     TTEntry& ttEntryStorage, const TTEntry*& ttEntry, Value& resolvedValue) {
     const uint64_t key = getTTKey(board);
-    ttEntry = tt.probeCopy(key, &ttEntryStorage, options.nonBlockingTTAccess) ? &ttEntryStorage : nullptr;
+    ttEntry = tt.probeCopy(key, &ttEntryStorage) ? &ttEntryStorage : nullptr;
 
     if (ttEntry == nullptr || ttEntry->depth < getTTDepth(depth)) {
         return false;
@@ -263,9 +263,6 @@ Value Search::abp(int depth, bool isMax, Value alpha, Value beta, MoveList* pv) 
     }
 
     sortChildNodes(moves, isMax, ttEntry);
-    if (shouldUseRootParallel(isRootNode, isMax, depth, moves.size())) {
-        return searchRootParallel(depth, alpha, beta, moves, ttEntry, pv);
-    }
 
     Value bestVal = isMax
         ? Value(MIN_VALUE, Value::Type::UNKNOWN)
@@ -395,7 +392,6 @@ void Search::sortChildNodes(MoveList& moves, bool isMax, const TTEntry* entry) {
         ? TranspositionTable::decodeMove(entry->bestMove)
         : Pos();
     const bool sideToMoveIsBlack = board.isBlackTurn();
-    const bool allowChildTTProbe = !options.lightweightTTOrdering;
     bool hasHistorySignal = false;
 
     for (const Pos& move : moves) {
@@ -434,9 +430,8 @@ void Search::sortChildNodes(MoveList& moves, bool isMax, const TTEntry* entry) {
     for (const Pos& move : moves) {
         TTEntry childEntryStorage;
         const TTEntry* childEntry =
-            allowChildTTProbe
-                && (entry != nullptr || hasHistorySignal)
-                && tt.probeCopy(getChildTTKey(move), &childEntryStorage, options.nonBlockingTTAccess)
+            (entry != nullptr || hasHistorySignal)
+                && tt.probeCopy(getChildTTKey(move), &childEntryStorage)
                 ? &childEntryStorage
                 : nullptr;
         MoveOrderInfo info;
@@ -479,7 +474,6 @@ bool Search::isGameOver(Board& board) {
 }
 
 Value Search::searchRootWithAspiration(int depth, MoveList* pv) {
-    syncSharedRunningFlag();
     const Value fullAlpha(MIN_VALUE, Value::Type::UNKNOWN);
     const Value fullBeta(MAX_VALUE + 1, Value::Type::UNKNOWN);
 
