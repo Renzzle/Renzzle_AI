@@ -20,11 +20,26 @@ bool Search::searchActive() const {
 void Search::updateMonitorElapsedTime() {
     if (options.trackMonitorStats) {
         monitor.updateElapsedTime();
+        state.nodesSinceMonitorPoll = 0;
+    }
+}
+
+void Search::pollMonitorIfDue() {
+    if (!options.trackMonitorStats) {
+        return;
+    }
+
+    const size_t interval = std::max<size_t>(1, options.monitorPollNodeInterval);
+    if (state.nodesSinceMonitorPoll >= interval) {
+        monitor.updateElapsedTime();
+        state.nodesSinceMonitorPoll = 0;
     }
 }
 
 void Search::recordNodeVisit() {
     if (options.trackMonitorStats) {
-        monitor.incVisitCnt();
+        monitor.incVisitCntQuiet();
+        ++state.nodesSinceMonitorPoll;
+        pollMonitorIfDue();
     }
 }

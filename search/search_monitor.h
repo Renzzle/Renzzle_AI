@@ -33,10 +33,12 @@ PUBLIC
     void setBestValueProvider(std::function<Value()> provider) { bestValueProvider = provider; }
     
     // update data function, executeTrigger function execute
+    void updateElapsedTimeQuiet();
     void updateElapsedTime();
     void incDepth(int val) { depth += val; executeTrigger(); };
     void decDepth(int val) { depth -= val; executeTrigger(); };
     void incVisitCnt() { visitCnt++; executeTrigger(); };
+    void incVisitCntQuiet() { visitCnt++; };
     void addVisitCnt(size_t delta) { visitCnt += delta; executeTrigger(); };
     void setBestPath(MoveList path) { bestPath = path; executeTrigger(); };
 
@@ -56,10 +58,14 @@ SearchMonitor::SearchMonitor() {
     visitCnt = 0;
 }
 
-void SearchMonitor::updateElapsedTime() {
+void SearchMonitor::updateElapsedTimeQuiet() {
     Timestamp now = chrono::high_resolution_clock::now();
     auto duration = std::chrono::duration_cast<std::chrono::nanoseconds>(now - startTime);
     elapsedTime = duration.count() / 1e9;
+}
+
+void SearchMonitor::updateElapsedTime() {
+    updateElapsedTimeQuiet();
     executeTrigger();
 }
 

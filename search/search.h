@@ -42,6 +42,7 @@ PRIVATE
         bool trackMonitorStats = true;
         bool exactOnlyTTStores = false;
         int minTTStoreDepth = 0;
+        size_t monitorPollNodeInterval = 1024;
     };
 
     struct SearchState {
@@ -50,6 +51,7 @@ PRIVATE
         Value bestValue;
         std::vector<RootMoveStat> lastRootStats;
         std::array<std::array<int, BOARD_SIZE * BOARD_SIZE>, 2> historyScores = {};
+        size_t nodesSinceMonitorPoll = 0;
     };
 
     Board rootBoard;
@@ -77,6 +79,7 @@ PRIVATE
     Value getTTValue(const TTEntry& entry) const;
     int32_t encodeTTScore(Value value) const;
     void updateMonitorElapsedTime();
+    void pollMonitorIfDue();
     void recordNodeVisit();
     void storeTT(Board& board, Value value, int depth, const Pos& bestMove);
     void appendTTPV(Board tempBoard, MoveList& pv) const;
@@ -106,6 +109,7 @@ PUBLIC
     Search(Board& board, SearchMonitor& monitor, size_t ttBytes = 64ull * 1024ull * 1024ull);
     void ids();
     void stop();
+    void setMonitorPollNodeInterval(size_t nodeInterval);
     size_t getNodeCount() const;
     size_t getEstimatedMemoryBytes() const;
     const std::vector<RootMoveStat>& getLastRootStats() const;

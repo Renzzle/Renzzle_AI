@@ -227,7 +227,7 @@ void Search::rebuildPV(const Pos& bestMove, const MoveList& bestChildPV, Value r
 }
 
 Value Search::abp(int depth, bool isMax, Value alpha, Value beta, MoveList* pv) {
-    updateMonitorElapsedTime();
+    pollMonitorIfDue();
     if (!searchActive()) return Value();
     if (pv != nullptr) {
         pv->clear();

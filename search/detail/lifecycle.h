@@ -4,6 +4,7 @@ void Search::ids() {
     state.isRunning = true;
     state.bestPath.clear();
     state.bestValue = Value();
+    state.nodesSinceMonitorPoll = 0;
     clearHistory();
     monitor.incDepth(5);
     monitor.initStartTime();
@@ -57,11 +58,16 @@ void Search::ids() {
         monitor.incDepth(2);
     }
 
+    updateMonitorElapsedTime();
     state.isRunning = false;
 }
 
 void Search::stop() {
     state.isRunning = false;
+}
+
+void Search::setMonitorPollNodeInterval(size_t nodeInterval) {
+    options.monitorPollNodeInterval = std::max<size_t>(1, nodeInterval);
 }
 
 size_t Search::getNodeCount() const {
