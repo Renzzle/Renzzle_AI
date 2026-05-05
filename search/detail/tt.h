@@ -59,7 +59,26 @@ int32_t Search::encodeTTScore(Value value) const {
 }
 
 void Search::storeTT(Board& board, Value value, int depth, const Pos& bestMove) {
-    if (value.isQVCFDerived()) return;
+    const uint64_t key = getTTKey(board);
+
+    if (value.isQVCFDerived()) {
+        if (depth < options.minTTStoreDepth) return;
+        if (options.exactOnlyTTStores) return;
+
+        TTEntry existingEntry;
+        if (tt.probeCopy(key, &existingEntry) && existingEntry.getFlag() == TTFlag::EXACT) {
+            return;
+        }
+
+        tt.store(
+            key,
+            QVCF_HEURISTIC_WIN_SCORE,
+            getTTDepth(depth),
+            TTFlag::LOWER_BOUND,
+            TranspositionTable::encodeMove(bestMove)
+        );
+        return;
+    }
 
     const TTFlag flag = getTTFlag(value.getType());
     if (flag == TTFlag::NONE) return;
@@ -67,7 +86,7 @@ void Search::storeTT(Board& board, Value value, int depth, const Pos& bestMove) 
     if (options.exactOnlyTTStores && flag != TTFlag::EXACT) return;
 
     tt.store(
-        getTTKey(board),
+        key,
         encodeTTScore(value),
         getTTDepth(depth),
         flag,

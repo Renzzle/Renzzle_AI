@@ -74,6 +74,7 @@ PRIVATE
     static constexpr uint64_t TURN_KEY_BLACK = 0x9e3779b97f4a7c15ULL;
     static constexpr uint64_t TURN_KEY_WHITE = 0xc2b2ae3d27d4eb4fULL;
     static constexpr uint64_t QVCF_TT_KEY = 0x6a09e667f3bcc909ULL;
+    static constexpr int QVCF_HEURISTIC_WIN_SCORE = MAX_VALUE - (BOARD_SIZE * BOARD_SIZE) - 1024;
     static constexpr int HISTORY_ABS_LIMIT = 16384;
     static constexpr int ASPIRATION_START_DELTA = 32;
     Value abp(int depth, bool isMax, Value alpha, Value beta, MoveList* pv = nullptr);
