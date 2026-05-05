@@ -17,6 +17,7 @@ PRIVATE
     Type type;
     Result result;
     int resultDepth;
+    bool qvcfDerived;
 
 PUBLIC
     Value() : Value(INITIAL_VALUE, Type::UNKNOWN, Result::ONGOING, INITIAL_VALUE) {}
@@ -42,6 +43,7 @@ PUBLIC
         this->type = type;
         this->result = result;
         this->resultDepth = resultDepth;
+        this->qvcfDerived = false;
     }
 
     Value(int val, Type type, Result result, int resultDepth) {
@@ -49,6 +51,7 @@ PUBLIC
         this->type = type;
         this->result = result;
         this->resultDepth = resultDepth;
+        this->qvcfDerived = false;
     }
 
     bool isWin() {
@@ -79,6 +82,14 @@ PUBLIC
 
     bool isOnGoing() {
         return result == Result::ONGOING;
+    }
+
+    bool isQVCFDerived() {
+        return qvcfDerived;
+    }
+
+    void markQVCFDerived() {
+        qvcfDerived = true;
     }
 
     void setType(Type type) {
@@ -173,6 +184,7 @@ PUBLIC
         type = other.type;
         result = other.result;
         resultDepth = other.resultDepth;
+        qvcfDerived = other.qvcfDerived;
         return *this;
     }
 
@@ -189,6 +201,7 @@ PUBLIC
             result = Result::ONGOING;
             resultDepth = INITIAL_VALUE;
         }
+        qvcfDerived = false;
         return *this;
     }
 

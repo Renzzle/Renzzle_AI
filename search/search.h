@@ -43,15 +43,25 @@ PRIVATE
         bool exactOnlyTTStores = false;
         int minTTStoreDepth = 0;
         size_t monitorPollNodeInterval = 1024;
+        bool leafVCFEnabled = true;
+        int leafVCFMaxPly = 17;
+        size_t leafVCFNodeLimit = 4096;
     };
 
     struct SearchState {
         bool isRunning = false;
+        bool qvcfDisabledAfterWin = false;
         MoveList bestPath;
         Value bestValue;
         std::vector<RootMoveStat> lastRootStats;
         std::array<std::array<int, BOARD_SIZE * BOARD_SIZE>, 2> historyScores = {};
         size_t nodesSinceMonitorPoll = 0;
+    };
+
+    struct QVCFContext {
+        size_t nodeCount = 0;
+        size_t nodeLimit = 0;
+        bool stopped = false;
     };
 
     Board rootBoard;
@@ -63,6 +73,7 @@ PRIVATE
 
     static constexpr uint64_t TURN_KEY_BLACK = 0x9e3779b97f4a7c15ULL;
     static constexpr uint64_t TURN_KEY_WHITE = 0xc2b2ae3d27d4eb4fULL;
+    static constexpr uint64_t QVCF_TT_KEY = 0x6a09e667f3bcc909ULL;
     static constexpr int HISTORY_ABS_LIMIT = 16384;
     static constexpr int ASPIRATION_START_DELTA = 32;
     Value abp(int depth, bool isMax, Value alpha, Value beta, MoveList* pv = nullptr);
@@ -105,11 +116,26 @@ PRIVATE
     void updateHistoryFromNode(int depth, const Pos& bestMove, const MoveList& searchedMoves,
         bool causedCutoff, Value result, bool sideToMoveIsBlack);
     void rebuildPV(const Pos& bestMove, const MoveList& bestChildPV, Value result, MoveList* pv) const;
+    void completeWinPV(Value value, MoveList& pv);
+    bool isRootAttackerTurn(Board& targetBoard);
+    Result getRootWinResult();
+    uint64_t getQVCFTTKey(Board& targetBoard) const;
+    bool enterQVCFNode(QVCFContext& context);
+    void moveQVCFTTBestFirst(MoveList& moves, const Pos& bestMove) const;
+    bool probeQVCFTT(Board& targetBoard, int remainingPly, Value& value, Pos& bestMove) const;
+    void storeQVCFWin(Board& targetBoard, Value value, int remainingPly, const Pos& bestMove);
+    void storeQVCFFail(Board& targetBoard, int remainingPly);
+    void appendQVCFTTPV(Board tempBoard, MoveList& pv, int remainingPly) const;
+    Value qvcfSearch(int remainingPly, QVCFContext& context, MoveList* pv);
+    bool tryResolveLeafVCF(MoveList* pv, Value& resolvedValue);
+    Value qvcfAttack(int remainingPly, QVCFContext& context, MoveList* pv);
+    Value qvcfDefend(int remainingPly, QVCFContext& context, MoveList* pv);
 
 PUBLIC
     Search(Board& board, SearchMonitor& monitor, size_t ttBytes = 64ull * 1024ull * 1024ull);
     void ids();
     void stop();
+    void setQVCFEnabled(bool enabled);
     void setMonitorPollNodeInterval(size_t nodeInterval);
     size_t getNodeCount() const;
     size_t getEstimatedMemoryBytes() const;
@@ -118,6 +144,7 @@ PUBLIC
 };
 
 #include "detail/runtime.h"
+#include "detail/qvcf.h"
 #include "detail/core.h"
 #include "detail/lifecycle.h"
 #include "detail/tt.h"

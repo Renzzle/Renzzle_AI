@@ -59,6 +59,8 @@ int32_t Search::encodeTTScore(Value value) const {
 }
 
 void Search::storeTT(Board& board, Value value, int depth, const Pos& bestMove) {
+    if (value.isQVCFDerived()) return;
+
     const TTFlag flag = getTTFlag(value.getType());
     if (flag == TTFlag::NONE) return;
     if (depth < options.minTTStoreDepth) return;

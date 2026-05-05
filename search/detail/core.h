@@ -283,6 +283,10 @@ Value Search::abp(int depth, bool isMax, Value alpha, Value beta, MoveList* pv) 
     }
 
     if (depth == 0) {
+        Value vcfValue;
+        if (tryResolveLeafVCF(pv, vcfValue)) {
+            return vcfValue;
+        }
         return evaluateLeafNode(isMax, depth);
     }
 

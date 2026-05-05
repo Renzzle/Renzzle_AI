@@ -5,6 +5,7 @@ void Search::ids() {
     state.bestPath.clear();
     state.bestValue = Value();
     state.nodesSinceMonitorPoll = 0;
+    state.qvcfDisabledAfterWin = false;
     clearHistory();
     monitor.incDepth(5);
     monitor.initStartTime();
@@ -20,56 +21,12 @@ void Search::ids() {
             break;
         }
 
-        const bool provenWin = result.isWin() && result.getType() == Value::Type::EXACT;
+        const bool provenWin =
+            result.isWin() && result.getType() == Value::Type::EXACT && !result.isQVCFDerived();
         state.bestValue = result;
         state.bestPath = iterationPV;
-        if (state.bestValue.isWin()
-            && state.bestPath.size() < static_cast<size_t>(state.bestValue.getResultDepth())) {
-            const Board savedBoard = board;
-            Board tempBoard = rootBoard;
-            for (const Pos& move : state.bestPath) {
-                if (!tempBoard.move(move)) {
-                    break;
-                }
-            }
+        completeWinPV(state.bestValue, state.bestPath);
 
-            while (searchActive()
-                && tempBoard.getResult() == ONGOING
-                && state.bestPath.size() < static_cast<size_t>(state.bestValue.getResultDepth())) {
-                board = tempBoard;
-                MoveList tailPV;
-                const int remainDepth =
-                    state.bestValue.getResultDepth() - static_cast<int>(state.bestPath.size());
-                const bool tailIsMax = (state.bestPath.size() % 2 == 0);
-                static_cast<void>(abp(
-                    remainDepth,
-                    tailIsMax,
-                    Value(MIN_VALUE, Value::Type::UNKNOWN),
-                    Value(MAX_VALUE + 1, Value::Type::UNKNOWN),
-                    &tailPV
-                ));
-
-                size_t appended = 0;
-                for (const Pos& move : tailPV) {
-                    if (state.bestPath.size() >= static_cast<size_t>(state.bestValue.getResultDepth())) {
-                        break;
-                    }
-                    if (!tempBoard.move(move)) {
-                        break;
-                    }
-                    state.bestPath.push_back(move);
-                    appended += 1;
-                    if (tempBoard.getResult() != ONGOING) {
-                        break;
-                    }
-                }
-
-                if (appended == 0) {
-                    break;
-                }
-            }
-            board = savedBoard;
-        }
         monitor.setBestPath(state.bestPath);
 
         if (provenWin) {
@@ -83,8 +40,67 @@ void Search::ids() {
     state.isRunning = false;
 }
 
+void Search::completeWinPV(Value value, MoveList& pv) {
+    if (!value.isWin() || pv.size() >= static_cast<size_t>(value.getResultDepth())) {
+        return;
+    }
+
+    const Board savedBoard = board;
+    Board tempBoard = rootBoard;
+    for (const Pos& move : pv) {
+        if (!tempBoard.move(move)) {
+            board = savedBoard;
+            return;
+        }
+    }
+
+    while (searchActive()
+        && tempBoard.getResult() == ONGOING
+        && pv.size() < static_cast<size_t>(value.getResultDepth())) {
+        board = tempBoard;
+        MoveList tailPV;
+        const int remainDepth = value.getResultDepth() - static_cast<int>(pv.size());
+        const bool tailIsMax = (pv.size() % 2 == 0);
+        static_cast<void>(abp(
+            remainDepth,
+            tailIsMax,
+            Value(MIN_VALUE, Value::Type::UNKNOWN),
+            Value(MAX_VALUE + 1, Value::Type::UNKNOWN),
+            &tailPV
+        ));
+
+        size_t appended = 0;
+        for (const Pos& move : tailPV) {
+            if (pv.size() >= static_cast<size_t>(value.getResultDepth())) {
+                break;
+            }
+            if (!tempBoard.move(move)) {
+                break;
+            }
+            pv.push_back(move);
+            appended += 1;
+            if (tempBoard.getResult() != ONGOING) {
+                break;
+            }
+        }
+
+        if (appended == 0) {
+            break;
+        }
+    }
+
+    board = savedBoard;
+}
+
 void Search::stop() {
     state.isRunning = false;
+}
+
+void Search::setQVCFEnabled(bool enabled) {
+    options.leafVCFEnabled = enabled;
+    if (enabled) {
+        state.qvcfDisabledAfterWin = false;
+    }
 }
 
 void Search::setMonitorPollNodeInterval(size_t nodeInterval) {

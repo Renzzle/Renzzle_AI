@@ -31,6 +31,7 @@ PUBLIC
     MoveList getFours();
     MoveList getThreats();
     MoveList getThreatDefend();
+    Pos getOppoWinningDefend();
     bool isOppoMateExist();
     bool isMoveForbidden(const Pos& p);
     Value evaluate();
@@ -415,6 +416,19 @@ MoveList Evaluator::getThreatDefend() {
     }
 
     return result.toMoveList();
+}
+
+Pos Evaluator::getOppoWinningDefend() {
+    if (patternCount(oppo, WINNING) != 1) {
+        return Pos();
+    }
+
+    const Pos p = bucket(oppo, WINNING).front();
+    if (isMoveForbidden(p)) {
+        return Pos();
+    }
+
+    return p;
 }
 
 bool Evaluator::isOppoMateExist() {
