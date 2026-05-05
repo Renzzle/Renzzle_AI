@@ -294,7 +294,7 @@ MoveList Evaluator::getFours() {
     bucket(self, B4_ANY).forEach([&](const Pos& p) { result.push_back(p); });
 
     stable_sort(result.begin(), result.end(), [&](const Pos& a, const Pos& b) {
-        return board.getCell(a).getScore(self) > board.getCell(b).getScore(self);
+        return board.getCell(a).getScore(oppo) > board.getCell(b).getScore(oppo);
     });
 
     return result.toMoveList();
@@ -414,6 +414,10 @@ MoveList Evaluator::getThreatDefend() {
             }
         }
     }
+
+    stable_sort(result.begin(), result.end(), [&](const Pos& a, const Pos& b) {
+        return board.getCell(a).getScore(oppo) > board.getCell(b).getScore(oppo);
+    });
 
     return result.toMoveList();
 }
