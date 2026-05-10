@@ -12,21 +12,14 @@ bool Search::tryResolveFromTT(int depth, Value& alpha, Value& beta, MoveList* pv
     Value ttValue = getTTValue(*ttEntry);
     const TTFlag ttFlag = ttEntry->getFlag();
     const bool isRootNode = board.getPath().size() == rootBoard.getPath().size();
-    const bool allowTerminalResultDepthBypass = !isRootNode;
+    const bool allowTerminalExactDepthBypass = !isRootNode;
 
-    if (allowTerminalResultDepthBypass &&
+    if (allowTerminalExactDepthBypass &&
         ttFlag == TTFlag::EXACT &&
         (ttValue.isWin() || ttValue.isLose())) {
         if (pv != nullptr) {
             appendTTPV(board, *pv);
         }
-        resolvedValue = ttValue;
-        return true;
-    }
-
-    if (allowTerminalResultDepthBypass &&
-        ((ttFlag == TTFlag::LOWER_BOUND && ttValue.isWin()) ||
-        (ttFlag == TTFlag::UPPER_BOUND && ttValue.isLose()))) {
         resolvedValue = ttValue;
         return true;
     }
