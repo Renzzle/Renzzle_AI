@@ -5,31 +5,55 @@ bool Search::tryResolveFromTT(int depth, Value& alpha, Value& beta, MoveList* pv
     const uint64_t key = getTTKey(board);
     ttEntry = tt.probeCopy(key, &ttEntryStorage) ? &ttEntryStorage : nullptr;
 
-    if (ttEntry == nullptr || ttEntry->depth < getTTDepth(depth)) {
+    if (ttEntry == nullptr) {
         return false;
     }
 
     Value ttValue = getTTValue(*ttEntry);
+    const TTFlag ttFlag = ttEntry->getFlag();
+    const bool isRootNode = board.getPath().size() == rootBoard.getPath().size();
+    const bool allowTerminalResultDepthBypass = !isRootNode;
 
-    if (ttEntry->getFlag() == TTFlag::EXACT) {
+    if (allowTerminalResultDepthBypass &&
+        ttFlag == TTFlag::EXACT &&
+        (ttValue.isWin() || ttValue.isLose())) {
         if (pv != nullptr) {
             appendTTPV(board, *pv);
         }
         resolvedValue = ttValue;
         return true;
     }
-    if (ttEntry->getFlag() == TTFlag::LOWER_BOUND && ttValue >= beta) {
-        resolvedValue = ttValue;
-        return true;
-    }
-    if (ttEntry->getFlag() == TTFlag::UPPER_BOUND && ttValue <= alpha) {
+
+    if (allowTerminalResultDepthBypass &&
+        ((ttFlag == TTFlag::LOWER_BOUND && ttValue.isWin()) ||
+        (ttFlag == TTFlag::UPPER_BOUND && ttValue.isLose()))) {
         resolvedValue = ttValue;
         return true;
     }
 
-    if (ttEntry->getFlag() == TTFlag::LOWER_BOUND && ttValue > alpha) {
+    if (ttEntry->depth < getTTDepth(depth)) {
+        return false;
+    }
+
+    if (ttFlag == TTFlag::EXACT) {
+        if (pv != nullptr) {
+            appendTTPV(board, *pv);
+        }
+        resolvedValue = ttValue;
+        return true;
+    }
+    if (ttFlag == TTFlag::LOWER_BOUND && ttValue >= beta) {
+        resolvedValue = ttValue;
+        return true;
+    }
+    if (ttFlag == TTFlag::UPPER_BOUND && ttValue <= alpha) {
+        resolvedValue = ttValue;
+        return true;
+    }
+
+    if (ttFlag == TTFlag::LOWER_BOUND && ttValue > alpha) {
         alpha = ttValue;
-    } else if (ttEntry->getFlag() == TTFlag::UPPER_BOUND && ttValue < beta) {
+    } else if (ttFlag == TTFlag::UPPER_BOUND && ttValue < beta) {
         beta = ttValue;
     }
 

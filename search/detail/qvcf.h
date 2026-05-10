@@ -51,10 +51,6 @@ bool Search::probeQVCFTT(Board& targetBoard, int remainingPly, Value& value, Pos
         return false;
     }
 
-    if (entryStorage.depth < getTTDepth(remainingPly)) {
-        return false;
-    }
-
     bestMove = entryStorage.bestMove != TranspositionTable::INVALID_MOVE
         ? TranspositionTable::decodeMove(entryStorage.bestMove)
         : Pos();
@@ -65,6 +61,10 @@ bool Search::probeQVCFTT(Board& targetBoard, int remainingPly, Value& value, Pos
             return false;
         }
         return true;
+    }
+
+    if (entryStorage.depth < getTTDepth(remainingPly)) {
+        return false;
     }
 
     if (entryStorage.getFlag() == TTFlag::UPPER_BOUND && entryStorage.score == 0) {
