@@ -327,10 +327,7 @@ MoveList Evaluator::getThreats() {
     bucket(self, B4_PLUS).forEach([&](const Pos& p) { result.push_back(p); });
     bucket(self, B4_ANY).forEach([&](const Pos& p) { result.push_back(p); });
 
-    stable_sort(result.begin(), result.end(), [&](const Pos& a, const Pos& b) {
-        return board.getCell(a).getScore(self) > board.getCell(b).getScore(self);
-    });
-
+    // sort omitted — Search::sortChildNodes handles ordering uniformly (cellScore + TT/history)
     return result.toMoveList();
 }
 
@@ -418,10 +415,7 @@ MoveList Evaluator::getThreatDefend() {
         }
     }
 
-    stable_sort(result.begin(), result.end(), [&](const Pos& a, const Pos& b) {
-        return board.getCell(a).getScore(oppo) > board.getCell(b).getScore(oppo);
-    });
-
+    // sort omitted — Search::sortChildNodes handles ordering uniformly (cellScore + TT/history)
     return result.toMoveList();
 }
 
@@ -475,6 +469,7 @@ MoveList Evaluator::getFourThreeMakers() {
         }
     });
 
+    // sort omitted — Search::sortChildNodes handles ordering uniformly (cellScore + TT/history)
     return result.toMoveList();
 }
 
@@ -549,10 +544,7 @@ MoveList Evaluator::getFourThreeDefend() {
         }
     });
 
-    stable_sort(result.begin(), result.end(), [&](const Pos& a, const Pos& b) {
-        return board.getCell(a).getScore(oppo) > board.getCell(b).getScore(oppo);
-    });
-
+    // sort omitted — Search::sortChildNodes handles ordering uniformly (cellScore + TT/history)
     return result.toMoveList();
 }
 

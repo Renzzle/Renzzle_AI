@@ -442,6 +442,7 @@ void Search::sortChildNodes(MoveList& moves, bool isMax, const TTEntry* entry) {
         int flagPriority;
         int32_t ttScore;
         int historyScore;
+        int cellScore;
     };
 
     const Pos ttBestMove = (entry != nullptr && entry->bestMove != TranspositionTable::INVALID_MOVE)
@@ -455,10 +456,6 @@ void Search::sortChildNodes(MoveList& moves, bool isMax, const TTEntry* entry) {
             hasHistorySignal = true;
             break;
         }
-    }
-
-    if (entry == nullptr && !hasHistorySignal) {
-        return;
     }
 
     auto getValueTypePriority = [&](TTFlag flag) {
@@ -483,6 +480,11 @@ void Search::sortChildNodes(MoveList& moves, bool isMax, const TTEntry* entry) {
     vector<MoveOrderInfo> infos;
     infos.reserve(moves.size());
 
+    // Attacker (isMax) prefers self-attack score; defender wants to block opponent's most
+    // threatening spot, so uses opponent's score. Matches the evaluator's previous sort intent.
+    const Piece sideToMovePiece = sideToMoveIsBlack ? BLACK : WHITE;
+    const Piece opposingPiece   = sideToMoveIsBlack ? WHITE : BLACK;
+    const Piece scorePiece = isMax ? sideToMovePiece : opposingPiece;
     for (const Pos& move : moves) {
         TTEntry childEntryStorage;
         const TTEntry* childEntry =
@@ -497,6 +499,7 @@ void Search::sortChildNodes(MoveList& moves, bool isMax, const TTEntry* entry) {
         info.flagPriority = childEntry != nullptr ? getValueTypePriority(childEntry->getFlag()) : getValueTypePriority(TTFlag::NONE);
         info.ttScore = childEntry != nullptr ? childEntry->score : 0;
         info.historyScore = getHistoryScore(move, sideToMoveIsBlack);
+        info.cellScore = board.getCell(move).getScore(scorePiece);
         infos.push_back(info);
     }
 
@@ -507,14 +510,17 @@ void Search::sortChildNodes(MoveList& moves, bool isMax, const TTEntry* entry) {
         if (a.hasTT != b.hasTT) {
             return a.hasTT;
         }
-        if (a.flagPriority != b.flagPriority) {
-            return a.flagPriority < b.flagPriority;
-        }
         if (a.ttScore != b.ttScore) {
             return isMax ? (a.ttScore > b.ttScore) : (a.ttScore < b.ttScore);
         }
+        if (a.cellScore != b.cellScore) {
+            return a.cellScore > b.cellScore;
+        }
         if (a.historyScore != b.historyScore) {
             return a.historyScore > b.historyScore;
+        }
+        if (a.flagPriority != b.flagPriority) {
+            return a.flagPriority < b.flagPriority;
         }
         return false;
     });

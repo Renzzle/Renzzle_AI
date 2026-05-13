@@ -128,7 +128,8 @@ public:
             {"#3", "h8g9h10h5h6g8g7i9j7"},
             {"#4", "h8g9h10h5h6g8g7i9j7h4j9"},
             {"#5", "h8g9h10h5h6g8g7f6i7k7l7"},
-            {"#5", "h8g9h10h5h6g8g7f6i7i5l7"},
+            {"#6", "h8g9h10h5h6g8g7f6i7i5l7"},
+            {"#7", "h8h9i8g8i10i9h11h7j8"},
         };
 
         for (size_t i = 0; i < cases.size(); ++i) {
