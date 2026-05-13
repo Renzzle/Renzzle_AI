@@ -31,8 +31,11 @@ PUBLIC
     MoveList getFours();
     MoveList getThreats();
     MoveList getThreatDefend();
+    MoveList getFourThreeMakers();
+    MoveList getFourThreeDefend();
     Pos getOppoWinningDefend();
     bool isOppoMateExist();
+    bool isOppoFourThreeExist();
     bool isMoveForbidden(const Pos& p);
     Value evaluate();
     Value evaluateTactical();
@@ -303,7 +306,7 @@ MoveList Evaluator::getFours() {
 MoveList Evaluator::getThreats() {
     FixedMoveList<BOARD_SIZE * BOARD_SIZE> result;
     if (hasPattern(self, WINNING)) {
-        result.push_back(bucket(self, WINNING).front()); 
+        result.push_back(bucket(self, WINNING).front());
         return result.toMoveList();
     }
     if (hasPattern(self, MATE)) {
@@ -367,7 +370,7 @@ MoveList Evaluator::getThreatDefend() {
         // check which direction has free 3
         for (Direction dir = DIRECTION_START; dir < DIRECTION_SIZE; dir++) {
             Cell& c = board.getCell(p);
-            if (c.getPiece() == EMPTY && c.getPattern(oppo, dir) == FREE_4) {
+            if (c.getPiece() == EMPTY && (c.getPattern(oppo, dir) == FREE_4 || c.getPattern(oppo, dir) == BLOCKED_4)) {
                 p.setDirection(dir);
                 FixedMoveList<LINE_LENGTH> defendB4;
                 defendB4.reserve(LINE_LENGTH);
@@ -376,9 +379,9 @@ MoveList Evaluator::getThreatDefend() {
                 const int baseY = p.getY();
                 const int dx = getDirectionDx(dir);
                 const int dy = getDirectionDy(dir);
+                constexpr int SCAN_RADIUS = 4;  // ±4 cells around mate spot
                 // check the number of free 4 move and if 1, blocked 4 move also can defend
-                for (int i = 0; i < LINE_LENGTH; i++) {
-                    const int offset = i - (LINE_LENGTH / 2);
+                for (int offset = -SCAN_RADIUS; offset <= SCAN_RADIUS; offset++) {
                     const int x = baseX + (dx * offset);
                     const int y = baseY + (dy * offset);
                     if (!isBoardCoord(x, y)) continue;
@@ -390,7 +393,7 @@ MoveList Evaluator::getThreatDefend() {
                         f4Cnt++;
                 }
 
-                if (f4Cnt == 1) {
+                if (f4Cnt == 1 || f4Cnt == 0) {
                     if (!defendB4.empty()) {
                         for (const auto& p : defendB4) {
                             appendUniqueLegal(p);
@@ -422,6 +425,137 @@ MoveList Evaluator::getThreatDefend() {
     return result.toMoveList();
 }
 
+MoveList Evaluator::getFourThreeMakers() {
+    FixedMoveList<BOARD_SIZE * BOARD_SIZE> result;
+    array<uint8_t, 256> seen = {};
+
+    auto appendUniqueLegal = [&](const Pos& p) {
+        if (isMoveForbidden(p)) return;
+        const uint8_t key = static_cast<uint8_t>((p.getX() << 4) | p.getY());
+        if (seen[key]) return;
+        seen[key] = 1;
+        result.push_back(p);
+    };
+
+    // qualifying "extra" pattern of B4_PLUS = (FREE_2 family), plus BLOCKED_3 when self is white
+    // (for white, B3→F3 transition is direct since white has no 3-3 forbidden rule)
+    auto isFourThreeSeed = [&](Pattern pat) {
+        if (pat == FREE_2 || pat == FREE_2A || pat == FREE_2B) return true;
+        if (self == WHITE && pat == BLOCKED_3) return true;
+        return false;
+    };
+
+    bucket(self, B4_PLUS).forEach([&](const Pos& center) {
+        for (Direction dir = DIRECTION_START; dir < DIRECTION_SIZE; dir++) {
+            Cell& c = board.getCell(center);
+            if (c.getPiece() != EMPTY) continue;
+            if (!isFourThreeSeed(c.getPattern(self, dir))) continue;
+
+            // Center has the F2 (or B3 for white) "extra" in this direction.
+            // Scan the line through `center` in this direction; every empty cell whose
+            // pattern in this direction is also F2-family (B3 for white) is a follow-up
+            // candidate that can extend the line toward F3 — i.e., a 4-3 maker.
+            const int baseX = center.getX();
+            const int baseY = center.getY();
+            const int dx = getDirectionDx(dir);
+            const int dy = getDirectionDy(dir);
+            constexpr int SCAN_RADIUS = 3;  // ±3 cells around center → 6 non-center cells per direction
+            for (int offset = -SCAN_RADIUS; offset <= SCAN_RADIUS; offset++) {
+                const int x = baseX + (dx * offset);
+                const int y = baseY + (dy * offset);
+                if (!isBoardCoord(x, y)) continue;
+
+                Cell& lineCell = board.getCell(x, y);
+                if (lineCell.getPiece() != EMPTY) continue;
+                if (!isFourThreeSeed(lineCell.getPattern(self, dir))) continue;
+                if (lineCell.getCompositePattern(self) == B4_PLUS) continue;  // already a B4_PLUS spot — handled elsewhere
+
+                appendUniqueLegal(Pos(x, y));
+            }
+        }
+    });
+
+    return result.toMoveList();
+}
+
+MoveList Evaluator::getFourThreeDefend() {
+    FixedMoveList<BOARD_SIZE * BOARD_SIZE> result;
+    array<uint8_t, 256> seen = {};
+
+    if (!isOppoFourThreeExist()) return result.toMoveList();
+
+    auto appendUniqueLegal = [&](const Pos& p) {
+        if (isMoveForbidden(p)) return;
+        const uint8_t key = static_cast<uint8_t>((p.getX() << 4) | p.getY());
+        if (seen[key]) return;
+        seen[key] = 1;
+        result.push_back(p);
+    };
+
+    FixedMoveList<BOARD_SIZE * BOARD_SIZE> raw;
+
+    bucket(oppo, B4_F3).forEach([&](const Pos& p) {
+        if (oppo == BLACK && board.isForbidden(p)) return;
+
+        appendUniqueLegal(p);
+
+        // simulate opponent playing at p: pass our turn first so move() places opponent's piece
+        if (!board.pass()) return;
+        if (!board.move(p)) {
+            board.undo();  // undo the pass
+            return;
+        }
+
+        raw.clear();
+        board.getPatternBucket(oppo, WINNING).forEach([&](const Pos& q) {
+            raw.push_back(q);
+
+            // if q makes self a three, we'd play q ourselves: denies opponent's 5 AND opens a
+            // VCF-style counter (our F3 forces a defense). Simulate self playing q, then collect
+            // self's four/mate/winning cells in THAT state — those are the counter-attack options.
+            const CompositePattern selfPat = board.getCell(q).getCompositePattern(self);
+            const bool qMakesSelfThree =
+                selfPat == F3_ANY || selfPat == F3_PLUS || selfPat == F3_2X || selfPat == B3_ANY || selfPat == B3_PLUS;
+            if (!qMakesSelfThree) return;
+            if (isMoveForbidden(q)) return;
+            if (!board.move(q)) return;
+
+            board.getPatternBucket(self, WINNING).forEach([&](const Pos& f) { raw.push_back(f); });
+            board.getPatternBucket(self, MATE).forEach([&](const Pos& f) { raw.push_back(f); });
+            board.getPatternBucket(self, B4_F3).forEach([&](const Pos& f) { raw.push_back(f); });
+            board.getPatternBucket(self, B4_PLUS).forEach([&](const Pos& f) { raw.push_back(f); });
+            board.getPatternBucket(self, B4_ANY).forEach([&](const Pos& f) { raw.push_back(f); });
+
+            board.undo();
+        });
+
+        int mateCount = 0;
+        board.getPatternBucket(oppo, MATE).forEach([&](const Pos& q) {
+            raw.push_back(q);
+            mateCount++;
+        });
+        if (mateCount == 1) {
+            // single mate — widen defense net to all of opponent's blocked-four cells
+            board.getPatternBucket(oppo, B4_F3).forEach([&](const Pos& q) { raw.push_back(q); });
+            board.getPatternBucket(oppo, B4_PLUS).forEach([&](const Pos& q) { raw.push_back(q); });
+            board.getPatternBucket(oppo, B4_ANY).forEach([&](const Pos& q) { raw.push_back(q); });
+        }
+
+        board.undo();
+        board.undo();
+
+        for (size_t i = 0; i < raw.size(); ++i) {
+            appendUniqueLegal(raw[i]);
+        }
+    });
+
+    stable_sort(result.begin(), result.end(), [&](const Pos& a, const Pos& b) {
+        return board.getCell(a).getScore(oppo) > board.getCell(b).getScore(oppo);
+    });
+
+    return result.toMoveList();
+}
+
 Pos Evaluator::getOppoWinningDefend() {
     if (patternCount(oppo, WINNING) != 1) {
         return Pos();
@@ -439,6 +573,10 @@ bool Evaluator::isOppoMateExist() {
     if (hasPattern(oppo, WINNING)) return true;
     if (hasPattern(oppo, MATE)) return true;
     return false;
+}
+
+bool Evaluator::isOppoFourThreeExist() {
+    return hasPattern(oppo, B4_F3);
 }
 
 bool Evaluator::isMoveForbidden(const Pos& p) {

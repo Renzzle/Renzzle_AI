@@ -7,7 +7,7 @@
 using Score = int;
 
 // score table                            D  OL  B1  F1  B2  F2  F2  F2  B3  F3  F3  B4  F4   F5     UNUSED
-const Score attackScore[PATTERN_SIZE] = { 0, 00, 00, 01, 01, 04, 05, 06, 07, 20, 20, 20, 400, 10000, 50000};
+const Score attackScore[PATTERN_SIZE] = { 0, 00, 00, 01, 01, 04, 05, 06, 07, 21, 21, 20, 400, 10000, 50000};
 const Score defendScore[PATTERN_SIZE] = { 0, 00, 00, 00, 00, 02, 02, 02, 02, 07, 07, 07,  90, 02000, 50000};
 
 using PatternKey = uint16_t;

@@ -423,6 +423,8 @@ MoveList Search::getCandidates(Evaluator& evaluator, bool isMax) {
         moves.insert(moves.end(), fours.begin(), fours.end());
     } else if (attackerTurn) {
         moves = evaluator.getThreats();
+    } else if (evaluator.isOppoFourThreeExist()) {
+        moves = evaluator.getFourThreeDefend();
     }
 
     return moves;
