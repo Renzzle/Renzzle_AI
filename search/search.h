@@ -101,7 +101,7 @@ PRIVATE
     void clearHistory();
     bool tryResolveFromTT(int depth, Value& alpha, Value& beta, MoveList* pv,
         TTEntry& ttEntryStorage, const TTEntry*& ttEntry, Value& resolvedValue);
-    int getShallowMoveLimit(Evaluator& evaluator, int depth) const;
+    int getShallowMoveLimit(Evaluator& evaluator, int depth, bool attackerTurn) const;
     Value evaluateLeafNode(bool isMax, int depth);
     Value evaluateThreatBrokenLeaf(bool isMax, int depth);
     bool tryResolveQuickWin(Evaluator& evaluator, bool isMax, int depth, MoveList* pv, Value& resolvedValue);

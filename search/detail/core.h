@@ -53,7 +53,12 @@ bool Search::tryResolveFromTT(int depth, Value& alpha, Value& beta, MoveList* pv
     return false;
 }
 
-int Search::getShallowMoveLimit(Evaluator& evaluator, int depth) const {
+int Search::getShallowMoveLimit(Evaluator& evaluator, int depth, bool attackerTurn) const {
+    // defender turns must enumerate fully (to find true longest defense),
+    // regardless of whether opponent has mate-level threat or just B4_F3
+    if (!attackerTurn) {
+        return std::numeric_limits<int>::max();
+    }
     const bool isDefendingNode = evaluator.isOppoMateExist();
     return isDefendingNode
         ? std::numeric_limits<int>::max()
@@ -326,7 +331,7 @@ Value Search::abp(int depth, bool isMax, Value alpha, Value beta, MoveList* pv) 
     MoveList searchedMoves;
     searchedMoves.reserve(moves.size());
 
-    const int shallowMoveLimit = getShallowMoveLimit(evaluator, depth);
+    const int shallowMoveLimit = getShallowMoveLimit(evaluator, depth, attackerTurn);
     const bool sideToMoveIsBlack = board.isBlackTurn();
     const Pos ttBestMove = (ttEntry != nullptr && ttEntry->bestMove != TranspositionTable::INVALID_MOVE)
         ? TranspositionTable::decodeMove(ttEntry->bestMove)
@@ -413,16 +418,15 @@ MoveList Search::getCandidates(Evaluator& evaluator, bool isMax) {
         return moves;
     }
 
-    if (evaluator.isOppoMateExist()) {
-        if (attackerTurn) {
-            return evaluator.getThreats();
-        }
-
+    if (attackerTurn) {
+        // attacker logic is uniform regardless of opponent's threat level
+        moves = evaluator.getThreats();
+        MoveList makers = evaluator.getFourThreeMakers();
+        moves.insert(moves.end(), makers.begin(), makers.end());
+    } else if (evaluator.isOppoMateExist()) {
         moves = evaluator.getThreatDefend();
         MoveList fours = evaluator.getFours();
         moves.insert(moves.end(), fours.begin(), fours.end());
-    } else if (attackerTurn) {
-        moves = evaluator.getThreats();
     } else if (evaluator.isOppoFourThreeExist()) {
         moves = evaluator.getFourThreeDefend();
     }
@@ -513,14 +517,18 @@ void Search::sortChildNodes(MoveList& moves, bool isMax, const TTEntry* entry) {
         if (a.ttScore != b.ttScore) {
             return isMax ? (a.ttScore > b.ttScore) : (a.ttScore < b.ttScore);
         }
+        // bound type refines tied ttScore (esp. for mate values):
+        //   Max prefers LOWER_BOUND (actual value could be even higher → faster mate)
+        //   Min prefers UPPER_BOUND (actual value could be even lower → slower mate)
+        // getValueTypePriority(flag) already encodes that via isMax. Smaller = better.
+        if (a.flagPriority != b.flagPriority) {
+            return a.flagPriority < b.flagPriority;
+        }
         if (a.cellScore != b.cellScore) {
             return a.cellScore > b.cellScore;
         }
         if (a.historyScore != b.historyScore) {
             return a.historyScore > b.historyScore;
-        }
-        if (a.flagPriority != b.flagPriority) {
-            return a.flagPriority < b.flagPriority;
         }
         return false;
     });

@@ -130,6 +130,7 @@ public:
             {"#5", "h8g9h10h5h6g8g7f6i7k7l7"},
             {"#6", "h8g9h10h5h6g8g7f6i7i5l7"},
             {"#7", "h8h9i8g8i10i9h11h7j8"},
+            {"#8", "h8i9f6g8g6h9f9f7e6d6i10j9k9j7j8i7i8l8h7f5e7d8e5e8h6i6h4h5g4"},
         };
 
         for (size_t i = 0; i < cases.size(); ++i) {
