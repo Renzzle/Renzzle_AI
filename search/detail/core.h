@@ -349,6 +349,7 @@ Value Search::abp(int depth, bool isMax, Value alpha, Value beta, MoveList* pv) 
         if (!board.move(move)) {
             continue;
         }
+        tt.prefetch(getTTKey(board));
 
         searchedAny = true;
         searchedMoves.push_back(move);
@@ -489,10 +490,15 @@ void Search::sortChildNodes(MoveList& moves, bool isMax, const TTEntry* entry) {
     const Piece sideToMovePiece = sideToMoveIsBlack ? BLACK : WHITE;
     const Piece opposingPiece   = sideToMoveIsBlack ? WHITE : BLACK;
     const Piece scorePiece = isMax ? sideToMovePiece : opposingPiece;
-    for (const Pos& move : moves) {
+    const bool shouldProbeChildren = (entry != nullptr || hasHistorySignal);
+    for (size_t mi = 0; mi < moves.size(); ++mi) {
+        const Pos& move = moves[mi];
+        if (shouldProbeChildren && mi + 1 < moves.size()) {
+            tt.prefetch(getChildTTKey(moves[mi + 1]));
+        }
         TTEntry childEntryStorage;
         const TTEntry* childEntry =
-            (entry != nullptr || hasHistorySignal)
+            shouldProbeChildren
                 && tt.probeCopy(getChildTTKey(move), &childEntryStorage)
                 ? &childEntryStorage
                 : nullptr;

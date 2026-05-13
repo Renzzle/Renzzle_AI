@@ -8,6 +8,19 @@
 #include <memory>
 #include <vector>
 
+#if defined(_MSC_VER)
+  #include <xmmintrin.h>
+  inline void renzzle_tt_prefetch(const void* addr) {
+      _mm_prefetch(static_cast<const char*>(addr), _MM_HINT_T0);
+  }
+#elif defined(__GNUC__) || defined(__clang__)
+  inline void renzzle_tt_prefetch(const void* addr) {
+      __builtin_prefetch(addr, 0, 3);
+  }
+#else
+  inline void renzzle_tt_prefetch(const void* addr) { (void)addr; }
+#endif
+
 enum class TTFlag : uint8_t {
     NONE = 0,
     EXACT = 1,
@@ -149,6 +162,16 @@ public:
     const TTEntry* probe(uint64_t key) const {
         static thread_local TTEntry entryBuffer;
         return probeCopy(key, &entryBuffer) ? &entryBuffer : nullptr;
+    }
+
+    // Prefetch the bucket cache line for the given key into L1.
+    // Issue this before a later probeCopy() to hide DRAM/L3 latency
+    // behind unrelated work.
+    void prefetch(uint64_t key) const {
+        if (state->bucketCount == 0) return;
+        const size_t bucketIndex = getBucketIndex(key);
+        const size_t base = getBucketBase(bucketIndex);
+        renzzle_tt_prefetch(&state->entries[base]);
     }
 
     void store(uint64_t key, int32_t score, uint8_t depth, TTFlag flag,

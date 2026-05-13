@@ -208,6 +208,7 @@ Value Search::qvcfAttack(int remainingPly, QVCFContext& context, MoveList* pv) {
         if (!board.move(move)) {
             continue;
         }
+        tt.prefetch(getQVCFTTKey(board));
 
         MoveList childPV;
         Value childValue = qvcfDefend(remainingPly - 1, context, pv != nullptr ? &childPV : nullptr);
@@ -296,6 +297,7 @@ Value Search::qvcfDefend(int remainingPly, QVCFContext& context, MoveList* pv) {
         storeQVCFWin(board, value, remainingPly, Pos());
         return value;
     }
+    tt.prefetch(getQVCFTTKey(board));
 
     MoveList childPV;
     Value childValue = qvcfAttack(remainingPly - 1, context, pv != nullptr ? &childPV : nullptr);
