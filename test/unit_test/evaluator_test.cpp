@@ -11,6 +11,37 @@ public:
         registerTestMethod([this]() { threatDefendTest(); });
         registerTestMethod([this]() { fourThreeDefendTest(); });
         registerTestMethod([this]() { fourThreeMakersTest(); });
+        registerTestMethod([this]() { quickWinCheckTest(); });
+    }
+
+    void quickWinCheckTest() {
+        const vector<pair<string, string>> cases = {
+            {"43", "h8h9i8g8i10i9j9k10k8l7j7i7h7g9"},
+            {"Fake 43", "h8h9i8g8i10i9j9k10k8l7j7i7h7g9i6l9l11l10"},
+        };
+
+        for (size_t i = 0; i < cases.size(); ++i) {
+            const string& label = cases[i].first;
+            const string& process = cases[i].second;
+            TEST_PRINT("=================================");
+            TEST_PRINT("[quickWinCheck] " << label);
+
+            Board board = getBoard(process);
+            printBoard(board);
+
+            Evaluator evaluator(board);
+            Pos bestMove;
+            Value v = evaluator.quickWinCheck(&bestMove);
+
+            cout << "value=";
+            if (v.isWin())       cout << "WIN(" << v.getResultDepth() << ")";
+            else if (v.isLose()) cout << "LOSE(" << v.getResultDepth() << ")";
+            else                 cout << "ONGOING";
+            cout << " | bestMove=";
+            if (bestMove.isDefault()) cout << "(none)";
+            else                      cout << (char)(bestMove.getY() + 96) << bestMove.getX();
+            cout << endl;
+        }
     }
 
     void checkDefendTime() {

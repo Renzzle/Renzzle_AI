@@ -184,11 +184,46 @@ Value Evaluator::quickWinCheck(Pos* bestMove) {
         return Value(Value::Result::WIN, 3);
     }
 
-    if (hasPattern(self, B4_F3) && !hasFourLevelPressure(oppo)) {
-        if (bestMove != nullptr) {
-            *bestMove = bucket(self, B4_F3).front();
+    if (hasPattern(self, B4_F3) && !hasPattern(oppo, WINNING)) {
+        const Pos p43 = bucket(self, B4_F3).front();
+        Cell& cP = board.getCell(p43);
+
+        Pos W;
+        for (Direction dir = DIRECTION_START; dir < DIRECTION_SIZE; dir++) {
+            if (cP.getPattern(self, dir) != BLOCKED_4) continue;
+            const int baseX = p43.getX();
+            const int baseY = p43.getY();
+            const int dx = getDirectionDx(dir);
+            const int dy = getDirectionDy(dir);
+            for (int offset = -4; offset <= 4; offset++) {
+                if (offset == 0) continue;
+                const int x = baseX + (dx * offset);
+                const int y = baseY + (dy * offset);
+                if (!isBoardCoord(x, y)) continue;
+                Cell& lineCell = board.getCell(x, y);
+                if (lineCell.getPiece() != EMPTY) continue;
+                if (lineCell.getPattern(self, dir) == BLOCKED_4) {
+                    W = Pos(x, y);
+                    break;
+                }
+            }
+            if (!W.isDefault()) break;
         }
-        return Value(Value::Result::WIN, 5);
+
+        bool oppoCanInterceptAtW = false;
+        if (!W.isDefault()) {
+            const CompositePattern wOppoComp = board.getCell(W).getCompositePattern(oppo);
+            oppoCanInterceptAtW =
+                (wOppoComp == WINNING || wOppoComp == MATE ||
+                 wOppoComp == B4_F3 || wOppoComp == B4_PLUS || wOppoComp == B4_ANY);
+        }
+
+        if (!oppoCanInterceptAtW) {
+            if (bestMove != nullptr) {
+                *bestMove = p43;
+            }
+            return Value(Value::Result::WIN, 5);
+        }
     }
 
     if (hasPattern(self, F3_2X) && !hasFourLevelPressure(oppo)) {
