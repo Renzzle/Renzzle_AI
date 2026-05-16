@@ -510,74 +510,168 @@ MoveList Evaluator::getFourThreeMakers() {
 
 MoveList Evaluator::getFourThreeDefend() {
     FixedMoveList<BOARD_SIZE * BOARD_SIZE> result;
-    array<uint8_t, 256> seen = {};
 
     if (!isOppoFourThreeExist()) return result.toMoveList();
 
-    auto appendUniqueLegal = [&](const Pos& p) {
-        if (isMoveForbidden(p)) return;
-        const uint8_t key = static_cast<uint8_t>((p.getX() << 4) | p.getY());
-        if (seen[key]) return;
-        seen[key] = 1;
-        result.push_back(p);
+    const int b43Count = patternCount(oppo, B4_F3);
+
+    auto keyOf = [](const Pos& p) {
+        return static_cast<uint8_t>((p.getX() << 4) | p.getY());
     };
 
-    FixedMoveList<BOARD_SIZE * BOARD_SIZE> raw;
+    // Emit defense candidates for one B4_F3 center via `emit(Pos)`.
+    auto collectDefensesFor = [&](const Pos& center, auto emit) {
+        // fork point itself
+        emit(center);
 
-    bucket(oppo, B4_F3).forEach([&](const Pos& p) {
-        if (oppo == BLACK && board.isForbidden(p)) return;
+        Cell& c = board.getCell(center);
+        if (c.getPiece() != EMPTY) return;
 
-        appendUniqueLegal(p);
+        for (Direction dir = DIRECTION_START; dir < DIRECTION_SIZE; dir++) {
+            const Pattern centerPat = c.getPattern(oppo, dir);
 
-        // simulate opponent playing at p: pass our turn first so move() places opponent's piece
-        if (!board.pass()) return;
-        if (!board.move(p)) {
-            board.undo();  // undo the pass
-            return;
+            const int baseX = center.getX();
+            const int baseY = center.getY();
+            const int dx = getDirectionDx(dir);
+            const int dy = getDirectionDy(dir);
+
+            auto isSelfThree = [](Pattern pat) {
+                return pat == BLOCKED_3 || pat == FREE_3 || pat == FREE_3A;
+            };
+
+            if (centerPat == BLOCKED_4) {
+                // B4 leg: find the partner cell (5-completion) along this line.
+                constexpr int SCAN_RADIUS = 4;
+                for (int offset = -SCAN_RADIUS; offset <= SCAN_RADIUS; offset++) {
+                    if (offset == 0) continue;
+                    const int x = baseX + (dx * offset);
+                    const int y = baseY + (dy * offset);
+                    if (!isBoardCoord(x, y)) continue;
+
+                    Cell& lineCell = board.getCell(x, y);
+                    if (lineCell.getPiece() != EMPTY) continue;
+                    if (lineCell.getPattern(oppo, dir) != BLOCKED_4) continue;
+
+                    emit(Pos(x, y));
+
+                    // counter-attack expansion: partner cell also makes self B3/F3
+                    const CompositePattern wSelfComp = lineCell.getCompositePattern(self);
+                    const bool wIsSelfThreeComp =
+                        wSelfComp == B3_ANY || wSelfComp == B3_PLUS ||
+                        wSelfComp == F3_ANY || wSelfComp == F3_PLUS || wSelfComp == F3_2X;
+
+                    if (wIsSelfThreeComp) {
+                        for (Direction sDir = DIRECTION_START; sDir < DIRECTION_SIZE; sDir++) {
+                            if (!isSelfThree(lineCell.getPattern(self, sDir))) continue;
+
+                            const int sdx = getDirectionDx(sDir);
+                            const int sdy = getDirectionDy(sDir);
+                            constexpr int INNER_SCAN_RADIUS = 4;
+                            for (int o = -INNER_SCAN_RADIUS; o <= INNER_SCAN_RADIUS; o++) {
+                                if (o == 0) continue;
+                                const int ix = x + (sdx * o);
+                                const int iy = y + (sdy * o);
+                                if (!isBoardCoord(ix, iy)) continue;
+
+                                Cell& innerCell = board.getCell(ix, iy);
+                                if (innerCell.getPiece() != EMPTY) continue;
+                                if (!isSelfThree(innerCell.getPattern(self, sDir))) continue;
+
+                                emit(Pos(ix, iy));
+                            }
+                        }
+                    }
+
+                    break;  // one partner per direction
+                }
+                continue;
+            }
+
+            if (centerPat == FREE_3A) {
+                // FREE_3A leg: ±1 empty neighbors of center and of each oppo stone.
+                auto emitImmediateEmptyNeighbors = [&](int x, int y) {
+                    for (int side = -1; side <= 1; side += 2) {
+                        const int nx = x + (dx * side);
+                        const int ny = y + (dy * side);
+                        if (!isBoardCoord(nx, ny)) continue;
+                        if (nx == baseX && ny == baseY) continue;  // skip center (already emitted)
+                        if (board.getCell(nx, ny).getPiece() != EMPTY) continue;
+                        emit(Pos(nx, ny));
+                    }
+                };
+
+                emitImmediateEmptyNeighbors(baseX, baseY);
+
+                constexpr int SCAN_RADIUS = 3;
+                for (int offset = -SCAN_RADIUS; offset <= SCAN_RADIUS; offset++) {
+                    if (offset == 0) continue;
+                    const int x = baseX + (dx * offset);
+                    const int y = baseY + (dy * offset);
+                    if (!isBoardCoord(x, y)) continue;
+                    if (board.getCell(x, y).getPiece() != oppo) continue;
+
+                    emitImmediateEmptyNeighbors(x, y);
+                }
+                continue;
+            }
+
+            if (centerPat == FREE_3) {
+                constexpr int SCAN_RADIUS = 4;
+                for (int offset = -SCAN_RADIUS; offset <= SCAN_RADIUS; offset++) {
+                    if (offset == 0) continue;
+                    const int x = baseX + (dx * offset);
+                    const int y = baseY + (dy * offset);
+                    if (!isBoardCoord(x, y)) continue;
+                    if (board.getCell(x, y).getPiece() != EMPTY) continue;
+                    if (board.getCell(x, y).getPattern(oppo, dir) == FREE_3 
+                        || board.getCell(x, y).getPattern(oppo, dir) == FREE_3A
+                        || board.getCell(x, y).getPattern(oppo, dir) == BLOCKED_3) {
+                        emit(Pos(x, y));
+                    }
+                }
+            }
         }
+    };
 
-        raw.clear();
-        board.getPatternBucket(oppo, WINNING).forEach([&](const Pos& q) {
-            raw.push_back(q);
-
-            // if q makes self a three, we'd play q ourselves: denies opponent's 5 AND opens a
-            // VCF-style counter (our F3 forces a defense). Simulate self playing q, then collect
-            // self's four/mate/winning cells in THAT state — those are the counter-attack options.
-            const CompositePattern selfPat = board.getCell(q).getCompositePattern(self);
-            const bool qMakesSelfThree =
-                selfPat == F3_ANY || selfPat == F3_PLUS || selfPat == F3_2X || selfPat == B3_ANY || selfPat == B3_PLUS;
-            if (!qMakesSelfThree) return;
-            if (isMoveForbidden(q)) return;
-            if (!board.move(q)) return;
-
-            board.getPatternBucket(self, WINNING).forEach([&](const Pos& f) { raw.push_back(f); });
-            board.getPatternBucket(self, MATE).forEach([&](const Pos& f) { raw.push_back(f); });
-            board.getPatternBucket(self, B4_F3).forEach([&](const Pos& f) { raw.push_back(f); });
-            board.getPatternBucket(self, B4_PLUS).forEach([&](const Pos& f) { raw.push_back(f); });
-            board.getPatternBucket(self, B4_ANY).forEach([&](const Pos& f) { raw.push_back(f); });
-
-            board.undo();
+    if (b43Count == 1) {
+        array<uint8_t, 256> seen = {};
+        const Pos center = bucket(oppo, B4_F3).front();
+        collectDefensesFor(center, [&](const Pos& p) {
+            if (isMoveForbidden(p)) return;
+            const uint8_t k = keyOf(p);
+            if (seen[k]) return;
+            seen[k] = 1;
+            result.push_back(p);
         });
+        return result.toMoveList();
+    }
 
-        int mateCount = 0;
-        board.getPatternBucket(oppo, MATE).forEach([&](const Pos& q) {
-            raw.push_back(q);
-            mateCount++;
+    // If multiple B4_F3's exist, only the intersection of their defenses can effectively block all forks
+    array<uint8_t, 256> occurrence = {};
+    array<Pos, 256> posByKey = {};
+
+    bucket(oppo, B4_F3).forEach([&](const Pos& center) {
+        array<uint8_t, 256> seenThisIter = {};
+        collectDefensesFor(center, [&](const Pos& p) {
+            if (isMoveForbidden(p)) return;
+            const uint8_t k = keyOf(p);
+            if (seenThisIter[k]) return;
+            seenThisIter[k] = 1;
+            occurrence[k]++;
+            posByKey[k] = p;
         });
-        if (mateCount == 1) {
-            // single mate — widen defense net to all of opponent's blocked-four cells
-            board.getPatternBucket(oppo, B4_F3).forEach([&](const Pos& q) { raw.push_back(q); });
-            board.getPatternBucket(oppo, B4_PLUS).forEach([&](const Pos& q) { raw.push_back(q); });
-            board.getPatternBucket(oppo, B4_ANY).forEach([&](const Pos& q) { raw.push_back(q); });
-        }
-
-        board.undo();
-        board.undo();
-
-        for (size_t i = 0; i < raw.size(); ++i) {
-            appendUniqueLegal(raw[i]);
-        }
     });
+
+    for (int k = 0; k < 256; ++k) {
+        if (occurrence[k] == b43Count) {
+            result.push_back(posByKey[k]);
+        }
+    }
+
+    // fallback: just block the first B4_F3
+    if (result.empty()) {
+        result.push_back(bucket(oppo, B4_F3).front());
+    }
 
     // sort omitted — Search::sortChildNodes handles ordering uniformly (cellScore + TT/history)
     return result.toMoveList();
