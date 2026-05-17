@@ -35,6 +35,12 @@ PUBLIC
         MoveList pv;
     };
 
+    enum class Mode {
+        VCT,        // attacker-focused; finds forced wins (validatePuzzle, search_test)
+        DEFENSIVE,  // 범용 수비: defends opponent threats first;
+                    // when none, broadens to Evaluator::getCandidates() at root only (findNextMove)
+    };
+
 PRIVATE
     using ChildSearchResult = search_detail::ChildSearchResult;
 
@@ -46,6 +52,7 @@ PRIVATE
         bool leafVCFEnabled = true;
         int leafVCFMaxPly = 17;
         size_t leafVCFNodeLimit = 4096;
+        Mode mode = Mode::VCT;
     };
 
     struct SearchState {
@@ -101,7 +108,7 @@ PRIVATE
     void clearHistory();
     bool tryResolveFromTT(int depth, Value& alpha, Value& beta, MoveList* pv,
         TTEntry& ttEntryStorage, const TTEntry*& ttEntry, Value& resolvedValue);
-    int getShallowMoveLimit(Evaluator& evaluator, int depth, bool attackerTurn) const;
+    int getShallowMoveLimit(Evaluator& evaluator, int depth, bool attackerTurn);
     Value evaluateLeafNode(bool isMax, int depth);
     Value evaluateThreatBrokenLeaf(bool isMax, int depth);
     bool tryResolveQuickWin(Evaluator& evaluator, bool isMax, int depth, MoveList* pv, Value& resolvedValue);
@@ -137,6 +144,7 @@ PUBLIC
     void ids();
     void stop();
     void setQVCFEnabled(bool enabled);
+    void setMode(Mode mode);
     void setMonitorPollNodeInterval(size_t nodeInterval);
     size_t getNodeCount() const;
     size_t getEstimatedMemoryBytes() const;

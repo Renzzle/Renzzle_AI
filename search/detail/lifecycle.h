@@ -12,14 +12,17 @@ void Search::ids() {
     tt.clear();
 
     while (true) {
+        // refresh wall-clock + fire time-based trigger; guards against TT-cached
+        // iterations that visit too few nodes to hit pollMonitorIfDue's interval
+        monitor.updateElapsedTime();
+        if (!state.isRunning) break;
+
         tt.nextGeneration();
 
         MoveList iterationPV;
         Value result = searchRootWithAspiration(monitor.getDepth(), &iterationPV);
 
-        if (!state.isRunning) {
-            break;
-        }
+        if (!state.isRunning) break;
 
         const bool provenWin =
             result.isWin() && result.getType() == Value::Type::EXACT && !result.isQVCFDerived();
@@ -31,6 +34,21 @@ void Search::ids() {
 
         if (provenWin) {
             break;
+        }
+
+        // DEFENSIVE elimination: if exactly one root candidate is non-LOSE,
+        // the answer is decided regardless of further deepening.
+        if (options.mode == Mode::DEFENSIVE) {
+            int nonLoseCount = 0;
+            for (auto& stat : state.lastRootStats) {
+                if (!stat.value.isLose()) {
+                    ++nonLoseCount;
+                    if (nonLoseCount > 1) break;
+                }
+            }
+            if (nonLoseCount == 1) {
+                break;
+            }
         }
 
         monitor.incDepth(2);
@@ -101,6 +119,10 @@ void Search::setQVCFEnabled(bool enabled) {
     if (enabled) {
         state.qvcfDisabledAfterWin = false;
     }
+}
+
+void Search::setMode(Mode mode) {
+    options.mode = mode;
 }
 
 void Search::setMonitorPollNodeInterval(size_t nodeInterval) {

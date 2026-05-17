@@ -164,6 +164,7 @@ public:
             {"#8", "h8i9f6g8g6h9f9f7e6d6i10j9k9j7j8i7i8l8h7f5e7d8e5e8h6i6h4h5g4"},
             {"#9", "h8h9j9g8i8i9j10k10k8i7h7i5i6h5h6"},
             {"#10", "h8g9h10h5h6g8g7f6i7i5l7a1d7"},
+            {"#11", "h8h9i8g8i10i9j9k10k8l7j8l8j6j7i7k5h6g5g6i6h7f5h5h4f7e8f8"},
         };
 
         for (size_t i = 0; i < cases.size(); ++i) {

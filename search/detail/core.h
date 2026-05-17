@@ -36,10 +36,12 @@ bool Search::tryResolveFromTT(int depth, Value& alpha, Value& beta, MoveList* pv
         return true;
     }
     if (ttFlag == TTFlag::LOWER_BOUND && ttValue >= beta) {
+        if (pv != nullptr) appendTTPV(board, *pv);
         resolvedValue = ttValue;
         return true;
     }
     if (ttFlag == TTFlag::UPPER_BOUND && ttValue <= alpha) {
+        if (pv != nullptr) appendTTPV(board, *pv);
         resolvedValue = ttValue;
         return true;
     }
@@ -53,16 +55,23 @@ bool Search::tryResolveFromTT(int depth, Value& alpha, Value& beta, MoveList* pv
     return false;
 }
 
-int Search::getShallowMoveLimit(Evaluator& evaluator, int depth, bool attackerTurn) const {
-    // defender turns must enumerate fully (to find true longest defense),
-    // regardless of whether opponent has mate-level threat or just B4_F3
+int Search::getShallowMoveLimit(Evaluator& evaluator, int depth, bool attackerTurn) {
+    // defender turns must enumerate fully (true longest defense)
     if (!attackerTurn) {
         return std::numeric_limits<int>::max();
     }
-    const bool isDefendingNode = evaluator.isOppoMateExist();
-    return isDefendingNode
-        ? std::numeric_limits<int>::max()
-        : (depth <= 3) ? 4 : (depth <= 5) ? 6 : std::numeric_limits<int>::max();
+    // DEFENSIVE root uses broad candidates; truncating would miss non-LOSE choices
+    if (options.mode == Mode::DEFENSIVE
+        && board.getPath().size() == rootBoard.getPath().size()) {
+        return std::numeric_limits<int>::max();
+    }
+    // defending against an opposing mate or 4-3 threat: enumerate all candidates,
+    // otherwise the search may cut off the only saving line and falsely report LOSE.
+    if (evaluator.isOppoMateExist() || evaluator.isOppoFourThreeExist()) {
+        return std::numeric_limits<int>::max();
+    }
+    // attacker forcing with no opposing threat — shallow truncation allowed
+    return (depth <= 3) ? 4 : (depth <= 5) ? 6 : std::numeric_limits<int>::max();
 }
 
 Value Search::evaluateLeafNode(bool isMax, int depth) {
@@ -313,7 +322,10 @@ Value Search::abp(int depth, bool isMax, Value alpha, Value beta, MoveList* pv) 
     }
 
     const bool attackerTurn = (board.isBlackTurn() == rootBoard.isBlackTurn());
-    const bool threatBrokenLeaf = !attackerTurn && !evaluator.isOppoMateExist();
+    // threat-broken WIN is a VCT-only conclusion ("attacker can no longer force"):
+    // applying it in DEFENSIVE mode would invent false LOSE/WIN at quiet positions.
+    const bool threatBrokenLeaf = options.mode == Mode::VCT
+        && !attackerTurn && !evaluator.isOppoMateExist();
     MoveList moves = getCandidates(evaluator, isMax);
     if (moves.empty()) {
         return threatBrokenLeaf
@@ -323,8 +335,10 @@ Value Search::abp(int depth, bool isMax, Value alpha, Value beta, MoveList* pv) 
 
     sortChildNodes(moves, isMax, ttEntry);
 
+    // sentinel sits outside [MIN_VALUE, MAX_VALUE] so any real child (incl. LOSE/WIN)
+    // wins the first comparison — without this, LOSE-only nodes leave bestMove unset.
     Value bestVal = isMax
-        ? Value(MIN_VALUE, Value::Type::UNKNOWN)
+        ? Value(MIN_VALUE - 1, Value::Type::UNKNOWN)
         : Value(MAX_VALUE + 1, Value::Type::UNKNOWN);
     Pos bestMove;
     MoveList bestChildPV;
@@ -411,7 +425,6 @@ Value Search::evaluateNode(Evaluator& evaluator) {
 
 MoveList Search::getCandidates(Evaluator& evaluator, bool isMax) {
     MoveList moves;
-    const bool attackerTurn = (board.isBlackTurn() == rootBoard.isBlackTurn());
 
     Pos sureMove = evaluator.getSureMove();
     if (!sureMove.isDefault()) {
@@ -419,19 +432,46 @@ MoveList Search::getCandidates(Evaluator& evaluator, bool isMax) {
         return moves;
     }
 
-    if (attackerTurn) {
-        // attacker logic is uniform regardless of opponent's threat level
-        moves = evaluator.getThreats();
-        MoveList makers = evaluator.getFourThreeMakers();
-        moves.insert(moves.end(), makers.begin(), makers.end());
-    } else if (evaluator.isOppoMateExist()) {
-        moves = evaluator.getThreatDefend();
-        MoveList fours = evaluator.getFours();
-        moves.insert(moves.end(), fours.begin(), fours.end());
-    } else if (evaluator.isOppoFourThreeExist()) {
-        moves = evaluator.getFourThreeDefend();
-        MoveList fours = evaluator.getFours();
-        moves.insert(moves.end(), fours.begin(), fours.end());
+    // DEFENSIVE: at root broaden to full candidates when opp is quiet;
+    // non-root stays threats-only to limit fanout.
+    if (options.mode == Mode::DEFENSIVE) {
+        const bool atRoot = (board.getPath().size() == rootBoard.getPath().size());
+
+        if (evaluator.isOppoMateExist()) {
+            moves = evaluator.getThreatDefend();
+            MoveList fours = evaluator.getFours();
+            moves.insert(moves.end(), fours.begin(), fours.end());
+        } else if (evaluator.isOppoFourThreeExist()) {
+            moves = evaluator.getFourThreeDefend();
+            MoveList fours = evaluator.getFours();
+            moves.insert(moves.end(), fours.begin(), fours.end());
+        } else {
+            if (atRoot) {
+                moves = evaluator.getCandidates();
+                return moves;
+            }
+            moves = evaluator.getThreats();
+            MoveList makers = evaluator.getFourThreeMakers();
+            moves.insert(moves.end(), makers.begin(), makers.end());
+        }
+        return moves;
+    }
+
+    if (options.mode == Mode::VCT) {
+        const bool attackerTurn = (board.isBlackTurn() == rootBoard.isBlackTurn());
+        if (attackerTurn) {
+            moves = evaluator.getThreats();
+            MoveList makers = evaluator.getFourThreeMakers();
+            moves.insert(moves.end(), makers.begin(), makers.end());
+        } else if (evaluator.isOppoMateExist()) {
+            moves = evaluator.getThreatDefend();
+            MoveList fours = evaluator.getFours();
+            moves.insert(moves.end(), fours.begin(), fours.end());
+        } else if (evaluator.isOppoFourThreeExist()) {
+            moves = evaluator.getFourThreeDefend();
+            MoveList fours = evaluator.getFours();
+            moves.insert(moves.end(), fours.begin(), fours.end());
+        }
     }
 
     return moves;
