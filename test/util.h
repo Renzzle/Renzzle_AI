@@ -2,6 +2,7 @@
 
 #include <iostream>
 #include <chrono>
+#include <thread>
 #include <cassert>
 #include <vector>
 #include <string>
@@ -123,7 +124,7 @@ void printBoardPattern(Board& board, Piece p) {
         cout << pieceName[p] << " " << directionName[k];
         printPatternCells(cells, p, static_cast<Direction>(k));
         cout << "---------------------------------------" << endl;
-        Sleep(1000);
+        std::this_thread::sleep_for(std::chrono::seconds(1));
     }
 }
 
