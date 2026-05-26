@@ -6,9 +6,9 @@
 
 using Score = int;
 
-// score table                            D  OL  B1  F1  B2  F2  F2  F2  B3  F3  F3  B4  F4   F5     UNUSED
-const Score attackScore[PATTERN_SIZE] = { 0, 00, 00, 01, 01, 04, 05, 06, 07, 21, 21, 20, 400, 10000, 50000};
-const Score defendScore[PATTERN_SIZE] = { 0, 00, 00, 00, 00, 02, 02, 02, 02, 07, 07, 07,  90, 02000, 50000};
+// score table                                N  D   OL  B1  F1  B2  F2  F2  F2  B3  F3  F3  B4   F4     F5     UNUSED
+const Score attackScore[PATTERN_SIZE + 1] = { 0, 00, 00, 01, 01, 04, 05, 06, 07, 21, 21, 20, 400, 10000, 50000, 0 };
+const Score defendScore[PATTERN_SIZE + 1] = { 0, 00, 00, 00, 00, 02, 02, 02, 02, 07, 07, 07,  90, 02000, 50000, 0 };
 
 using PatternKey = uint16_t;
 constexpr int PATTERN_KEY_BITS = 4;
@@ -35,7 +35,7 @@ inline Score computeDefendScore(PatternKey key) {
 }
 
 inline CompositePattern computeBlackComposite(PatternKey key) {
-    int pc[PATTERN_SIZE] = {0};
+    int pc[PATTERN_SIZE + 1] = {0};
     for (int dir = 0; dir < DIRECTION_SIZE; ++dir) {
         pc[decodePatternKey(key, dir)]++;
     }
@@ -57,7 +57,7 @@ inline CompositePattern computeBlackComposite(PatternKey key) {
 }
 
 inline CompositePattern computeWhiteComposite(PatternKey key) {
-    int pc[PATTERN_SIZE] = {0};
+    int pc[PATTERN_SIZE + 1] = {0};
     for (int dir = 0; dir < DIRECTION_SIZE; ++dir) {
         pc[decodePatternKey(key, dir)]++;
     }
