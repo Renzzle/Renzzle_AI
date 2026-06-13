@@ -134,6 +134,7 @@ public:
         // adjust/replace these to focus on the patterns you want to exercise.
         const vector<pair<string, string>> cases = {
             {"#1", "h8h9i8g8i10i9j9k10k8l7j8l8j6j7i7k5h6g5g6i6h7f5h5h4f7e8"},
+            {"#2", "h8i9j7h9i8g8g9i10f7i7j11j8h10k9l10k8j9k7k6k10k11l8m9n8m8"},
         };
 
         for (size_t i = 0; i < cases.size(); ++i) {
