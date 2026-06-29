@@ -35,6 +35,98 @@ PRIVATE
         return s;
     }
 
+    string posToMoveString(const Pos& move) {
+        if (move.isDefault()) return "(none)";
+        string s;
+        s += static_cast<char>(move.getY() + 96);
+        s += to_string(move.getX());
+        return s;
+    }
+
+    string valueTypeToString(Value::Type type) {
+        if (type == Value::Type::EXACT) return "EXACT";
+        if (type == Value::Type::LOWER_BOUND) return "LOWER_BOUND";
+        if (type == Value::Type::UPPER_BOUND) return "UPPER_BOUND";
+        return "UNKNOWN";
+    }
+
+    string valueToString(Value value) {
+        ostringstream oss;
+        if (value.isWin()) {
+            oss << "WIN(" << value.getResultDepth() << ")";
+        } else if (value.isLose()) {
+            oss << "LOSE(" << value.getResultDepth() << ")";
+        } else if (value.getType() == Value::Type::UNKNOWN) {
+            oss << "UNKNOWN";
+        } else {
+            oss << "ONGOING(" << value.getValue() << ")";
+        }
+        oss << " [" << valueTypeToString(value.getType()) << "]";
+        if (value.isQVCFDerived()) oss << " QVCF";
+        return oss.str();
+    }
+
+    string pathToString(const MoveList& path) {
+        if (path.empty()) return "(none)";
+        return convertPath2String(path);
+    }
+
+    string judgementReason(const FindNextMoveAnalysis& analysis) {
+        Value value = analysis.value;
+        if (analysis.usedSureMove) {
+            return "Evaluator::getSureMove() returned an immediate forced move";
+        }
+        if (analysis.usedFallback) {
+            return "no completed search PV; used first Evaluator::getCandidates() fallback";
+        }
+        if (value.isWin()) {
+            return "DEFENSIVE search found a winning line for side to move";
+        }
+        if (value.isLose()) {
+            return "all searched root candidates lose; selected the candidate with the largest LOSE depth";
+        }
+        if (value.getType() == Value::Type::UNKNOWN) {
+            return "search ended before a completed result was available";
+        }
+        return "no forced result within completed depth; selected best tactical search value";
+    }
+
+    void printSelectedRootStat(const FindNextMoveAnalysis& analysis) {
+        if (analysis.path.empty()) return;
+
+        const Pos selected = analysis.path.front();
+        for (const auto& stat : analysis.rootStats) {
+            if (!(stat.move == selected)) continue;
+            TEST_PRINT("selected root: "
+                << posToMoveString(stat.move)
+                << " -> " << valueToString(stat.value)
+                << ", pv=" << pathToString(stat.pv)
+                << ", nodes=" << stat.nodeCount
+                << ", time=" << formatSeconds(stat.elapsedTime));
+            return;
+        }
+
+        TEST_PRINT("selected root: "
+            << posToMoveString(selected)
+            << " -> " << valueToString(analysis.value)
+            << ", pv=" << pathToString(analysis.path)
+            << " (root candidate stats unavailable; result came from completed PV/TT)");
+    }
+
+    void printRootStatsPreview(const FindNextMoveAnalysis& analysis) {
+        if (analysis.rootStats.empty()) return;
+
+        const size_t limit = min<size_t>(analysis.rootStats.size(), 8);
+        TEST_PRINT("root candidates (" << analysis.rootStats.size() << ", first " << limit << "):");
+        for (size_t i = 0; i < limit; ++i) {
+            const auto& stat = analysis.rootStats[i];
+            TEST_PRINT("  [" << stat.order << "] "
+                << posToMoveString(stat.move)
+                << " -> " << valueToString(stat.value)
+                << ", pv=" << pathToString(stat.pv));
+        }
+    }
+
     void validatePuzzleTest(const PuzzleCase& tc) {
         TEST_PRINT("==================================");
         if (!tc.note.empty()) TEST_PRINT("[CASE] " << tc.note);
@@ -88,13 +180,21 @@ PRIVATE
         TEST_PRINT("");
 
         auto startTime = chrono::high_resolution_clock::now();
-        int move = findNextMove(tc.process);
+        FindNextMoveAnalysis analysis = analyzeNextMove(tc.process);
         auto endTime = chrono::high_resolution_clock::now();
         double seconds = chrono::duration_cast<chrono::nanoseconds>(endTime - startTime).count() / 1e9;
 
-        const string moveStr = intToMoveString(move);
+        const string moveStr = intToMoveString(analysis.move);
         TEST_PRINT("elapsed:  " << formatSeconds(seconds));
-        TEST_PRINT("returned: " << moveStr << " (int: " << move << ")");
+        TEST_PRINT("returned: " << moveStr);
+        TEST_PRINT("judgement: " << judgementReason(analysis));
+        TEST_PRINT("value:    " << valueToString(analysis.value));
+        TEST_PRINT("depth:    " << analysis.completedDepth
+            << ", nodes=" << analysis.visitedNodes
+            << ", searchTime=" << formatSeconds(analysis.elapsedSeconds));
+        TEST_PRINT("pv:       " << pathToString(analysis.path));
+        printSelectedRootStat(analysis);
+        printRootStatsPreview(analysis);
 
         if (!tc.expectedMove.empty()) {
             const bool match = (moveStr == tc.expectedMove);
@@ -159,6 +259,7 @@ PUBLIC
             { "h8h9i8g8i10i9j9k10k8l7j8l8j6j7i7k5h6g5g6i6h7f5h5h4f7e8f8", "", "VCT lose — longest delay defense" },
             { "h8h9i9g7i10i8g10h10h11i12g12f13j10j9g11g9i11h12f12", "", "one defend" },
             { "h8h9i8i9j8k8h7j9k9i10h11g8f7h10j7i7", "", "one defend" },
+            { "h8h9i8g8i10i9j9k10k8", "", "lose but need correct defense" },
         };
         runNextMoveSuite(cases, "find_next_move_cases");
     }

@@ -8,6 +8,18 @@
 #define HARD_THINKING_TIME 20.0   // validatePuzzle hard timeout (grace for QVCF win → EXACT)
 #define FIND_NEXT_MOVE_TIME 10.0   // findNextMove timeout
 
+struct FindNextMoveAnalysis {
+    int move = -1;
+    Value value;
+    MoveList path;
+    int completedDepth = 0;
+    size_t visitedNodes = 0;
+    double elapsedSeconds = 0.0;
+    bool usedSureMove = false;
+    bool usedFallback = false;
+    vector<Search::RootMoveStat> rootStats;
+};
+
 string validatePuzzle(string boardStr) {
     Board board = getBoard(boardStr);
 
@@ -39,13 +51,20 @@ int convertMoveToInt(Pos& move) {
     return result;
 }
 
-int findNextMove(string boardStr) {
+FindNextMoveAnalysis analyzeNextMove(string boardStr) {
+    FindNextMoveAnalysis analysis;
+
     Board board = getBoard(boardStr);
-    if (board.getResult() != ONGOING) return -1;
+    if (board.getResult() != ONGOING) return analysis;
 
     Evaluator evaluator(board);
     Pos sureMove = evaluator.getSureMove();
-    if (!sureMove.isDefault()) return convertMoveToInt(sureMove);
+    if (!sureMove.isDefault()) {
+        analysis.move = convertMoveToInt(sureMove);
+        analysis.path.push_back(sureMove);
+        analysis.usedSureMove = true;
+        return analysis;
+    }
 
     SearchMonitor monitor;
     Search searcher(board, monitor);
@@ -69,14 +88,30 @@ int findNextMove(string boardStr) {
 
     searcher.ids();
 
-    MoveList path = monitor.getBestPath();
-    if (!path.empty()) return convertMoveToInt(path[0]);
+    analysis.value = monitor.getBestValue();
+    analysis.path = monitor.getBestPath();
+    analysis.completedDepth = monitor.getDepth();
+    analysis.visitedNodes = monitor.getVisitCnt();
+    analysis.elapsedSeconds = monitor.getElapsedTime();
+    analysis.rootStats = searcher.getLastRootStats();
+
+    if (!analysis.path.empty()) {
+        analysis.move = convertMoveToInt(analysis.path[0]);
+        return analysis;
+    }
 
     // safety net: no completed iteration → pick any reasonable candidate
     MoveList moves = evaluator.getCandidates();
     if (!moves.empty()) {
         Pos fallback = moves[0];
-        return convertMoveToInt(fallback);
+        analysis.move = convertMoveToInt(fallback);
+        analysis.path.push_back(fallback);
+        analysis.usedFallback = true;
+        return analysis;
     }
-    return -1;
+    return analysis;
+}
+
+int findNextMove(string boardStr) {
+    return analyzeNextMove(boardStr).move;
 }
