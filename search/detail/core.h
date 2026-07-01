@@ -592,7 +592,7 @@ bool Search::isGameOver(Board& board) {
 }
 
 Value Search::searchRootWithAspiration(int depth, MoveList* pv) {
-    const Value fullAlpha(MIN_VALUE, Value::Type::UNKNOWN);
+    const Value fullAlpha(MIN_VALUE - 1, Value::Type::UNKNOWN);
     const Value fullBeta(MAX_VALUE + 1, Value::Type::UNKNOWN);
 
     if (state.bestValue.getType() == Value::Type::UNKNOWN || !state.bestValue.isOnGoing()) {
