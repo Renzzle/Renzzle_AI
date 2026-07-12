@@ -4,6 +4,51 @@
 
 class BoardTest : public TestBase {
 
+private:
+    void assertBoardsEqual(Board& actual, Board& expected) {
+        TEST_ASSERT(actual.getResult() == expected.getResult());
+        TEST_ASSERT(actual.isBlackTurn() == expected.isBlackTurn());
+        TEST_ASSERT(actual.getCurrentHash() == expected.getCurrentHash());
+        TEST_ASSERT(actual.getPath().size() == expected.getPath().size());
+
+        for (size_t i = 0; i < actual.getPath().size(); ++i) {
+            TEST_ASSERT(actual.getPath()[i] == expected.getPath()[i]);
+        }
+
+        for (int x = 1; x <= BOARD_SIZE; ++x) {
+            for (int y = 1; y <= BOARD_SIZE; ++y) {
+                const Cell& actualCell = actual.getCell(x, y);
+                const Cell& expectedCell = expected.getCell(x, y);
+                TEST_ASSERT(actualCell.getPiece() == expectedCell.getPiece());
+
+                for (Piece piece : {BLACK, WHITE}) {
+                    TEST_ASSERT(actualCell.getCompositePattern(piece)
+                        == expectedCell.getCompositePattern(piece));
+                    TEST_ASSERT(actualCell.getScore(piece) == expectedCell.getScore(piece));
+                    for (Direction dir = DIRECTION_START; dir < DIRECTION_SIZE; dir++) {
+                        TEST_ASSERT(actualCell.getPattern(piece, dir)
+                            == expectedCell.getPattern(piece, dir));
+                    }
+                }
+            }
+        }
+
+        for (Piece piece : {BLACK, WHITE}) {
+            for (int pattern = 0; pattern < COMPOSITE_PATTERN_SIZE; ++pattern) {
+                const CompositePattern composite = static_cast<CompositePattern>(pattern);
+                std::array<uint8_t, 256> actualPositions = {};
+                std::array<uint8_t, 256> expectedPositions = {};
+                actual.getPatternBucket(piece, composite).forEach([&](const Pos& p) {
+                    actualPositions[(p.getX() << 4) | p.getY()] = 1;
+                });
+                expected.getPatternBucket(piece, composite).forEach([&](const Pos& p) {
+                    expectedPositions[(p.getX() << 4) | p.getY()] = 1;
+                });
+                TEST_ASSERT(actualPositions == expectedPositions);
+            }
+        }
+    }
+
 public:
     BoardTest() {
         registerTestMethod([this]() { getTurnTest(); });
@@ -14,6 +59,7 @@ public:
         registerTestMethod([this]() { resultTest(); });
         registerTestMethod([this]() { patternTest(); });
         registerTestMethod([this]() { forbiddenTest(); });
+        registerTestMethod([this]() { incrementalUndoStateTest(); });
     }
 
     void getTurnTest() {
@@ -25,6 +71,8 @@ public:
     void setPatternTest() {
         Board board;
         Pos p(8, 8);
+        // Exclude one-time pattern LUT construction from this hot-path benchmark.
+        board.setPatterns(p);
         TEST_TIME_START();
         for (int i = 0; i < 100000; i++) {
             board.setPatterns(p);
@@ -220,6 +268,42 @@ public:
         // 3-3: ..oo?.. & ..oo?..
         board = getBoard("g8g9h9g10h10f9f8f10");
         TEST_ASSERT(board.isForbidden(Pos(8, 8)));
+    }
+
+    void incrementalUndoStateTest() {
+        const string process =
+            "h8h9i8g8i10i9j9k10k8l7j8l8j6j7i7k5h6g5g6i6h7f5";
+        const vector<pair<int, int>> moves = processString(process);
+
+        Board board;
+        for (int x = 1; x <= BOARD_SIZE; ++x) {
+            for (int y = 1; y <= BOARD_SIZE; ++y) {
+                board.setPatterns(Pos(x, y));
+            }
+        }
+        vector<Board> states;
+        states.push_back(board);
+
+        for (const auto& move : moves) {
+            TEST_ASSERT(board.move(Pos(move.first, move.second)));
+            states.push_back(board);
+        }
+
+        while (states.size() > 1) {
+            states.pop_back();
+            board.undo();
+            assertBoardsEqual(board, states.back());
+        }
+
+        Board forbiddenBoard = getBoard("g8g9h9g10h11h10g11f10");
+        for (int x = 1; x <= BOARD_SIZE; ++x) {
+            for (int y = 1; y <= BOARD_SIZE; ++y) {
+                forbiddenBoard.setPatterns(Pos(x, y));
+            }
+        }
+        Board beforeForbiddenCheck = forbiddenBoard;
+        TEST_ASSERT(forbiddenBoard.isForbidden(Pos(11, 10)));
+        assertBoardsEqual(forbiddenBoard, beforeForbiddenCheck);
     }
 
 };

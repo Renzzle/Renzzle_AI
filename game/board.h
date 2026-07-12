@@ -21,9 +21,30 @@ PRIVATE
     static constexpr int BIT_DIAG_SIZE = (BIT_LINE_SIZE * 2) - 1;
     static constexpr uint64_t LINE_KEY_MASK = (1ull << (LINE_LENGTH * 2)) - 1ull;
     static constexpr int CENTER_SHIFT = (LINE_LENGTH / 2) * 2;
+    static constexpr int PATTERN_CACHE_COLOR_SHIFT = LINE_LENGTH * 2;
+    static constexpr size_t PATTERN_CACHE_SIZE = 1ull << (PATTERN_CACHE_COLOR_SHIFT + 1);
+
+    struct PatternUndo {
+        uint8_t cellCode = 0;
+        Direction direction = HORIZONTAL;
+        Pattern blackPattern = NONE;
+        Pattern whitePattern = NONE;
+    };
+    static_assert(sizeof(PatternUndo) == 4, "PatternUndo must stay compact.");
+
+    struct BoardUndo {
+        Result previousResult = ONGOING;
+        std::array<Pattern, DIRECTION_SIZE> targetBlackPatterns = {};
+        std::array<Pattern, DIRECTION_SIZE> targetWhitePatterns = {};
+        std::array<PatternUndo, LINE_LENGTH * DIRECTION_SIZE> changedPatterns = {};
+        uint8_t changedPatternCount = 0;
+    };
+
+    using PatternCache = std::array<uint8_t, PATTERN_CACHE_SIZE>;
 
     CellArray cells;
     MoveList path;
+    std::vector<BoardUndo> undoHistory;
     Result result;
     size_t currentHash;
     array<uint64_t, BIT_LINE_SIZE> horizontalKeys;
@@ -33,13 +54,15 @@ PRIVATE
     MoveBucket patternBuckets[2][COMPOSITE_PATTERN_SIZE];
 
     void clearPattern(Cell& cell);
-    void setPatterns(const Pos& p);
+    void setPatterns(const Pos& p, BoardUndo* undoState = nullptr);
     void setResult(const Pos& p);
     void addPatternBucketState(const Pos& p, const Cell& cell);
     void removePatternBucketState(const Pos& p, const Cell& cell);
     Line getLine(int x, int y, Direction dir);
     Pattern getPattern(const Line& line, Color color);
     Pattern getPattern(uint32_t lineKey, Color color);
+    static Pattern calculatePattern(uint32_t lineKey, Color color, PatternCache& cache);
+    static const PatternCache& getPatternCache();
     void setBitKeys(int x, int y, Piece piece);
     uint32_t getLineKey(int x, int y, Direction dir) const;
     static int toBitCoord(int coord);
@@ -76,6 +99,7 @@ Board::Board() {
     currentHash = 0;
     result = ONGOING;
     path.reserve(BOARD_SIZE * BOARD_SIZE);
+    undoHistory.reserve(BOARD_SIZE * BOARD_SIZE);
     horizontalKeys.fill(makeFilledBitLine(WALL));
     verticalKeys.fill(makeFilledBitLine(WALL));
     upwardKeys.fill(makeFilledBitLine(WALL));
@@ -130,9 +154,18 @@ bool Board::move(const Pos& p) {
     if (result != ONGOING) return false;
     if (path.size() == BOARD_SIZE * BOARD_SIZE) return false;
 
+    const Result previousResult = result;
     path.push_back(p);
 
     setResult(p);
+
+    undoHistory.emplace_back();
+    BoardUndo& undoState = undoHistory.back();
+    undoState.previousResult = previousResult;
+    for (Direction dir = DIRECTION_START; dir < DIRECTION_SIZE; dir++) {
+        undoState.targetBlackPatterns[dir] = targetCell.getPattern(BLACK, dir);
+        undoState.targetWhitePatterns[dir] = targetCell.getPattern(WHITE, dir);
+    }
 
     Piece piece = isBlackTurn() ? WHITE : BLACK;
     removePatternBucketState(p, targetCell);
@@ -142,7 +175,7 @@ bool Board::move(const Pos& p) {
 
     clearPattern(targetCell);
     targetCell.clearCompositePattern();
-    setPatterns(p);
+    setPatterns(p, &undoState);
 
     return true;
 }
@@ -154,8 +187,13 @@ void Board::undo() {
     // if passed
     if (p.isDefault()) {
         path.pop_back();
+        if (!undoHistory.empty()) {
+            undoHistory.pop_back();
+        }
         return;
     }
+
+    BoardUndo& undoState = undoHistory.back();
 
     Cell& targetCell = getCell(p);
     Piece piece = targetCell.getPiece();
@@ -165,8 +203,64 @@ void Board::undo() {
     setBitKeys(p.x, p.y, EMPTY);
 
     path.pop_back();
-    setPatterns(p);
-    result = ONGOING;
+
+    for (uint8_t i = 0; i < undoState.changedPatternCount; ++i) {
+        const PatternUndo& patternUndo = undoState.changedPatterns[i];
+        const Pos changedPos(patternUndo.cellCode >> 4, patternUndo.cellCode & 0x0F);
+        Cell& cell = getCell(changedPos);
+        removePatternBucketState(changedPos, cell);
+
+        Pattern blackPattern = patternUndo.blackPattern;
+        Pattern whitePattern = patternUndo.whitePattern;
+        if (blackPattern == NONE || whitePattern == NONE) {
+            const uint32_t lineKey =
+                getLineKey(changedPos.x, changedPos.y, patternUndo.direction);
+            if (blackPattern == NONE) {
+                const uint32_t blackLineKey =
+                    (lineKey & ~(0x3u << CENTER_SHIFT))
+                    | (static_cast<uint32_t>(BLACK) << CENTER_SHIFT);
+                blackPattern = getPattern(blackLineKey, COLOR_BLACK);
+            }
+            if (whitePattern == NONE) {
+                const uint32_t whiteLineKey =
+                    (lineKey & ~(0x3u << CENTER_SHIFT))
+                    | (static_cast<uint32_t>(WHITE) << CENTER_SHIFT);
+                whitePattern = getPattern(whiteLineKey, COLOR_WHITE);
+            }
+        }
+
+        cell.setPattern(BLACK, patternUndo.direction, blackPattern);
+        cell.setPattern(WHITE, patternUndo.direction, whitePattern);
+        cell.updateDerived();
+        addPatternBucketState(changedPos, cell);
+    }
+
+    for (Direction dir = DIRECTION_START; dir < DIRECTION_SIZE; dir++) {
+        Pattern blackPattern = undoState.targetBlackPatterns[dir];
+        Pattern whitePattern = undoState.targetWhitePatterns[dir];
+        if (blackPattern == NONE || whitePattern == NONE) {
+            const uint32_t lineKey = getLineKey(p.x, p.y, dir);
+            if (blackPattern == NONE) {
+                const uint32_t blackLineKey =
+                    (lineKey & ~(0x3u << CENTER_SHIFT))
+                    | (static_cast<uint32_t>(BLACK) << CENTER_SHIFT);
+                blackPattern = getPattern(blackLineKey, COLOR_BLACK);
+            }
+            if (whitePattern == NONE) {
+                const uint32_t whiteLineKey =
+                    (lineKey & ~(0x3u << CENTER_SHIFT))
+                    | (static_cast<uint32_t>(WHITE) << CENTER_SHIFT);
+                whitePattern = getPattern(whiteLineKey, COLOR_WHITE);
+            }
+        }
+        targetCell.setPattern(BLACK, dir, blackPattern);
+        targetCell.setPattern(WHITE, dir, whitePattern);
+    }
+    targetCell.updateDerived();
+    addPatternBucketState(p, targetCell);
+
+    result = undoState.previousResult;
+    undoHistory.pop_back();
 }
 
 bool Board::pass() {
@@ -175,6 +269,7 @@ bool Board::pass() {
 
     Pos p;
     path.push_back(p);
+    undoHistory.emplace_back();
     return true;    
 }
 
@@ -431,13 +526,13 @@ void Board::clearPattern(Cell& cell) {
     }
 }
 
-void Board::setPatterns(const Pos& p) {
+void Board::setPatterns(const Pos& p, BoardUndo* undoState) {
     const int originX = p.x;
     const int originY = p.y;
 
     std::array<Pos, LINE_LENGTH * DIRECTION_SIZE> touchedCells;
     size_t touchedCount = 0;
-    std::array<std::array<bool, BOARD_SIZE + 2>, BOARD_SIZE + 2> isTouched = {};
+    bool originTouched = false;
 
     for (Direction dir = DIRECTION_START; dir < DIRECTION_SIZE; dir++) {
         const int dx = getDirectionDx(dir);
@@ -452,9 +547,25 @@ void Board::setPatterns(const Pos& p) {
 
             Cell& c = getCell(x, y);
             if (c.getPiece() == EMPTY) {
-                if (!isTouched[x][y]) {
+                const bool isOrigin = offset == 0;
+                const bool firstTouch = !isOrigin || !originTouched;
+                if (firstTouch) {
                     removePatternBucketState(Pos(x, y), c);
+                    touchedCells[touchedCount++] = Pos(x, y);
+                    if (isOrigin) {
+                        originTouched = true;
+                    }
                 }
+
+                if (undoState != nullptr) {
+                    PatternUndo& patternUndo =
+                        undoState->changedPatterns[undoState->changedPatternCount++];
+                    patternUndo.cellCode = static_cast<uint8_t>((x << 4) | y);
+                    patternUndo.direction = dir;
+                    patternUndo.blackPattern = c.getPattern(BLACK, dir);
+                    patternUndo.whitePattern = c.getPattern(WHITE, dir);
+                }
+
                 const uint32_t lineKey = getLineKey(x, y, dir);
                 const uint32_t blackLineKey =
                     (lineKey & ~(0x3u << CENTER_SHIFT)) | (static_cast<uint32_t>(BLACK) << CENTER_SHIFT);
@@ -463,11 +574,6 @@ void Board::setPatterns(const Pos& p) {
 
                 c.setPattern(BLACK, dir, getPattern(blackLineKey, COLOR_BLACK));
                 c.setPattern(WHITE, dir, getPattern(whiteLineKey, COLOR_WHITE));
-
-                if (!isTouched[x][y]) {
-                    isTouched[x][y] = true;
-                    touchedCells[touchedCount++] = Pos(x, y);
-                }
             }
         }
     }
@@ -508,17 +614,39 @@ Pattern Board::getPattern(const Line& line, Color color) {
 }
 
 Pattern Board::getPattern(uint32_t lineKey, Color color) {
-    constexpr uint32_t PIECE_BITS = 2;
-    constexpr uint32_t COLOR_SHIFT = LINE_LENGTH * PIECE_BITS;
-    constexpr uint32_t CACHE_SIZE = 1u << (COLOR_SHIFT + 1);
+    const uint32_t colorKey = color == COLOR_WHITE
+        ? (1u << PATTERN_CACHE_COLOR_SHIFT)
+        : 0u;
+    return static_cast<Pattern>(getPatternCache()[colorKey | lineKey] - 1);
+}
+
+const Board::PatternCache& Board::getPatternCache() {
+    static const PatternCache patternCache = []() {
+        PatternCache cache = {};
+        const uint32_t lineKeyCount = 1u << PATTERN_CACHE_COLOR_SHIFT;
+        constexpr int mid = LINE_LENGTH / 2;
+
+        for (Color color : {COLOR_BLACK, COLOR_WHITE}) {
+            const Piece self = color == COLOR_BLACK ? BLACK : WHITE;
+            for (uint32_t lineKey = 0; lineKey < lineKeyCount; ++lineKey) {
+                if (getLineKeyPiece(lineKey, mid) == self) {
+                    calculatePattern(lineKey, color, cache);
+                }
+            }
+        }
+        return cache;
+    }();
+    return patternCache;
+}
+
+Pattern Board::calculatePattern(uint32_t lineKey, Color color, PatternCache& cache) {
     constexpr uint8_t CACHE_UNSET = 0;
+    const uint32_t colorKey = color == COLOR_WHITE
+        ? (1u << PATTERN_CACHE_COLOR_SHIFT)
+        : 0u;
+    const uint32_t key = colorKey | lineKey;
 
-    static array<uint8_t, CACHE_SIZE> patternCache = {};
-
-    uint32_t key = (color == COLOR_WHITE) ? (1u << COLOR_SHIFT) : 0u;
-    key |= lineKey;
-
-    const uint8_t cachedPattern = patternCache[key];
+    const uint8_t cachedPattern = cache[key];
     if (cachedPattern != CACHE_UNSET) {
         return static_cast<Pattern>(cachedPattern - 1);
     }
@@ -531,15 +659,15 @@ Pattern Board::getPattern(uint32_t lineKey, Color color) {
     tie(realLen, fullLen, start, end) = countLineKey(lineKey);
 
     if (isBlack && realLen >= 6) {
-        patternCache[key] = static_cast<uint8_t>(OVERLINE) + 1;
+        cache[key] = static_cast<uint8_t>(OVERLINE) + 1;
         return OVERLINE;
     }
     else if (realLen >= 5) {
-        patternCache[key] = static_cast<uint8_t>(FIVE) + 1;
+        cache[key] = static_cast<uint8_t>(FIVE) + 1;
         return FIVE;
     }
     else if (fullLen < 5) {
-        patternCache[key] = static_cast<uint8_t>(DEAD) + 1;
+        cache[key] = static_cast<uint8_t>(DEAD) + 1;
         return DEAD;
     }
 
@@ -552,7 +680,7 @@ Pattern Board::getPattern(uint32_t lineKey, Color color) {
         if (piece == EMPTY) {
             uint32_t shiftedLineKey = shiftLineKey(lineKey, i);
             shiftedLineKey = setLineKeyPiece(shiftedLineKey, mid, self);
-            Pattern slp = getPattern(shiftedLineKey, color);
+            Pattern slp = calculatePattern(shiftedLineKey, color, cache);
         
             if (slp == FIVE && patternCnt[FIVE] < 2) {
                 fiveIdx[patternCnt[FIVE]] = i;
@@ -588,7 +716,7 @@ Pattern Board::getPattern(uint32_t lineKey, Color color) {
     else if (patternCnt[BLOCKED_2])
         p = BLOCKED_1;
     
-    patternCache[key] = static_cast<uint8_t>(p) + 1;
+    cache[key] = static_cast<uint8_t>(p) + 1;
     return p;
 }
 

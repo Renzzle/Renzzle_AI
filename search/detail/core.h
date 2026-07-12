@@ -131,8 +131,9 @@ Search::ChildSearchResult Search::searchChildPVS(int depth, bool isMax, size_t m
     nextBestVal.decreaseResultDepth();
 
     if (moveIndex == 0) {
-        result.value = abp(depth - 1, !isMax, nextAlpha, nextBeta, &result.pv);
-        result.hasExactPV = result.value.getType() == Value::Type::EXACT;
+        MoveList* childPV = pv != nullptr ? &result.pv : nullptr;
+        result.value = abp(depth - 1, !isMax, nextAlpha, nextBeta, childPV);
+        result.hasExactPV = childPV != nullptr && result.value.getType() == Value::Type::EXACT;
         return result;
     }
 
