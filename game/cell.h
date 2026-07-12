@@ -13,6 +13,8 @@ const Score defendScore[PATTERN_SIZE + 1] = { 0, 00, 00, 00, 00, 02, 02, 02, 02,
 using PatternKey = uint16_t;
 constexpr int PATTERN_KEY_BITS = 4;
 constexpr int PATTERN_KEY_SIZE = 1 << (DIRECTION_SIZE * PATTERN_KEY_BITS);
+static_assert(PATTERN_SIZE < (1 << PATTERN_KEY_BITS),
+    "Every Pattern value must fit in one packed nibble.");
 
 inline Pattern decodePatternKey(PatternKey key, int dir) {
     return static_cast<Pattern>((key >> (dir * PATTERN_KEY_BITS)) & 0xF);
@@ -125,11 +127,9 @@ class Cell {
 
 private:
     Score score[2];
-    Pattern patterns[2][DIRECTION_SIZE];
+    PatternKey patternKeys[2];
     CompositePattern cPattern[2];
     Piece piece;
-    
-    PatternKey getPatternKey(Piece piece) const;
 
 public:
     Cell();
@@ -145,13 +145,12 @@ public:
     void updateDerived();
     
 };
+static_assert(sizeof(Cell) == 16, "Cell must stay compact.");
 
 Cell::Cell() {
     this->piece = EMPTY;
-    for(Direction dir = DIRECTION_START; dir < DIRECTION_SIZE; dir++) {
-        setPattern(BLACK, dir, NONE);
-        setPattern(WHITE, dir, NONE);
-    }
+    patternKeys[BLACK] = 0;
+    patternKeys[WHITE] = 0;
     score[BLACK] = 0;
     score[WHITE] = 0;
     cPattern[BLACK] = ETC;
@@ -167,7 +166,7 @@ void Cell::setPiece(const Piece& piece) {
 }
 
 Pattern Cell::getPattern(Piece piece, Direction dir) const {
-    return patterns[piece][dir];
+    return decodePatternKey(patternKeys[piece], static_cast<int>(dir));
 }
 
 CompositePattern Cell::getCompositePattern(Piece piece) const {
@@ -179,7 +178,11 @@ Score Cell::getScore(Piece piece) const {
 }
 
 void Cell::setPattern(Piece piece, Direction dir, Pattern pattern) {
-    this->patterns[piece][dir] = pattern;
+    const int shift = static_cast<int>(dir) * PATTERN_KEY_BITS;
+    const PatternKey mask = static_cast<PatternKey>(0xFu << shift);
+    patternKeys[piece] = static_cast<PatternKey>(
+        (patternKeys[piece] & static_cast<PatternKey>(~mask))
+        | (static_cast<PatternKey>(pattern) << shift));
 }
 
 void Cell::clearCompositePattern() {
@@ -187,31 +190,23 @@ void Cell::clearCompositePattern() {
     cPattern[WHITE] = NOT_EMPTY;
 }
 
-PatternKey Cell::getPatternKey(Piece piece) const {
-    PatternKey key = 0;
-    for (int dir = 0; dir < DIRECTION_SIZE; ++dir) {
-        key |= static_cast<PatternKey>(patterns[piece][dir]) << (dir * PATTERN_KEY_BITS);
-    }
-    return key;
-}
-
 void Cell::setCompositePattern() {
-    const PatternKey blackKey = getPatternKey(BLACK);
-    const PatternKey whiteKey = getPatternKey(WHITE);
+    const PatternKey blackKey = patternKeys[BLACK];
+    const PatternKey whiteKey = patternKeys[WHITE];
     cPattern[BLACK] = blackCompositeLUT()[blackKey];
     cPattern[WHITE] = whiteCompositeLUT()[whiteKey];
 }
 
 void Cell::setScore() {
-    const PatternKey blackKey = getPatternKey(BLACK);
-    const PatternKey whiteKey = getPatternKey(WHITE);
+    const PatternKey blackKey = patternKeys[BLACK];
+    const PatternKey whiteKey = patternKeys[WHITE];
     score[BLACK] = attackScoreLUT()[blackKey] + defendScoreLUT()[whiteKey];
     score[WHITE] = attackScoreLUT()[whiteKey] + defendScoreLUT()[blackKey];
 }
 
 void Cell::updateDerived() {
-    const PatternKey blackKey = getPatternKey(BLACK);
-    const PatternKey whiteKey = getPatternKey(WHITE);
+    const PatternKey blackKey = patternKeys[BLACK];
+    const PatternKey whiteKey = patternKeys[WHITE];
     score[BLACK] = attackScoreLUT()[blackKey] + defendScoreLUT()[whiteKey];
     score[WHITE] = attackScoreLUT()[whiteKey] + defendScoreLUT()[blackKey];
     cPattern[BLACK] = blackCompositeLUT()[blackKey];
