@@ -89,6 +89,7 @@ PRIVATE
     Value evaluateNode(Evaluator& evaluator);
     bool searchActive() const;
     MoveList getCandidates(Evaluator& evaluator, bool isMax);
+    void appendUniqueMoves(MoveList& moves, const MoveList& extraMoves) const;
     void sortChildNodes(MoveList& moves, bool isMax, const TTEntry* entry);
     bool isGameOver(Board& board);
     uint64_t getTTKey(Board& board) const;

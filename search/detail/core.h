@@ -441,11 +441,11 @@ MoveList Search::getCandidates(Evaluator& evaluator, bool isMax) {
         if (evaluator.isOppoMateExist()) {
             moves = evaluator.getThreatDefend();
             MoveList fours = evaluator.getFours();
-            moves.insert(moves.end(), fours.begin(), fours.end());
+            appendUniqueMoves(moves, fours);
         } else if (evaluator.isOppoFourThreeExist()) {
             moves = evaluator.getFourThreeDefend();
             MoveList fours = evaluator.getFours();
-            moves.insert(moves.end(), fours.begin(), fours.end());
+            appendUniqueMoves(moves, fours);
         } else {
             if (atRoot) {
                 moves = evaluator.getCandidates();
@@ -453,7 +453,7 @@ MoveList Search::getCandidates(Evaluator& evaluator, bool isMax) {
             }
             moves = evaluator.getThreats();
             MoveList makers = evaluator.getFourThreeMakers();
-            moves.insert(moves.end(), makers.begin(), makers.end());
+            appendUniqueMoves(moves, makers);
         }
         return moves;
     }
@@ -463,19 +463,32 @@ MoveList Search::getCandidates(Evaluator& evaluator, bool isMax) {
         if (attackerTurn) {
             moves = evaluator.getThreats();
             MoveList makers = evaluator.getFourThreeMakers();
-            moves.insert(moves.end(), makers.begin(), makers.end());
+            appendUniqueMoves(moves, makers);
         } else if (evaluator.isOppoMateExist()) {
             moves = evaluator.getThreatDefend();
             MoveList fours = evaluator.getFours();
-            moves.insert(moves.end(), fours.begin(), fours.end());
+            appendUniqueMoves(moves, fours);
         } else if (evaluator.isOppoFourThreeExist()) {
             moves = evaluator.getFourThreeDefend();
             MoveList fours = evaluator.getFours();
-            moves.insert(moves.end(), fours.begin(), fours.end());
+            appendUniqueMoves(moves, fours);
         }
     }
 
     return moves;
+}
+
+void Search::appendUniqueMoves(MoveList& moves, const MoveList& extraMoves) const {
+    if (extraMoves.empty()) {
+        return;
+    }
+
+    moves.reserve(moves.size() + extraMoves.size());
+    for (const Pos& move : extraMoves) {
+        if (std::find(moves.begin(), moves.end(), move) == moves.end()) {
+            moves.push_back(move);
+        }
+    }
 }
 
 void Search::sortChildNodes(MoveList& moves, bool isMax, const TTEntry* entry) {
