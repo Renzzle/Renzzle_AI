@@ -64,6 +64,7 @@ PRIVATE
     static Pattern calculatePattern(uint32_t lineKey, Color color, PatternCache& cache);
     static const PatternCache& getPatternCache();
     void setBitKeys(int x, int y, Piece piece);
+    uint64_t getLineBits(int x, int y, Direction dir) const;
     uint32_t getLineKey(int x, int y, Direction dir) const;
     static int toBitCoord(int coord);
     static uint64_t makeFilledBitLine(Piece piece);
@@ -501,22 +502,27 @@ void Board::setBitKeys(int x, int y, Piece piece) {
     downwardKeys[bx + by] = (downwardKeys[bx + by] & ~xMask) | (value << xShift);
 }
 
-uint32_t Board::getLineKey(int x, int y, Direction dir) const {
+uint64_t Board::getLineBits(int x, int y, Direction dir) const {
     const int bx = toBitCoord(x);
     const int by = toBitCoord(y);
 
     switch (dir) {
         case HORIZONTAL:
-            return static_cast<uint32_t>((horizontalKeys[bx] >> ((by - LINE_PADDING) * 2)) & LINE_KEY_MASK);
+            return horizontalKeys[bx] >> ((by - LINE_PADDING) * 2);
         case VERTICAL:
-            return static_cast<uint32_t>((verticalKeys[by] >> ((bx - LINE_PADDING) * 2)) & LINE_KEY_MASK);
+            return verticalKeys[by] >> ((bx - LINE_PADDING) * 2);
         case UPWARD:
-            return static_cast<uint32_t>((upwardKeys[bx - by + (BIT_LINE_SIZE - 1)] >> ((bx - LINE_PADDING) * 2)) & LINE_KEY_MASK);
+            return upwardKeys[bx - by + (BIT_LINE_SIZE - 1)]
+                >> ((bx - LINE_PADDING) * 2);
         case DOWNWARD:
-            return static_cast<uint32_t>((downwardKeys[bx + by] >> ((bx - LINE_PADDING) * 2)) & LINE_KEY_MASK);
+            return downwardKeys[bx + by] >> ((bx - LINE_PADDING) * 2);
         default:
             return 0;
     }
+}
+
+uint32_t Board::getLineKey(int x, int y, Direction dir) const {
+    return static_cast<uint32_t>(getLineBits(x, y, dir) & LINE_KEY_MASK);
 }
 
 void Board::clearPattern(Cell& cell) {
@@ -537,13 +543,23 @@ void Board::setPatterns(const Pos& p, BoardUndo* undoState) {
     for (Direction dir = DIRECTION_START; dir < DIRECTION_SIZE; dir++) {
         const int dx = getDirectionDx(dir);
         const int dy = getDirectionDy(dir);
-        for (int i = 0; i < LINE_LENGTH; i++) {
-            const int offset = i - (LINE_LENGTH / 2);
+
+        int startOffset = -LINE_PADDING;
+        int endOffset = LINE_PADDING;
+        while (!isBoardCoord(originX + (dx * startOffset), originY + (dy * startOffset))) {
+            ++startOffset;
+        }
+        while (!isBoardCoord(originX + (dx * endOffset), originY + (dy * endOffset))) {
+            --endOffset;
+        }
+
+        const int startX = originX + (dx * startOffset);
+        const int startY = originY + (dy * startOffset);
+        uint64_t slidingBits = getLineBits(startX, startY, dir);
+
+        for (int offset = startOffset; offset <= endOffset; ++offset) {
             const int x = originX + (dx * offset);
             const int y = originY + (dy * offset);
-            if (!isBoardCoord(x, y)) {
-                continue;
-            }
 
             Cell& c = getCell(x, y);
             if (c.getPiece() == EMPTY) {
@@ -566,7 +582,8 @@ void Board::setPatterns(const Pos& p, BoardUndo* undoState) {
                     patternUndo.whitePattern = c.getPattern(WHITE, dir);
                 }
 
-                const uint32_t lineKey = getLineKey(x, y, dir);
+                const uint32_t lineKey =
+                    static_cast<uint32_t>(slidingBits & LINE_KEY_MASK);
                 const uint32_t blackLineKey =
                     (lineKey & ~(0x3u << CENTER_SHIFT)) | (static_cast<uint32_t>(BLACK) << CENTER_SHIFT);
                 const uint32_t whiteLineKey =
@@ -575,6 +592,8 @@ void Board::setPatterns(const Pos& p, BoardUndo* undoState) {
                 c.setPattern(BLACK, dir, getPattern(blackLineKey, COLOR_BLACK));
                 c.setPattern(WHITE, dir, getPattern(whiteLineKey, COLOR_WHITE));
             }
+
+            slidingBits >>= 2;
         }
     }
 

@@ -60,6 +60,7 @@ public:
         registerTestMethod([this]() { patternTest(); });
         registerTestMethod([this]() { forbiddenTest(); });
         registerTestMethod([this]() { incrementalUndoStateTest(); });
+        registerTestMethod([this]() { slidingLineKeyTest(); });
     }
 
     void getTurnTest() {
@@ -304,6 +305,51 @@ public:
         Board beforeForbiddenCheck = forbiddenBoard;
         TEST_ASSERT(forbiddenBoard.isForbidden(Pos(11, 10)));
         assertBoardsEqual(forbiddenBoard, beforeForbiddenCheck);
+    }
+
+    void slidingLineKeyTest() {
+        const std::array<Board, 2> boards = {
+            Board(),
+            getBoard("h8h9i8g8i10i9j9k10k8l7j8l8j6j7i7k5h6g5g6i6h7f5")
+        };
+
+        for (const Board& source : boards) {
+            Board board = source;
+            for (int originX = 1; originX <= BOARD_SIZE; ++originX) {
+                for (int originY = 1; originY <= BOARD_SIZE; ++originY) {
+                    for (Direction dir = DIRECTION_START; dir < DIRECTION_SIZE; dir++) {
+                        const int dx = getDirectionDx(dir);
+                        const int dy = getDirectionDy(dir);
+                        int startOffset = -Board::LINE_PADDING;
+                        int endOffset = Board::LINE_PADDING;
+
+                        while (!isBoardCoord(
+                            originX + (dx * startOffset),
+                            originY + (dy * startOffset))) {
+                            ++startOffset;
+                        }
+                        while (!isBoardCoord(
+                            originX + (dx * endOffset),
+                            originY + (dy * endOffset))) {
+                            --endOffset;
+                        }
+
+                        const int startX = originX + (dx * startOffset);
+                        const int startY = originY + (dy * startOffset);
+                        uint64_t slidingBits = board.getLineBits(startX, startY, dir);
+
+                        for (int offset = startOffset; offset <= endOffset; ++offset) {
+                            const int x = originX + (dx * offset);
+                            const int y = originY + (dy * offset);
+                            const uint32_t slidingKey = static_cast<uint32_t>(
+                                slidingBits & Board::LINE_KEY_MASK);
+                            TEST_ASSERT(slidingKey == board.getLineKey(x, y, dir));
+                            slidingBits >>= 2;
+                        }
+                    }
+                }
+            }
+        }
     }
 
 };
