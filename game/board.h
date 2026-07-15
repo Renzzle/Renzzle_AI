@@ -46,7 +46,7 @@ PRIVATE
     MoveList path;
     std::vector<BoardUndo> undoHistory;
     Result result;
-    size_t currentHash;
+    uint64_t currentHash;
     array<uint64_t, BIT_LINE_SIZE> horizontalKeys;
     array<uint64_t, BIT_LINE_SIZE> verticalKeys;
     array<uint64_t, BIT_DIAG_SIZE> upwardKeys;
@@ -91,8 +91,8 @@ PUBLIC
     Pos getFirstPatternPos(Piece piece, CompositePattern pattern) const;
     const MoveBucket& getPatternBucket(Piece piece, CompositePattern pattern) const;
     MoveList& getPath();
-    size_t getCurrentHash() const;
-    size_t getChildHash(const Pos& p);
+    uint64_t getCurrentHash() const;
+    uint64_t getChildHash(const Pos& p);
     
 };
 
@@ -373,12 +373,12 @@ const MoveBucket& Board::getPatternBucket(Piece piece, CompositePattern pattern)
     return patternBuckets[piece][pattern];
 }
 
-size_t Board::getCurrentHash() const {
+uint64_t Board::getCurrentHash() const {
     return currentHash;
 }
 
-size_t Board::getChildHash(const Pos& p) {
-    size_t result = currentHash;
+uint64_t Board::getChildHash(const Pos& p) {
+    uint64_t result = currentHash;
     Piece piece = isBlackTurn() ? BLACK : WHITE;
     result ^= getZobristValue(p.x, p.y, piece);
     return result;

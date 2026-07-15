@@ -1,29 +1,29 @@
 #pragma once
 
-#include "board.h"
-#include <random>
+#include "pos.h"
+#include <cstdint>
 #include <mutex>
+#include <random>
 
 #define NUM_PIECE_TYPES 4
 
-static size_t zobristTable[BOARD_SIZE + 2][BOARD_SIZE + 2][NUM_PIECE_TYPES];
-static std::once_flag zobristInitFlag;
+inline constexpr uint64_t ZOBRIST_SEED = 0x9E3779B97F4A7C15ULL;
+inline uint64_t zobristTable[BOARD_SIZE + 2][BOARD_SIZE + 2][NUM_PIECE_TYPES];
+inline std::once_flag zobristInitFlag;
 
-static void initializeZobristTable() {
-    std::random_device rd;
-    std::mt19937_64 rng(rd());
-    std::uniform_int_distribution<size_t> dist(0, std::numeric_limits<size_t>::max());
+inline void initializeZobristTable() {
+    std::mt19937_64 rng(ZOBRIST_SEED);
 
     for (int i = 0; i <= BOARD_SIZE + 1; ++i) {
         for (int j = 0; j <= BOARD_SIZE + 1; ++j) {
             for (int k = 0; k < NUM_PIECE_TYPES; ++k) {
-                zobristTable[i][j][k] = dist(rng);
+                zobristTable[i][j][k] = rng();
             }
         }
     }
 }
 
-static size_t getZobristValue(int x, int y, Piece piece) {
+inline uint64_t getZobristValue(int x, int y, Piece piece) {
     std::call_once(zobristInitFlag, initializeZobristTable);
     return zobristTable[x][y][piece];
 }

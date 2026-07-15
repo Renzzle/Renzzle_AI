@@ -21,6 +21,11 @@ PRIVATE
         size_t fourCount = 0;
     };
 
+    struct SearchRunMetrics {
+        double elapsedSeconds = 0.0;
+        size_t visitedNodes = 0;
+    };
+
     int posKey(const Pos& pos) {
         return (pos.getX() << 4) | pos.getY();
     }
@@ -300,7 +305,7 @@ PRIVATE
         }
     }
 
-    void searchTest(string process) {
+    SearchRunMetrics searchTest(string process) {
         Board board = getBoard(process);
         SearchMonitor monitor;
         Search searcher(board, monitor);
@@ -325,13 +330,18 @@ PRIVATE
 
         printBoard(board);
 
-        TEST_TIME_START();
+        const auto startTime = std::chrono::high_resolution_clock::now();
         searcher.ids();
-        TEST_TIME_END("alpha-beta search");
+        const auto endTime = std::chrono::high_resolution_clock::now();
+        const double elapsedSeconds =
+            std::chrono::duration_cast<std::chrono::nanoseconds>(endTime - startTime).count() / 1e9;
+        TEST_PRINT("alpha-beta search is taken " << elapsedSeconds << " sec");
         TEST_PRINT("Final visited node: " << monitor.getVisitCnt());
         TEST_PRINT("Final TT entries: " << searcher.getNodeCount() << 
             ", Mem: " << (searcher.getEstimatedMemoryBytes() / (1024.0 * 1024.0)) << " MB");
         printPath(monitor.getBestLine(0));
+
+        return {elapsedSeconds, monitor.getVisitCnt()};
     }
 
     void deepAnalysisTest(const string& process, int maxDepth, size_t rootPreviewCount) {
@@ -428,10 +438,26 @@ PUBLIC
             "h8h7h10h11f6g7f7f8h6i7j7g6j9"
         };
 
+        double totalSeconds = 0.0;
+        size_t totalNodes = 0;
         for (auto process : processArr) {
             TEST_PRINT("=================================");
-            searchTest(process);
+            const SearchRunMetrics metrics = searchTest(process);
+            totalSeconds += metrics.elapsedSeconds;
+            totalNodes += metrics.visitedNodes;
         }
+
+        const double microsPerNode = totalNodes > 0
+            ? (totalSeconds * 1e6) / static_cast<double>(totalNodes)
+            : 0.0;
+        const double nodesPerSecond = totalSeconds > 0.0
+            ? static_cast<double>(totalNodes) / totalSeconds
+            : 0.0;
+        TEST_PRINT("[BENCH_SUMMARY] cases=" << (sizeof(processArr) / sizeof(processArr[0]))
+            << ", time=" << formatDouble(totalSeconds, 6) << " sec"
+            << ", nodes=" << totalNodes
+            << ", us/node=" << formatDouble(microsPerNode, 6)
+            << ", NPS=" << formatDouble(nodesPerSecond, 0));
     }
 
     void testDeepSingleCaseProfile() {
