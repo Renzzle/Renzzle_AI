@@ -238,7 +238,8 @@ Value Search::finalizeNodeValue(bool isMax, Value originalAlpha, Value originalB
     return result;
 }
 
-void Search::updateHistoryFromNode(int depth, const Pos& bestMove, const MoveList& searchedMoves,
+void Search::updateHistoryFromNode(int depth, const Pos& bestMove,
+    const uint8_t* searchedMoveCodes, size_t searchedMoveCount,
     bool causedCutoff, Value result, bool sideToMoveIsBlack) {
     if (!searchActive() || bestMove.isDefault()) {
         return;
@@ -249,7 +250,9 @@ void Search::updateHistoryFromNode(int depth, const Pos& bestMove, const MoveLis
         updateHistoryScore(bestMove, sideToMoveIsBlack, bonus);
 
         const int penalty = std::max(1, bonus / 2);
-        for (const Pos& move : searchedMoves) {
+        for (size_t i = 0; i < searchedMoveCount; ++i) {
+            const uint8_t code = searchedMoveCodes[i];
+            const Pos move(code >> 4, code & 0x0F);
             if (!(move == bestMove)) {
                 updateHistoryScore(move, sideToMoveIsBlack, -penalty);
             }
@@ -343,8 +346,8 @@ Value Search::abp(int depth, bool isMax, Value alpha, Value beta, MoveList* pv) 
         : Value(MAX_VALUE + 1, Value::Type::UNKNOWN);
     Pos bestMove;
     MoveList bestChildPV;
-    MoveList searchedMoves;
-    searchedMoves.reserve(moves.size());
+    uint8_t searchedMoveCodes[BOARD_SIZE * BOARD_SIZE];
+    size_t searchedMoveCount = 0;
 
     const int shallowMoveLimit = getShallowMoveLimit(evaluator, depth, attackerTurn);
     const bool sideToMoveIsBlack = board.isBlackTurn();
@@ -367,7 +370,8 @@ Value Search::abp(int depth, bool isMax, Value alpha, Value beta, MoveList* pv) 
         tt.prefetch(getTTKey(board));
 
         searchedAny = true;
-        searchedMoves.push_back(move);
+        searchedMoveCodes[searchedMoveCount++] =
+            static_cast<uint8_t>((move.getX() << 4) | move.getY());
         recordNodeVisit();
         const size_t nodeCountBeforeMove = isRootNode ? monitor.getVisitCnt() : 0;
         const double elapsedBeforeMove = isRootNode ? monitor.getElapsedTime() : 0.0;
@@ -410,7 +414,8 @@ Value Search::abp(int depth, bool isMax, Value alpha, Value beta, MoveList* pv) 
     }
 
     Value result = finalizeNodeValue(isMax, originalAlpha, originalBeta, alpha, beta, bestVal);
-    updateHistoryFromNode(depth, bestMove, searchedMoves, causedCutoff, result, sideToMoveIsBlack);
+    updateHistoryFromNode(depth, bestMove, searchedMoveCodes, searchedMoveCount,
+        causedCutoff, result, sideToMoveIsBlack);
 
     if (searchActive()) {
         storeTT(board, result, depth, bestMove);
@@ -497,7 +502,7 @@ void Search::sortChildNodes(MoveList& moves, bool isMax, const TTEntry* entry) {
     }
 
     struct MoveOrderInfo {
-        Pos move;
+        uint8_t moveCode;
         bool isTTBest;
         bool hasTT;
         int flagPriority;
@@ -538,8 +543,8 @@ void Search::sortChildNodes(MoveList& moves, bool isMax, const TTEntry* entry) {
         return 2;
     };
 
-    vector<MoveOrderInfo> infos;
-    infos.reserve(moves.size());
+    MoveOrderInfo infos[BOARD_SIZE * BOARD_SIZE];
+    size_t infoCount = 0;
 
     // Attacker (isMax) prefers self-attack score; defender wants to block opponent's most
     // threatening spot, so uses opponent's score. Matches the evaluator's previous sort intent.
@@ -559,17 +564,17 @@ void Search::sortChildNodes(MoveList& moves, bool isMax, const TTEntry* entry) {
                 ? &childEntryStorage
                 : nullptr;
         MoveOrderInfo info;
-        info.move = move;
+        info.moveCode = static_cast<uint8_t>((move.getX() << 4) | move.getY());
         info.isTTBest = !ttBestMove.isDefault() && move == ttBestMove;
         info.hasTT = childEntry != nullptr;
         info.flagPriority = childEntry != nullptr ? getValueTypePriority(childEntry->getFlag()) : getValueTypePriority(TTFlag::NONE);
         info.ttScore = childEntry != nullptr ? childEntry->score : 0;
         info.historyScore = getHistoryScore(move, sideToMoveIsBlack);
         info.cellScore = board.getCell(move).getScore(scorePiece);
-        infos.push_back(info);
+        infos[infoCount++] = info;
     }
 
-    std::stable_sort(infos.begin(), infos.end(), [&](const MoveOrderInfo& a, const MoveOrderInfo& b) {
+    std::stable_sort(infos, infos + infoCount, [&](const MoveOrderInfo& a, const MoveOrderInfo& b) {
         if (a.isTTBest != b.isTTBest) {
             return a.isTTBest;
         }
@@ -596,7 +601,8 @@ void Search::sortChildNodes(MoveList& moves, bool isMax, const TTEntry* entry) {
     });
 
     for (size_t i = 0; i < moves.size(); ++i) {
-        moves[i] = infos[i].move;
+        const uint8_t code = infos[i].moveCode;
+        moves[i] = Pos(code >> 4, code & 0x0F);
     }
 }
 

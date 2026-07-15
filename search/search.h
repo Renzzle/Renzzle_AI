@@ -122,7 +122,8 @@ PRIVATE
         size_t nodeCountBeforeMove, double elapsedBeforeMove, const Pos& ttBestMove);
     Value finalizeNodeValue(bool isMax, Value originalAlpha, Value originalBeta,
         Value alpha, Value beta, Value bestVal) const;
-    void updateHistoryFromNode(int depth, const Pos& bestMove, const MoveList& searchedMoves,
+    void updateHistoryFromNode(int depth, const Pos& bestMove,
+        const uint8_t* searchedMoveCodes, size_t searchedMoveCount,
         bool causedCutoff, Value result, bool sideToMoveIsBlack);
     void rebuildPV(const Pos& bestMove, const MoveList& bestChildPV, Value result, MoveList* pv) const;
     void completeWinPV(Value value, MoveList& pv);
