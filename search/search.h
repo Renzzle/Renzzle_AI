@@ -88,9 +88,9 @@ PRIVATE
     Value searchRootWithAspiration(int depth, MoveList* pv);
     Value evaluateNode(Evaluator& evaluator);
     bool searchActive() const;
-    MoveList getCandidates(Evaluator& evaluator, bool isMax);
-    void appendUniqueMoves(MoveList& moves, const MoveList& extraMoves) const;
-    void sortChildNodes(MoveList& moves, bool isMax, const TTEntry* entry);
+    CandidateList getCandidates(Evaluator& evaluator, bool isMax);
+    void appendUniqueMoves(CandidateList& moves, const CandidateList& extraMoves) const;
+    void sortChildNodes(CandidateList& moves, bool isMax, const TTEntry* entry);
     bool isGameOver(Board& board);
     uint64_t getTTKey(Board& board) const;
     uint64_t getChildTTKey(const Pos& move);
@@ -131,7 +131,7 @@ PRIVATE
     Result getRootWinResult();
     uint64_t getQVCFTTKey(Board& targetBoard) const;
     bool enterQVCFNode(QVCFContext& context);
-    void moveQVCFTTBestFirst(MoveList& moves, const Pos& bestMove) const;
+    void moveQVCFTTBestFirst(CandidateList& moves, const Pos& bestMove) const;
     bool probeQVCFTT(Board& targetBoard, int remainingPly, Value& value, Pos& bestMove) const;
     void storeQVCFWin(Board& targetBoard, Value value, int remainingPly, const Pos& bestMove);
     void storeQVCFFail(Board& targetBoard, int remainingPly);

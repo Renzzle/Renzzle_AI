@@ -33,7 +33,7 @@ bool Search::enterQVCFNode(QVCFContext& context) {
     return true;
 }
 
-void Search::moveQVCFTTBestFirst(MoveList& moves, const Pos& bestMove) const {
+void Search::moveQVCFTTBestFirst(CandidateList& moves, const Pos& bestMove) const {
     if (bestMove.isDefault()) {
         return;
     }
@@ -197,7 +197,8 @@ Value Search::qvcfAttack(int remainingPly, QVCFContext& context, MoveList* pv) {
         return Value();
     }
 
-    MoveList moves = evaluator.getFours();
+    CandidateList moves;
+    evaluator.getFours(moves);
     moveQVCFTTBestFirst(moves, cachedBestMove);
     if (moves.empty()) {
         storeQVCFFail(board, remainingPly);

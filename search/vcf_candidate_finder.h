@@ -59,7 +59,7 @@ PRIVATE
     static double getElapsedSeconds(const VCFProbeContext& context);
     static bool isWin(Board& board, VCFProbeContext& context);
     static uint64_t getVCFTTKey(Board& board);
-    static void moveTTBestFirst(MoveList& moves, const TTEntry* entry);
+    static void moveTTBestFirst(CandidateList& moves, const TTEntry* entry);
     bool shouldStopProbe(VCFProbeContext& context) const;
     bool dfsVCF(Board& board, VCFProbeContext& context);
     bool probeRootVCF(Board& probeBoard, VCFCandidateProbeResult* probeResult);
@@ -155,7 +155,7 @@ uint64_t VCFCandidateFinder::getVCFTTKey(Board& board) {
     return key;
 }
 
-void VCFCandidateFinder::moveTTBestFirst(MoveList& moves, const TTEntry* entry) {
+void VCFCandidateFinder::moveTTBestFirst(CandidateList& moves, const TTEntry* entry) {
     if (entry == nullptr) return;
     if (entry->bestMove == TranspositionTable::INVALID_MOVE) return;
 
@@ -212,9 +212,12 @@ bool VCFCandidateFinder::dfsVCF(Board& board, VCFProbeContext& context) {
     }
 
     Evaluator evaluator(board);
-    MoveList moves = isTargetTurn(board, context.targetColor)
-        ? evaluator.getFours()
-        : evaluator.getCandidates();
+    CandidateList moves;
+    if (isTargetTurn(board, context.targetColor)) {
+        evaluator.getFours(moves);
+    } else {
+        evaluator.getCandidates(moves);
+    }
     moveTTBestFirst(moves, ttEntry);
 
     for (const Pos& nextMove : moves) {
@@ -335,7 +338,9 @@ MoveList VCFCandidateFinder::findFromCandidates(const MoveList& candidates) {
 MoveList VCFCandidateFinder::findFromEvaluatorCandidates() {
     Board board(rootBoard);
     Evaluator evaluator(board);
-    return findFromCandidates(evaluator.getCandidates());
+    CandidateList candidates;
+    evaluator.getCandidates(candidates);
+    return findFromCandidates(candidates.toMoveList());
 }
 
 MoveList VCFCandidateFinder::findFromAllLegalMoves() {

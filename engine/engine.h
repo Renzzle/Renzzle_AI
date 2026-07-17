@@ -156,7 +156,8 @@ FindNextMoveAnalysis analyzeNextMove(string boardStr, EngineCancelToken* cancelT
     }
 
     // safety net: no completed iteration → pick any reasonable candidate
-    MoveList moves = evaluator.getCandidates();
+    CandidateList moves;
+    evaluator.getCandidates(moves);
     if (!moves.empty()) {
         Pos fallback = moves[0];
         analysis.move = convertMoveToInt(fallback);

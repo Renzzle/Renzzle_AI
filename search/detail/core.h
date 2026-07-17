@@ -330,7 +330,7 @@ Value Search::abp(int depth, bool isMax, Value alpha, Value beta, MoveList* pv) 
     // applying it in DEFENSIVE mode would invent false LOSE/WIN at quiet positions.
     const bool threatBrokenLeaf = options.mode == Mode::VCT
         && !attackerTurn && !evaluator.isOppoMateExist();
-    MoveList moves = getCandidates(evaluator, isMax);
+    CandidateList moves = getCandidates(evaluator, isMax);
     if (moves.empty()) {
         return threatBrokenLeaf
             ? evaluateThreatBrokenLeaf(isMax, depth)
@@ -429,8 +429,8 @@ Value Search::evaluateNode(Evaluator& evaluator) {
     return evaluator.evaluateTactical();
 }
 
-MoveList Search::getCandidates(Evaluator& evaluator, bool isMax) {
-    MoveList moves;
+CandidateList Search::getCandidates(Evaluator& evaluator, bool isMax) {
+    CandidateList moves;
 
     Pos sureMove = evaluator.getSureMove();
     if (!sureMove.isDefault()) {
@@ -444,20 +444,23 @@ MoveList Search::getCandidates(Evaluator& evaluator, bool isMax) {
         const bool atRoot = (board.getPath().size() == rootBoard.getPath().size());
 
         if (evaluator.isOppoMateExist()) {
-            moves = evaluator.getThreatDefend();
-            MoveList fours = evaluator.getFours();
+            evaluator.getThreatDefend(moves);
+            CandidateList fours;
+            evaluator.getFours(fours);
             appendUniqueMoves(moves, fours);
         } else if (evaluator.isOppoFourThreeExist()) {
-            moves = evaluator.getFourThreeDefend();
-            MoveList fours = evaluator.getFours();
+            evaluator.getFourThreeDefend(moves);
+            CandidateList fours;
+            evaluator.getFours(fours);
             appendUniqueMoves(moves, fours);
         } else {
             if (atRoot) {
-                moves = evaluator.getCandidates();
+                evaluator.getCandidates(moves);
                 return moves;
             }
-            moves = evaluator.getThreats();
-            MoveList makers = evaluator.getFourThreeMakers();
+            evaluator.getThreats(moves);
+            CandidateList makers;
+            evaluator.getFourThreeMakers(makers);
             appendUniqueMoves(moves, makers);
         }
         return moves;
@@ -466,16 +469,19 @@ MoveList Search::getCandidates(Evaluator& evaluator, bool isMax) {
     if (options.mode == Mode::VCT) {
         const bool attackerTurn = (board.isBlackTurn() == rootBoard.isBlackTurn());
         if (attackerTurn) {
-            moves = evaluator.getThreats();
-            MoveList makers = evaluator.getFourThreeMakers();
+            evaluator.getThreats(moves);
+            CandidateList makers;
+            evaluator.getFourThreeMakers(makers);
             appendUniqueMoves(moves, makers);
         } else if (evaluator.isOppoMateExist()) {
-            moves = evaluator.getThreatDefend();
-            MoveList fours = evaluator.getFours();
+            evaluator.getThreatDefend(moves);
+            CandidateList fours;
+            evaluator.getFours(fours);
             appendUniqueMoves(moves, fours);
         } else if (evaluator.isOppoFourThreeExist()) {
-            moves = evaluator.getFourThreeDefend();
-            MoveList fours = evaluator.getFours();
+            evaluator.getFourThreeDefend(moves);
+            CandidateList fours;
+            evaluator.getFours(fours);
             appendUniqueMoves(moves, fours);
         }
     }
@@ -483,7 +489,7 @@ MoveList Search::getCandidates(Evaluator& evaluator, bool isMax) {
     return moves;
 }
 
-void Search::appendUniqueMoves(MoveList& moves, const MoveList& extraMoves) const {
+void Search::appendUniqueMoves(CandidateList& moves, const CandidateList& extraMoves) const {
     if (extraMoves.empty()) {
         return;
     }
@@ -496,7 +502,7 @@ void Search::appendUniqueMoves(MoveList& moves, const MoveList& extraMoves) cons
     }
 }
 
-void Search::sortChildNodes(MoveList& moves, bool isMax, const TTEntry* entry) {
+void Search::sortChildNodes(CandidateList& moves, bool isMax, const TTEntry* entry) {
     if (moves.size() < 2) {
         return;
     }

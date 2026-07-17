@@ -75,3 +75,5 @@ public:
         return std::vector<Pos>(begin(), end());
     }
 };
+
+using CandidateList = FixedMoveList<BOARD_SIZE * BOARD_SIZE>;

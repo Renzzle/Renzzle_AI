@@ -26,7 +26,7 @@ PRIVATE
     bool isTargetTurn();
     uint64_t getTTKey();
     uint8_t getDepthLeft();
-    void moveTTBestFirst(MoveList& moves, const TTEntry* entry);
+    void moveTTBestFirst(CandidateList& moves, const TTEntry* entry);
 
 PUBLIC
     SearchWin(Board& board, SearchMonitor& monitor);
@@ -71,7 +71,12 @@ bool SearchWin::dfsVCF() {
     monitor.incVisitCnt();
 
     Evaluator evaluator(board);
-    MoveList moves = isTargetTurn() ? evaluator.getFours() : evaluator.getCandidates();
+    CandidateList moves;
+    if (isTargetTurn()) {
+        evaluator.getFours(moves);
+    } else {
+        evaluator.getCandidates(moves);
+    }
     moveTTBestFirst(moves, probed);
 
     for (const auto& move : moves) {
@@ -144,7 +149,7 @@ uint8_t SearchWin::getDepthLeft() {
     return static_cast<uint8_t>(remain);
 }
 
-void SearchWin::moveTTBestFirst(MoveList& moves, const TTEntry* entry) {
+void SearchWin::moveTTBestFirst(CandidateList& moves, const TTEntry* entry) {
     if (entry == nullptr) return;
     if (entry->bestMove == TranspositionTable::INVALID_MOVE) return;
 

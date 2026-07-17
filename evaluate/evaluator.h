@@ -14,9 +14,6 @@ PRIVATE
     Piece self = BLACK;
     Piece oppo = WHITE;
 
-    const MoveBucket* patternMap[2][COMPOSITE_PATTERN_SIZE] = {};
-
-    void classify();
     int evaluatePatternBalance();
     const MoveBucket& bucket(Piece piece, CompositePattern pattern) const;
     bool hasPattern(Piece piece, CompositePattern pattern) const;
@@ -27,12 +24,18 @@ PUBLIC
     Evaluator(Board& board);
     Value quickWinCheck(Pos* bestMove = nullptr);
     MoveList getCandidates();
+    void getCandidates(CandidateList& result);
     Pos getSureMove();
     MoveList getFours();
+    void getFours(CandidateList& result);
     MoveList getThreats();
+    void getThreats(CandidateList& result);
     MoveList getThreatDefend();
+    void getThreatDefend(CandidateList& result);
     MoveList getFourThreeMakers();
+    void getFourThreeMakers(CandidateList& result);
     MoveList getFourThreeDefend();
+    void getFourThreeDefend(CandidateList& result);
     Pos getOppoWinningDefend();
     bool isOppoMateExist();
     bool isOppoFourThreeExist();
@@ -94,12 +97,13 @@ inline Value evaluateTacticalSummary(Board& board) {
     return Value(val);
 }
 
-Evaluator::Evaluator(Board& board) : board(board) {
-    classify();
-}
+Evaluator::Evaluator(Board& board)
+    : board(board),
+      self(board.isBlackTurn() ? BLACK : WHITE),
+      oppo(board.isBlackTurn() ? WHITE : BLACK) {}
 
 const MoveBucket& Evaluator::bucket(Piece piece, CompositePattern pattern) const {
-    return *patternMap[piece][pattern];
+    return board.getPatternBucket(piece, pattern);
 }
 
 bool Evaluator::hasPattern(Piece piece, CompositePattern pattern) const {
@@ -116,18 +120,6 @@ bool Evaluator::hasFourLevelPressure(Piece piece) const {
 
 int Evaluator::patternCount(Piece piece, CompositePattern pattern) const {
     return bucket(piece, pattern).size();
-}
-
-void Evaluator::classify() {
-    self = board.isBlackTurn() ? BLACK : WHITE;
-    oppo = !board.isBlackTurn() ? BLACK : WHITE;
-
-    for (int color = 0; color < 2; ++color) {
-        for (int pattern = 0; pattern < COMPOSITE_PATTERN_SIZE; ++pattern) {
-            patternMap[color][pattern] =
-                &board.getPatternBucket(static_cast<Piece>(color), static_cast<CompositePattern>(pattern));
-        }
-    }
 }
 
 int Evaluator::evaluatePatternBalance() {
@@ -237,16 +229,23 @@ Value Evaluator::quickWinCheck(Pos* bestMove) {
 }
 
 MoveList Evaluator::getCandidates() {
-    FixedMoveList<BOARD_SIZE * BOARD_SIZE> result;
+    CandidateList result;
+    getCandidates(result);
+    return result.toMoveList();
+}
+
+void Evaluator::getCandidates(CandidateList& result) {
+    result.clear();
 
     Pos sureMove = getSureMove();
     if (!sureMove.isDefault()) {
         result.push_back(sureMove);
-        return result.toMoveList();
+        return;
     }
 
     if (isOppoMateExist()) {
-        return getThreatDefend();
+        getThreatDefend(result);
+        return;
     }
 
     result.reserve(
@@ -278,8 +277,6 @@ MoveList Evaluator::getCandidates() {
     sort(result.begin(), result.end(), [&](const Pos& a, const Pos& b) {
         return board.getCell(a).getScore(self) > board.getCell(b).getScore(self);
     });
-
-    return result.toMoveList();
 }
 
 Pos Evaluator::getSureMove() {
@@ -287,7 +284,7 @@ Pos Evaluator::getSureMove() {
         return board.getFirstPatternPos(self, WINNING);
     }
     if (board.hasCompositePattern(oppo, WINNING)) {
-        MoveList result;
+        CandidateList result;
         result.reserve(board.getCompositePatternCount(oppo, WINNING));
         bucket(oppo, WINNING).forEach([&](const Pos& p) {
             if (!isMoveForbidden(p)) result.push_back(p);
@@ -314,14 +311,20 @@ Pos Evaluator::getSureMove() {
 }
 
 MoveList Evaluator::getFours() {
-    FixedMoveList<BOARD_SIZE * BOARD_SIZE> result;
+    CandidateList result;
+    getFours(result);
+    return result.toMoveList();
+}
+
+void Evaluator::getFours(CandidateList& result) {
+    result.clear();
     if (hasPattern(self, WINNING)) {
-        result.push_back(bucket(self, WINNING).front()); 
-        return result.toMoveList();
+        result.push_back(bucket(self, WINNING).front());
+        return;
     }
     if (hasPattern(self, MATE)) {
         result.push_back(bucket(self, MATE).front());
-        return result.toMoveList();
+        return;
     }
     result.reserve(
         patternCount(self, B4_F3) +
@@ -334,19 +337,23 @@ MoveList Evaluator::getFours() {
     stable_sort(result.begin(), result.end(), [&](const Pos& a, const Pos& b) {
         return board.getCell(a).getScore(oppo) > board.getCell(b).getScore(oppo);
     });
-
-    return result.toMoveList();
 }
 
 MoveList Evaluator::getThreats() {
-    FixedMoveList<BOARD_SIZE * BOARD_SIZE> result;
+    CandidateList result;
+    getThreats(result);
+    return result.toMoveList();
+}
+
+void Evaluator::getThreats(CandidateList& result) {
+    result.clear();
     if (hasPattern(self, WINNING)) {
         result.push_back(bucket(self, WINNING).front());
-        return result.toMoveList();
+        return;
     }
     if (hasPattern(self, MATE)) {
         result.push_back(bucket(self, MATE).front());
-        return result.toMoveList();
+        return;
     }
     result.reserve(
         patternCount(self, B4_F3) +
@@ -363,11 +370,16 @@ MoveList Evaluator::getThreats() {
     bucket(self, B4_ANY).forEach([&](const Pos& p) { result.push_back(p); });
 
     // sort omitted — Search::sortChildNodes handles ordering uniformly (cellScore + TT/history)
-    return result.toMoveList();
 }
 
 MoveList Evaluator::getThreatDefend() {
-    FixedMoveList<BOARD_SIZE * BOARD_SIZE> result;
+    CandidateList result;
+    getThreatDefend(result);
+    return result.toMoveList();
+}
+
+void Evaluator::getThreatDefend(CandidateList& result) {
+    result.clear();
     array<uint8_t, 256> seen = {};
     auto appendUniqueLegal = [&](const Pos& p) {
         if (isMoveForbidden(p)) return;
@@ -377,7 +389,7 @@ MoveList Evaluator::getThreatDefend() {
         result.push_back(p);
     };
 
-    if (!isOppoMateExist()) return result.toMoveList();
+    if (!isOppoMateExist()) return;
 
     if (hasPattern(oppo, WINNING)) {
         result.reserve(patternCount(oppo, WINNING));
@@ -385,7 +397,7 @@ MoveList Evaluator::getThreatDefend() {
             appendUniqueLegal(p);
         });
         if (!result.empty()) {
-            return result.toMoveList();
+            return;
         }
     }
 
@@ -443,7 +455,7 @@ MoveList Evaluator::getThreatDefend() {
                     Pos cp(r, c);
                     if (!isMoveForbidden(cp)) {
                         result.push_back(cp);
-                        return result.toMoveList();
+                        return;
                     }
                 }
             }
@@ -451,11 +463,16 @@ MoveList Evaluator::getThreatDefend() {
     }
 
     // sort omitted — Search::sortChildNodes handles ordering uniformly (cellScore + TT/history)
-    return result.toMoveList();
 }
 
 MoveList Evaluator::getFourThreeMakers() {
-    FixedMoveList<BOARD_SIZE * BOARD_SIZE> result;
+    CandidateList result;
+    getFourThreeMakers(result);
+    return result.toMoveList();
+}
+
+void Evaluator::getFourThreeMakers(CandidateList& result) {
+    result.clear();
     array<uint8_t, 256> seen = {};
 
     auto appendUniqueLegal = [&](const Pos& p) {
@@ -531,13 +548,18 @@ MoveList Evaluator::getFourThreeMakers() {
     });
 
     // sort omitted — Search::sortChildNodes handles ordering uniformly (cellScore + TT/history)
-    return result.toMoveList();
 }
 
 MoveList Evaluator::getFourThreeDefend() {
-    FixedMoveList<BOARD_SIZE * BOARD_SIZE> result;
+    CandidateList result;
+    getFourThreeDefend(result);
+    return result.toMoveList();
+}
 
-    if (!isOppoFourThreeExist()) return result.toMoveList();
+void Evaluator::getFourThreeDefend(CandidateList& result) {
+    result.clear();
+
+    if (!isOppoFourThreeExist()) return;
 
     const int b43Count = patternCount(oppo, B4_F3);
 
@@ -669,7 +691,7 @@ MoveList Evaluator::getFourThreeDefend() {
             seen[k] = 1;
             result.push_back(p);
         });
-        return result.toMoveList();
+        return;
     }
 
     // If multiple B4_F3's exist, only the intersection of their defenses can effectively block all forks
@@ -700,7 +722,6 @@ MoveList Evaluator::getFourThreeDefend() {
     }
 
     // sort omitted — Search::sortChildNodes handles ordering uniformly (cellScore + TT/history)
-    return result.toMoveList();
 }
 
 Pos Evaluator::getOppoWinningDefend() {
