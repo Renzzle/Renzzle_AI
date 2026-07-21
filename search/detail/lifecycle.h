@@ -137,7 +137,8 @@ size_t Search::getEstimatedMemoryBytes() const {
     return tt.getMemoryBytes()
         + (sizeof(Board) * 2)
         + (state.bestPath.capacity() * sizeof(Pos))
-        + sizeof(state.historyScores);
+        + sizeof(state.historyScores)
+        + sizeof(state.killerMoves);
 }
 
 const std::vector<Search::RootMoveStat>& Search::getLastRootStats() const {

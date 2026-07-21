@@ -62,6 +62,8 @@ PRIVATE
         Value bestValue;
         std::vector<RootMoveStat> lastRootStats;
         std::array<std::array<int, BOARD_SIZE * BOARD_SIZE>, 2> historyScores = {};
+        // two killer slots per ply from root; entries are packed (x<<4)|y codes, 0 = empty
+        std::array<std::array<uint8_t, 2>, BOARD_SIZE * BOARD_SIZE + 4> killerMoves = {};
         size_t nodesSinceMonitorPoll = 0;
     };
 
@@ -83,6 +85,9 @@ PRIVATE
     static constexpr uint64_t QVCF_TT_KEY = 0x6a09e667f3bcc909ULL;
     static constexpr int QVCF_HEURISTIC_WIN_SCORE = MAX_VALUE - (BOARD_SIZE * BOARD_SIZE) - 1024;
     static constexpr int HISTORY_ABS_LIMIT = 16384;
+    // attackScore[B4] — a killer must make at least a four (for the mover) to be
+    // stored and to outrank the static cell score during move ordering
+    static constexpr int KILLER_MIN_FOUR_SCORE = 400;
     static constexpr int ASPIRATION_START_DELTA = 32;
     Value abp(int depth, bool isMax, Value alpha, Value beta, MoveList* pv = nullptr);
     Value searchRootWithAspiration(int depth, MoveList* pv);
@@ -107,6 +112,9 @@ PRIVATE
     int getHistoryScore(const Pos& move, bool isBlackTurn) const;
     void updateHistoryScore(const Pos& move, bool isBlackTurn, int delta);
     void clearHistory();
+    size_t getSearchPly();
+    static uint8_t packMoveCode(const Pos& move);
+    void updateKillerMove(size_t ply, uint8_t moveCode);
     bool tryResolveFromTT(int depth, Value& alpha, Value& beta, MoveList* pv,
         TTEntry& ttEntryStorage, const TTEntry*& ttEntry, Value& resolvedValue);
     int getShallowMoveLimit(Evaluator& evaluator, int depth, bool attackerTurn);

@@ -248,6 +248,13 @@ void Search::updateHistoryFromNode(int depth, const Pos& bestMove,
     const int bonus = std::max(1, std::min(depth * depth, 256));
     if (causedCutoff || result.getType() == Value::Type::LOWER_BOUND) {
         updateHistoryScore(bestMove, sideToMoveIsBlack, bonus);
+        // killer slots only remember cutoff moves that make at least a four for the
+        // mover: those transfer to sibling nodes, while quiet cutoff moves would just
+        // displace the static block-the-biggest-threat order and grow the tree
+        if (board.getCell(bestMove).getScore(sideToMoveIsBlack ? BLACK : WHITE)
+            >= KILLER_MIN_FOUR_SCORE) {
+            updateKillerMove(getSearchPly(), packMoveCode(bestMove));
+        }
 
         const int penalty = std::max(1, bonus / 2);
         for (size_t i = 0; i < searchedMoveCount; ++i) {
@@ -515,12 +522,18 @@ void Search::sortChildNodes(CandidateList& moves, bool isMax, const TTEntry* ent
         int32_t ttScore;
         int historyScore;
         int cellScore;
+        int killerRank;
     };
 
     const Pos ttBestMove = (entry != nullptr && entry->bestMove != TranspositionTable::INVALID_MOVE)
         ? TranspositionTable::decodeMove(entry->bestMove)
         : Pos();
     const bool sideToMoveIsBlack = board.isBlackTurn();
+    const size_t searchPly = getSearchPly();
+    const uint8_t killerCode0 =
+        searchPly < state.killerMoves.size() ? state.killerMoves[searchPly][0] : 0;
+    const uint8_t killerCode1 =
+        searchPly < state.killerMoves.size() ? state.killerMoves[searchPly][1] : 0;
     bool hasHistorySignal = false;
 
     for (const Pos& move : moves) {
@@ -577,6 +590,14 @@ void Search::sortChildNodes(CandidateList& moves, bool isMax, const TTEntry* ent
         info.ttScore = childEntry != nullptr ? childEntry->score : 0;
         info.historyScore = getHistoryScore(move, sideToMoveIsBlack);
         info.cellScore = board.getCell(move).getScore(scorePiece);
+        info.killerRank = 0;
+        if (info.moveCode == killerCode0 || info.moveCode == killerCode1) {
+            // stored killers made a four where they cut off; re-validate on this
+            // board since the same cell may no longer make one here
+            if (board.getCell(move).getScore(sideToMovePiece) >= KILLER_MIN_FOUR_SCORE) {
+                info.killerRank = info.moveCode == killerCode0 ? 2 : 1;
+            }
+        }
         infos[infoCount++] = info;
     }
 
@@ -596,6 +617,11 @@ void Search::sortChildNodes(CandidateList& moves, bool isMax, const TTEntry* ent
         // getValueTypePriority(flag) already encodes that via isMax. Smaller = better.
         if (a.flagPriority != b.flagPriority) {
             return a.flagPriority < b.flagPriority;
+        }
+        // recent four-making cutoff moves outrank the static cell score: they either
+        // refute the line the same way they refuted a sibling, or fail fast (forcing)
+        if (a.killerRank != b.killerRank) {
+            return a.killerRank > b.killerRank;
         }
         if (a.cellScore != b.cellScore) {
             return a.cellScore > b.cellScore;

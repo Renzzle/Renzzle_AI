@@ -27,4 +27,27 @@ void Search::clearHistory() {
     for (auto& sideHistory : state.historyScores) {
         sideHistory.fill(0);
     }
+    for (auto& killers : state.killerMoves) {
+        killers.fill(0);
+    }
+}
+
+size_t Search::getSearchPly() {
+    return board.getPath().size() - rootBoard.getPath().size();
+}
+
+uint8_t Search::packMoveCode(const Pos& move) {
+    return static_cast<uint8_t>((move.getX() << 4) | move.getY());
+}
+
+void Search::updateKillerMove(size_t ply, uint8_t moveCode) {
+    if (ply >= state.killerMoves.size() || moveCode == 0) {
+        return;
+    }
+
+    auto& killers = state.killerMoves[ply];
+    if (killers[0] != moveCode) {
+        killers[1] = killers[0];
+        killers[0] = moveCode;
+    }
 }
