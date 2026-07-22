@@ -304,6 +304,25 @@ Value Search::abp(int depth, bool isMax, Value alpha, Value beta, MoveList* pv) 
         state.lastRootStats.clear();
     }
 
+    // mate-distance pruning: an ongoing position can never win faster than
+    // WIN(1) (game ends on the very next move) nor lose faster than LOSE(0).
+    // If the window already guarantees an equal-or-faster result, this subtree
+    // cannot change the outcome — return the bound before paying for TT probes,
+    // Evaluator construction, and child moves. Terminal positions are excluded:
+    // they may evaluate to WIN(0)/LOSE(0) and are handled by isGameOver below.
+    if (board.getResult() == ONGOING) {
+        Value fastestWin(Value::Result::WIN, 1);
+        if (alpha >= fastestWin) {
+            fastestWin.setType(Value::Type::UPPER_BOUND);
+            return fastestWin;
+        }
+        Value fastestLose(Value::Result::LOSE, 0);
+        if (beta <= fastestLose) {
+            fastestLose.setType(Value::Type::LOWER_BOUND);
+            return fastestLose;
+        }
+    }
+
     const Value originalAlpha = alpha;
     const Value originalBeta = beta;
 
