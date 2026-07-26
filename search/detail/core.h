@@ -9,13 +9,20 @@ bool Search::tryResolveFromTT(int depth, Value& alpha, Value& beta, MoveList* pv
         return false;
     }
 
+    // root: keep ttEntry for move ordering only — never resolve or tighten the
+    // window from it. The root's own stale bound (e.g. an UPPER_BOUND left by a
+    // failed aspiration window) can shrink beta enough that the first move causes
+    // a cutoff, leaving lastRootStats partial and the PV rebuilt from stale TT
+    // breadcrumbs instead of a verified line.
+    const bool isRootNode = board.getPath().size() == rootBoard.getPath().size();
+    if (isRootNode) {
+        return false;
+    }
+
     Value ttValue = getTTValue(*ttEntry);
     const TTFlag ttFlag = ttEntry->getFlag();
-    const bool isRootNode = board.getPath().size() == rootBoard.getPath().size();
-    const bool allowTerminalExactDepthBypass = !isRootNode;
 
-    if (allowTerminalExactDepthBypass &&
-        ttFlag == TTFlag::EXACT &&
+    if (ttFlag == TTFlag::EXACT &&
         (ttValue.isWin() || ttValue.isLose())) {
         if (pv != nullptr) {
             appendTTPV(board, *pv);
@@ -302,6 +309,7 @@ Value Search::abp(int depth, bool isMax, Value alpha, Value beta, MoveList* pv) 
     const bool isRootNode = board.getPath().size() == rootBoard.getPath().size();
     if (isRootNode) {
         state.lastRootStats.clear();
+        state.lastRootSearchComplete = false;
     }
 
     // mate-distance pruning: an ongoing position can never win faster than
@@ -383,9 +391,11 @@ Value Search::abp(int depth, bool isMax, Value alpha, Value beta, MoveList* pv) 
 
     bool searchedAny = false;
     bool causedCutoff = false;
+    bool searchedAll = true;
 
     for (size_t i = 0; i < moves.size(); ++i) {
         if (static_cast<int>(i) >= shallowMoveLimit) {
+            searchedAll = false;
             break;
         }
 
@@ -407,6 +417,7 @@ Value Search::abp(int depth, bool isMax, Value alpha, Value beta, MoveList* pv) 
 
         board.undo();
         if (!searchActive()) {
+            searchedAll = false;
             break;
         }
 
@@ -431,8 +442,13 @@ Value Search::abp(int depth, bool isMax, Value alpha, Value beta, MoveList* pv) 
 
         if (moveCausedCutoff) {
             causedCutoff = true;
+            searchedAll = false;
             break;
         }
+    }
+
+    if (isRootNode) {
+        state.lastRootSearchComplete = searchedAny && searchedAll;
     }
 
     if (!searchedAny) {

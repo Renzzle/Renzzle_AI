@@ -4,6 +4,7 @@ void Search::ids() {
     state.isRunning = true;
     state.bestPath.clear();
     state.bestValue = Value();
+    state.lastRootSearchComplete = false;
     state.nodesSinceMonitorPoll = 0;
     state.qvcfDisabledAfterWin = false;
     clearHistory();
@@ -37,8 +38,10 @@ void Search::ids() {
         }
 
         // DEFENSIVE elimination: if exactly one root candidate is non-LOSE,
-        // the answer is decided regardless of further deepening.
-        if (options.mode == Mode::DEFENSIVE) {
+        // the answer is decided regardless of further deepening. Only valid when
+        // the last root call actually searched every candidate — a partial
+        // lastRootStats (root cutoff/stop) says nothing about unsearched moves.
+        if (options.mode == Mode::DEFENSIVE && state.lastRootSearchComplete) {
             int nonLoseCount = 0;
             for (auto& stat : state.lastRootStats) {
                 if (!stat.value.isLose()) {

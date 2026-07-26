@@ -260,6 +260,7 @@ PUBLIC
             { "h8h9i9g7i10i8g10h10h11i12g12f13j10j9g11g9i11h12f12", "", "one defend" },
             { "h8h9i8i9j8k8h7j9k9i10h11g8f7h10j7i7", "", "one defend" },
             { "h8h9i8g8i10i9j9k10k8", "", "lose but need correct defense" },
+            { "h8i7j7i8k9j9i6h7g6k10l11f6h5g4k8l9i4j3k6j5j6h6e7f7f8g9f4k4k3g7k7k5l8", "m9", "one defend" }
         };
         runNextMoveSuite(cases, "find_next_move_cases");
     }

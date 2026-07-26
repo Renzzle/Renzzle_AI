@@ -61,6 +61,9 @@ PRIVATE
         MoveList bestPath;
         Value bestValue;
         std::vector<RootMoveStat> lastRootStats;
+        // true only when the last root abp call searched every root candidate
+        // (no cutoff, no truncation, not stopped) — lastRootStats covers all moves
+        bool lastRootSearchComplete = false;
         std::array<std::array<int, BOARD_SIZE * BOARD_SIZE>, 2> historyScores = {};
         // two killer slots per ply from root; entries are packed (x<<4)|y codes, 0 = empty
         std::array<std::array<uint8_t, 2>, BOARD_SIZE * BOARD_SIZE + 4> killerMoves = {};
