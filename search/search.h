@@ -98,7 +98,7 @@ PRIVATE
     bool searchActive() const;
     CandidateList getCandidates(Evaluator& evaluator, bool isMax);
     void appendUniqueMoves(CandidateList& moves, const CandidateList& extraMoves) const;
-    void sortChildNodes(CandidateList& moves, bool isMax, const TTEntry* entry);
+    void sortChildNodes(CandidateList& moves, bool isMax, bool defending, const TTEntry* entry);
     bool isGameOver(Board& board);
     uint64_t getTTKey(Board& board) const;
     uint64_t getChildTTKey(const Pos& move);
@@ -124,6 +124,7 @@ PRIVATE
     Value evaluateLeafNode(bool isMax, int depth);
     Value evaluateThreatBrokenLeaf(bool isMax, int depth);
     bool tryResolveQuickWin(Evaluator& evaluator, bool isMax, int depth, MoveList* pv, Value& resolvedValue);
+    bool tryResolveLosingRootMove(int depth, bool isMax, Value& resolvedValue);
     ChildSearchResult searchChildPVS(int depth, bool isMax, size_t moveIndex, Value alpha, Value beta,
         Value bestVal, MoveList* pv, bool requireExactBest);
     void updateBestFromChild(bool isMax, const Pos& move, const ChildSearchResult& childResult,

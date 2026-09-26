@@ -126,6 +126,21 @@ bool Search::tryResolveQuickWin(Evaluator& evaluator, bool isMax, int depth, Mov
     return true;
 }
 
+// null window on the LOSE boundary: proves a losing root move LOSE regardless of order
+bool Search::tryResolveLosingRootMove(int depth, bool isMax, Value& resolvedValue) {
+    const Value loseAlpha(MIN_VALUE, Value::Type::UNKNOWN);
+    Value loseBeta = loseAlpha;
+    loseBeta += 1;
+
+    Value value = abp(depth - 1, !isMax, loseAlpha, loseBeta, nullptr);
+    if (!searchActive() || !value.isLose()) {
+        return false;
+    }
+
+    resolvedValue = value;
+    return true;
+}
+
 Search::ChildSearchResult Search::searchChildPVS(int depth, bool isMax, size_t moveIndex, Value alpha, Value beta,
     Value bestVal, MoveList* pv, bool requireExactBest) {
     ChildSearchResult result;
@@ -371,7 +386,12 @@ Value Search::abp(int depth, bool isMax, Value alpha, Value beta, MoveList* pv) 
             : evaluateLeafNode(isMax, depth);
     }
 
-    sortChildNodes(moves, isMax, ttEntry);
+    // DEFENSIVE root defends when the opponent threatens; elsewhere Max attacks
+    const bool defensiveRoot = options.mode == Mode::DEFENSIVE && isRootNode;
+    const bool defending = defensiveRoot
+        ? (evaluator.isOppoMateExist() || evaluator.isOppoFourThreeExist())
+        : !isMax;
+    sortChildNodes(moves, isMax, defending, ttEntry);
 
     // sentinel sits outside [MIN_VALUE, MAX_VALUE] so any real child (incl. LOSE/WIN)
     // wins the first comparison — without this, LOSE-only nodes leave bestMove unset.
@@ -389,6 +409,8 @@ Value Search::abp(int depth, bool isMax, Value alpha, Value beta, MoveList* pv) 
         ? TranspositionTable::decodeMove(ttEntry->bestMove)
         : Pos();
 
+    // elimination needs all but one move proven LOSE; stop checking after a 2nd survivor
+    int rootSurvivorCount = 1;
     bool searchedAny = false;
     bool causedCutoff = false;
     bool searchedAll = true;
@@ -412,8 +434,18 @@ Value Search::abp(int depth, bool isMax, Value alpha, Value beta, MoveList* pv) 
         const size_t nodeCountBeforeMove = isRootNode ? monitor.getVisitCnt() : 0;
         const double elapsedBeforeMove = isRootNode ? monitor.getElapsedTime() : 0.0;
 
-        ChildSearchResult childResult =
-            searchChildPVS(depth, isMax, i, alpha, beta, bestVal, pv, isRootNode);
+        ChildSearchResult childResult;
+        bool provenLose = false;
+        if (defensiveRoot && defending && i > 0 && rootSurvivorCount < 2
+            && bestVal.isOnGoing() && bestVal.getType() != Value::Type::UNKNOWN) {
+            provenLose = tryResolveLosingRootMove(depth, isMax, childResult.value);
+            if (!provenLose) {
+                ++rootSurvivorCount;
+            }
+        }
+        if (!provenLose) {
+            childResult = searchChildPVS(depth, isMax, i, alpha, beta, bestVal, pv, isRootNode);
+        }
 
         board.undo();
         if (!searchActive()) {
@@ -544,7 +576,7 @@ void Search::appendUniqueMoves(CandidateList& moves, const CandidateList& extraM
     }
 }
 
-void Search::sortChildNodes(CandidateList& moves, bool isMax, const TTEntry* entry) {
+void Search::sortChildNodes(CandidateList& moves, bool isMax, bool defending, const TTEntry* entry) {
     if (moves.size() < 2) {
         return;
     }
@@ -600,11 +632,12 @@ void Search::sortChildNodes(CandidateList& moves, bool isMax, const TTEntry* ent
     MoveOrderInfo infos[BOARD_SIZE * BOARD_SIZE];
     size_t infoCount = 0;
 
-    // Attacker (isMax) prefers self-attack score; defender wants to block opponent's most
+    // Attacker prefers self-attack score; defender wants to block opponent's most
     // threatening spot, so uses opponent's score. Matches the evaluator's previous sort intent.
+    // Ties keep the first-searched move, so this order also breaks equal-result ties.
     const Piece sideToMovePiece = sideToMoveIsBlack ? BLACK : WHITE;
     const Piece opposingPiece   = sideToMoveIsBlack ? WHITE : BLACK;
-    const Piece scorePiece = isMax ? sideToMovePiece : opposingPiece;
+    const Piece scorePiece = defending ? opposingPiece : sideToMovePiece;
     const bool shouldProbeChildren = (entry != nullptr || hasHistorySignal);
     for (size_t mi = 0; mi < moves.size(); ++mi) {
         const Pos& move = moves[mi];

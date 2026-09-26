@@ -228,21 +228,21 @@ PUBLIC
     // Borrowed from search_test for parity; edit/add/remove freely.
     void testWinningCases() {
         const vector<PuzzleCase> cases = {
-            { "h8h9i8g8i10i9j9k10j7i7",            true, "search_test #1" },
-            { "h8h9i8g8i10i9j9k8k10l11i7j6",       true, "search_test #2" },
-            { "h8h9j9g8j10g7i10",                  true, "search_test #3" },
-            { "h8i9h9h10g9g8f8g7e7f7g6f6i6h6j5j6k7j8k9i10j10i11i12h11g11e8f9", true, "search_test #4" },
-            { "h8i8i9i7j8j7j6k7k6i6h7h6i5g7f8h10i10d8f6", true, "search_test #5" },
-            { "h8h9f6g7e9g8f7h6f8f9h7d6",          true, "search_test #6" },
-            { "h8h9g7i9g9i7g10i8i10h10e8f9d8j7",   true, "search_test #7" },
-            { "h8h9i8g8i10j8i6h7h6k7j6f7f8",       true, "search_test #8" },
-            { "h8h9i9i8g10h10f7g7h6h7g5i7k7j6k6k8l7j9k10", true, "search_test #9" },
-            { "h8h7i7i8j7j8j9i9h9h11i10g7i6f7j6k5i5h4k7l9k8m7l7m6", true, "search_test #10" },
-            { "h8h7i7i8j7j8j9i9h9h11i10g7i6f7j6k5i5h4k7l9k8m7l7m6k10k9", true, "search_test #11" },
-            { "h8h9i10j9k9i8j7j10j11j12g7g9g6h10i11g11i9", true, "search_test #12" },
-            { "h8i9f6g8g6h9f9f7e6d6i10j9k9j7j8i7i8l8h7f5e7d8", true, "search_test #13" },
-            { "h8h9i8g8i10i9j9k10k8l7j8l8j6j7i7k5h6g5g6i6h7f5", true, "search_test #14" },
-            { "h8h9i8g8h7i7j7j9k9l9k10l10j11k11i12i11h13g14g12f11g11f12f10e9g9i10", true, "search_test #15" },
+            // { "h8h9i8g8i10i9j9k10j7i7",            true, "search_test #1" },
+            // { "h8h9i8g8i10i9j9k8k10l11i7j6",       true, "search_test #2" },
+            // { "h8h9j9g8j10g7i10",                  true, "search_test #3" },
+            // { "h8i9h9h10g9g8f8g7e7f7g6f6i6h6j5j6k7j8k9i10j10i11i12h11g11e8f9", true, "search_test #4" },
+            // { "h8i8i9i7j8j7j6k7k6i6h7h6i5g7f8h10i10d8f6", true, "search_test #5" },
+            // { "h8h9f6g7e9g8f7h6f8f9h7d6",          true, "search_test #6" },
+            // { "h8h9g7i9g9i7g10i8i10h10e8f9d8j7",   true, "search_test #7" },
+            // { "h8h9i8g8i10j8i6h7h6k7j6f7f8",       true, "search_test #8" },
+            // { "h8h9i9i8g10h10f7g7h6h7g5i7k7j6k6k8l7j9k10", true, "search_test #9" },
+            // { "h8h7i7i8j7j8j9i9h9h11i10g7i6f7j6k5i5h4k7l9k8m7l7m6", true, "search_test #10" },
+            // { "h8h7i7i8j7j8j9i9h9h11i10g7i6f7j6k5i5h4k7l9k8m7l7m6k10k9", true, "search_test #11" },
+            // { "h8h9i10j9k9i8j7j10j11j12g7g9g6h10i11g11i9", true, "search_test #12" },
+            // { "h8i9f6g8g6h9f9f7e6d6i10j9k9j7j8i7i8l8h7f5e7d8", true, "search_test #13" },
+            // { "h8h9i8g8i10i9j9k10k8l7j8l8j6j7i7k5h6g5g6i6h7f5", true, "search_test #14" },
+            // { "h8h9i8g8h7i7j7j9k9l9k10l10j11k11i12i11h13g14g12f11g11f12f10e9g9i10", true, "search_test #15" },
         };
         runSuite(cases, "winning_cases");
     }
@@ -252,15 +252,16 @@ PUBLIC
     // Leave empty to just inspect output.
     void testFindNextMoveCases() {
         const vector<NextMoveCase> cases = {
-            { "h8h9i8g8i10i9j9k10j7i7", "", "VCT win exists" },
-            { "h8h9j9g8j10g7i10", "", "VCT win exists" },
-            { "h8h9f6g7e9g8f7h6f8f9h7d6", "", "VCT win exists" },
-            { "h8h9i8i9j8j9g8g9f8", "", "quiet midgame" },
-            { "h8h9i8g8i10i9j9k10k8l7j8l8j6j7i7k5h6g5g6i6h7f5h5h4f7e8f8", "", "VCT lose — longest delay defense" },
-            { "h8h9i9g7i10i8g10h10h11i12g12f13j10j9g11g9i11h12f12", "", "one defend" },
-            { "h8h9i8i9j8k8h7j9k9i10h11g8f7h10j7i7", "", "one defend" },
-            { "h8h9i8g8i10i9j9k10k8", "", "lose but need correct defense" },
-            { "h8i7j7i8k9j9i6h7g6k10l11f6h5g4k8l9i4j3k6j5j6h6e7f7f8g9f4k4k3g7k7k5l8", "m9", "one defend" }
+            // { "h8h9i8g8i10i9j9k10j7i7", "", "VCT win exists" },
+            // { "h8h9j9g8j10g7i10", "", "VCT win exists" },
+            // { "h8h9f6g7e9g8f7h6f8f9h7d6", "", "VCT win exists" },
+            // { "h8h9i8i9j8j9g8g9f8", "", "quiet midgame" },
+            // { "h8h9i8g8i10i9j9k10k8l7j8l8j6j7i7k5h6g5g6i6h7f5h5h4f7e8f8", "", "VCT lose — longest delay defense" },
+            // { "h8h9i9g7i10i8g10h10h11i12g12f13j10j9g11g9i11h12f12", "", "one defend" },
+            // { "h8h9i8i9j8k8h7j9k9i10h11g8f7h10j7i7", "", "one defend" },
+            { "h8h9i8g8i10i9j9k10k8", "l7", "lose but need correct defense" },
+            { "h8i7j7i8k9j9i6h7g6k10l11f6h5g4k8l9i4j3k6j5j6h6e7f7f8g9f4k4k3g7k7k5l8", "m9", "one defend" },
+            { "h8h9i8i9j9i10j10k10j11j12g8e8i13h10k13k7", "g11", "44 defend" }
         };
         runNextMoveSuite(cases, "find_next_move_cases");
     }
