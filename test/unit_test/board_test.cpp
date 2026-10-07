@@ -261,6 +261,13 @@ public:
         // fake 3-3 (5)
         board = getBoard("d14e14c13c12d12a9c11e11f12g12f13o15h12o14i11e12d13");
         TEST_ASSERT(board.getResult() != WHITE_WIN);
+        // fake 3-3 (6): g6 belongs to the separate h6-i6-j6 three
+        board = getBoard("b6c7c6b8h6e5i6a1j6f1d7l1d8a12f7a15g8g15h9o8a9f4d6");
+        TEST_ASSERT(board.getResult() != WHITE_WIN);
+        // fake 3-3 (7): f9 belongs to the separate f6-f7-f8 three
+        board = getBoard("f6k13g11h10d12o6f7c12l9j13e9j1f14d5f8j6l8l1d8b8k10g7h14l12k8i12h6i3g10e7j8d6e12"
+            "l2d11m2j7m9h7m15d10g6i11e13h11c2h13j10i6a5i10i8f12k3h9m13k11o4e11g13l6d7f13");
+        TEST_ASSERT(board.getResult() != WHITE_WIN);
 
         // isForbidden method test
         // 3-3: .oo.?. & .oo.?.

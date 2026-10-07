@@ -44,6 +44,32 @@ struct FindNextMoveAnalysis {
     vector<Search::RootMoveStat> rootStats;
 };
 
+// The solution must replay to an attacker win, or to a four the defender cannot answer.
+inline bool solutionEndsInWin(Board board, const MoveList& path) {
+    const Piece attacker = board.isBlackTurn() ? BLACK : WHITE;
+    const Piece defender = attacker == BLACK ? WHITE : BLACK;
+    const Result attackerWin = attacker == BLACK ? BLACK_WIN : WHITE_WIN;
+
+    for (const Pos& move : path) {
+        if (board.getResult() != ONGOING) break;
+        if (!board.move(move)) return false;
+    }
+    if (board.getResult() != ONGOING) {
+        return board.getResult() == attackerWin;
+    }
+    if (board.hasCompositePattern(defender, WINNING)) {
+        return false;
+    }
+
+    const bool attackerToMove = (board.isBlackTurn() ? BLACK : WHITE) == attacker;
+    const MoveBucket& fives = board.getPatternBucket(attacker, WINNING);
+    if (attackerToMove || fives.size() >= 2) {
+        return !fives.empty();
+    }
+    // a single five point on a black forbidden cell
+    return fives.size() == 1 && defender == BLACK && board.isForbidden(fives.front());
+}
+
 ValidatePuzzleResult validatePuzzleWithResult(string boardStr, EngineCancelToken* cancelToken = nullptr) {
     ValidatePuzzleResult result;
     if (isEngineSearchCancelled(cancelToken)) {
@@ -75,8 +101,12 @@ ValidatePuzzleResult validatePuzzleWithResult(string boardStr, EngineCancelToken
         return result;
     }
 
-    if (monitor.getBestValue().isWin())
-        result.solution = convertPath2String(monitor.getBestPath());
+    if (monitor.getBestValue().isWin()) {
+        const MoveList path = monitor.getBestPath();
+        if (solutionEndsInWin(board, path)) {
+            result.solution = convertPath2String(path);
+        }
+    }
 
     return result;
 }

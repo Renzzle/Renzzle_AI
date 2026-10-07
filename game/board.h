@@ -251,30 +251,35 @@ bool Board::isForbidden(const Pos& p) {
 
         const int dx = getDirectionDx(dir);
         const int dy = getDirectionDy(dir);
-        for (int i = 0; i < LINE_LENGTH; i++) {
-            const int offset = i - (LINE_LENGTH / 2);
-            const int x = originX + (dx * offset);
-            const int y = originY + (dy * offset);
-            if (!isBoardCoord(x, y))
-                continue;
+        // only the first empty cell past p's run on each side can straighten p's own three
+        bool realThree = false;
+        for (int side = -1; side <= 1 && !realThree; side += 2) {
+            for (int step = 1; step <= 4; step++) {
+                const int x = originX + (dx * side * step);
+                const int y = originY + (dy * side * step);
+                if (!isBoardCoord(x, y))
+                    break;
 
-            Cell& cell = getCell(x, y);
-            if (cell.getPiece() == EMPTY) {
-                bool isFive = false;
-                Pos posi(x, y);
-                if (cell.getPattern(BLACK, dir) == FREE_4 && !isForbidden(posi)) {
+                Cell& cell = getCell(x, y);
+                if (cell.getPiece() == BLACK)
+                    continue;
+                if (cell.getPiece() != EMPTY)
+                    break;
+
+                if (cell.getPattern(BLACK, dir) == FREE_4 && !isForbidden(Pos(x, y))) {
+                    bool isFive = false;
                     for (Direction eDir = DIRECTION_START; eDir < DIRECTION_SIZE; eDir++) {
-                        Pattern nextPattern = cell.getPattern(BLACK, eDir);
-                        if (nextPattern == FIVE)
+                        if (cell.getPattern(BLACK, eDir) == FIVE)
                             isFive = true;
                     }
                     // made 5 with an empty space -> not a forbidden position
-                    if (!isFive) {
-                        winByThree++;
-                        break;
-                    }
+                    realThree = !isFive;
                 }
+                break;
             }
+        }
+        if (realThree) {
+            winByThree++;
         }
 
         if (winByThree >= 2) {

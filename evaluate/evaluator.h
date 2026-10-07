@@ -202,12 +202,30 @@ Value Evaluator::quickWinCheck(Pos* bestMove) {
             if (!W.isDefault()) break;
         }
 
-        bool oppoCanInterceptAtW = false;
+        // no block point found: leave it to the search
+        bool oppoCanInterceptAtW = W.isDefault();
         if (!W.isDefault()) {
             const CompositePattern wOppoComp = board.getCell(W).getCompositePattern(oppo);
             oppoCanInterceptAtW =
                 (wOppoComp == WINNING || wOppoComp == MATE ||
                  wOppoComp == B4_F3 || wOppoComp == B4_PLUS || wOppoComp == B4_ANY);
+        }
+
+        // black also needs a legal open-four point after p43 and the block
+        if (!oppoCanInterceptAtW && self == BLACK) {
+            bool openFourLeft = false;
+            if (board.move(p43)) {
+                if (board.getResult() == ONGOING && board.move(W)) {
+                    if (board.getResult() == ONGOING) {
+                        bucket(BLACK, MATE).forEach([&](const Pos& p) {
+                            if (!openFourLeft && !board.isForbidden(p)) openFourLeft = true;
+                        });
+                    }
+                    board.undo();
+                }
+                board.undo();
+            }
+            oppoCanInterceptAtW = !openFourLeft;
         }
 
         if (!oppoCanInterceptAtW) {
