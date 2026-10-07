@@ -4,6 +4,7 @@
 #include "../test/test.h"
 #include "search_monitor.h"
 #include "transposition_table.h"
+#include "vcf_replay.h"
 #include <algorithm>
 #include <array>
 #include <cstddef>
@@ -70,6 +71,15 @@ PRIVATE
         size_t nodesSinceMonitorPoll = 0;
     };
 
+    // getThreatRefutations result per position, so revisits skip the line and the scan
+    struct ThreatDefenseEntry {
+        uint64_t key = 0;
+        bool valid = false;
+        bool hasLine = false;
+        uint8_t count = 0;
+        std::array<uint8_t, 32> moves = {};  // larger sets are not cached
+    };
+
     struct QVCFContext {
         size_t nodeCount = 0;
         size_t nodeLimit = 0;
@@ -82,6 +92,7 @@ PRIVATE
     TranspositionTable tt;
     SearchOptions options;
     SearchState state;
+    std::vector<ThreatDefenseEntry> threatDefenseCache;
 
     static constexpr uint64_t TURN_KEY_BLACK = 0x9e3779b97f4a7c15ULL;
     static constexpr uint64_t TURN_KEY_WHITE = 0xc2b2ae3d27d4eb4fULL;
@@ -92,11 +103,14 @@ PRIVATE
     // stored and to outrank the static cell score during move ordering
     static constexpr int KILLER_MIN_FOUR_SCORE = 400;
     static constexpr int ASPIRATION_START_DELTA = 32;
+    static constexpr size_t THREAT_DEFENSE_CACHE_SIZE = 1u << 16;
     Value abp(int depth, bool isMax, Value alpha, Value beta, MoveList* pv = nullptr);
     Value searchRootWithAspiration(int depth, MoveList* pv);
     Value evaluateNode(Evaluator& evaluator);
     bool searchActive() const;
     CandidateList getCandidates(Evaluator& evaluator, bool isMax);
+    bool getThreatRefutations(CandidateList& moves);
+    void getPatternThreatDefend(Evaluator& evaluator, CandidateList& moves);
     void appendUniqueMoves(CandidateList& moves, const CandidateList& extraMoves) const;
     void sortChildNodes(CandidateList& moves, bool isMax, bool defending, const TTEntry* entry);
     bool isGameOver(Board& board);

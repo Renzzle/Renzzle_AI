@@ -94,6 +94,8 @@ PUBLIC
     bool pass();
     Result getResult();
     bool isForbidden(const Pos& p);
+    template <typename Fn>
+    void forEachFivePointAfter(const Pos& p, Piece piece, Fn&& fn);
     bool hasCompositePattern(Piece piece, CompositePattern pattern) const;
     int getCompositePatternCount(Piece piece, CompositePattern pattern) const;
     Pos getFirstPatternPos(Piece piece, CompositePattern pattern) const;
@@ -218,6 +220,28 @@ bool Board::pass() {
 
 Result Board::getResult() {
     return result;
+}
+
+// Calls fn for each empty cell where `piece` would make five if a `piece` stone stood
+// at the empty cell p. Reads line keys only; the board is not changed.
+template <typename Fn>
+void Board::forEachFivePointAfter(const Pos& p, Piece piece, Fn&& fn) {
+    const PatternPairCache& pairCache = getPatternPairCache();
+    for (Direction dir = DIRECTION_START; dir < DIRECTION_SIZE; dir++) {
+        const int dx = getDirectionDx(dir);
+        const int dy = getDirectionDy(dir);
+        for (int offset = -4; offset <= 4; offset++) {
+            if (offset == 0) continue;
+            const int x = p.x + (dx * offset);
+            const int y = p.y + (dy * offset);
+            if (!isBoardCoord(x, y) || getCell(x, y).getPiece() != EMPTY) continue;
+
+            const uint32_t lineKey = setLineKeyPiece(getLineKey(x, y, dir), LINE_PADDING - offset, piece);
+            const uint8_t patterns = getPatternPair(pairCache, lineKey);
+            const Pattern pattern = static_cast<Pattern>(piece == BLACK ? (patterns & 0x0F) : (patterns >> 4));
+            if (pattern == FIVE) fn(Pos(x, y));
+        }
+    }
 }
 
 bool Board::isForbidden(const Pos& p) {

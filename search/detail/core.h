@@ -517,16 +517,11 @@ CandidateList Search::getCandidates(Evaluator& evaluator, bool isMax) {
     if (options.mode == Mode::DEFENSIVE) {
         const bool atRoot = (board.getPath().size() == rootBoard.getPath().size());
 
-        if (evaluator.isOppoMateExist()) {
-            evaluator.getThreatDefend(moves);
-            CandidateList fours;
-            evaluator.getFours(fours);
-            appendUniqueMoves(moves, fours);
-        } else if (evaluator.isOppoFourThreeExist()) {
-            evaluator.getFourThreeDefend(moves);
-            CandidateList fours;
-            evaluator.getFours(fours);
-            appendUniqueMoves(moves, fours);
+        if (evaluator.isOppoMateExist() || evaluator.isOppoFourThreeExist()) {
+            // a move still has to be chosen when nothing refutes or the threat is fake
+            if (!getThreatRefutations(moves) || moves.empty()) {
+                getPatternThreatDefend(evaluator, moves);
+            }
         } else {
             if (atRoot) {
                 evaluator.getCandidates(moves);
@@ -547,20 +542,62 @@ CandidateList Search::getCandidates(Evaluator& evaluator, bool isMax) {
             CandidateList makers;
             evaluator.getFourThreeMakers(makers);
             appendUniqueMoves(moves, makers);
-        } else if (evaluator.isOppoMateExist()) {
-            evaluator.getThreatDefend(moves);
-            CandidateList fours;
-            evaluator.getFours(fours);
-            appendUniqueMoves(moves, fours);
-        } else if (evaluator.isOppoFourThreeExist()) {
-            evaluator.getFourThreeDefend(moves);
-            CandidateList fours;
-            evaluator.getFours(fours);
-            appendUniqueMoves(moves, fours);
+        } else if (evaluator.isOppoMateExist() || evaluator.isOppoFourThreeExist()) {
+            // no replayable line leaves moves empty: the threat is not real
+            if (getThreatRefutations(moves) && moves.empty()) {
+                // every move loses to the line; search the usual set to prove it
+                getPatternThreatDefend(evaluator, moves);
+            }
         }
     }
 
     return moves;
+}
+
+// Moves that break the opponent's quickest win behind an open three or 4-3, so no real
+// defense is left out; false if that win does not replay.
+bool Search::getThreatRefutations(CandidateList& moves) {
+    const uint64_t key = getTTKey(board);
+    ThreatDefenseEntry& cached = threatDefenseCache[key & (THREAT_DEFENSE_CACHE_SIZE - 1)];
+    if (cached.valid && cached.key == key) {
+        moves.clear();
+        for (uint8_t i = 0; i < cached.count; ++i) {
+            moves.push_back(Pos(cached.moves[i] >> 4, cached.moves[i] & 0x0F));
+        }
+        return cached.hasLine;
+    }
+
+    // open threes come straight from line patterns; 4-3s are played out
+    bool hasLine = collectOpenFourDefense(board, moves);
+    if (!hasLine) {
+        MoveList line;
+        hasLine = findThreatLine(board, line);
+        if (hasLine) {
+            collectVCFRefutations(board, line, moves);
+        }
+    }
+    if (moves.size() <= cached.moves.size()) {
+        cached.key = key;
+        cached.valid = true;
+        cached.hasLine = hasLine;
+        cached.count = static_cast<uint8_t>(moves.size());
+        for (size_t i = 0; i < moves.size(); ++i) {
+            cached.moves[i] = static_cast<uint8_t>((moves[i].getX() << 4) | moves[i].getY());
+        }
+    }
+    return hasLine;
+}
+
+// Pattern-based defenses (blocks guessed from the threat's shape) plus own fours.
+void Search::getPatternThreatDefend(Evaluator& evaluator, CandidateList& moves) {
+    if (evaluator.isOppoMateExist()) {
+        evaluator.getThreatDefend(moves);
+    } else {
+        evaluator.getFourThreeDefend(moves);
+    }
+    CandidateList fours;
+    evaluator.getFours(fours);
+    appendUniqueMoves(moves, fours);
 }
 
 void Search::appendUniqueMoves(CandidateList& moves, const CandidateList& extraMoves) const {

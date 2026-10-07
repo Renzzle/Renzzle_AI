@@ -11,6 +11,7 @@ void Search::ids() {
     monitor.incDepth(5);
     monitor.initStartTime();
     tt.clear();
+    std::fill(threatDefenseCache.begin(), threatDefenseCache.end(), ThreatDefenseEntry());
 
     while (true) {
         // refresh wall-clock + fire time-based trigger; guards against TT-cached
@@ -141,7 +142,8 @@ size_t Search::getEstimatedMemoryBytes() const {
         + (sizeof(Board) * 2)
         + (state.bestPath.capacity() * sizeof(Pos))
         + sizeof(state.historyScores)
-        + sizeof(state.killerMoves);
+        + sizeof(state.killerMoves)
+        + (threatDefenseCache.capacity() * sizeof(ThreatDefenseEntry));
 }
 
 const std::vector<Search::RootMoveStat>& Search::getLastRootStats() const {
