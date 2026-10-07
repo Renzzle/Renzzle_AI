@@ -7,8 +7,8 @@
 using Score = int;
 
 // score table                                N  D   OL  B1  F1  B2  F2  F2  F2  B3  F3  F3  B4   F4     F5     UNUSED
-const Score attackScore[PATTERN_SIZE + 1] = { 0, 00, 00, 01, 01, 04, 05, 06, 07, 21, 21, 20, 400, 10000, 50000, 0 };
-const Score defendScore[PATTERN_SIZE + 1] = { 0, 00, 00, 00, 00, 02, 02, 02, 02, 07, 07, 07,  90, 02000, 50000, 0 };
+constexpr Score attackScore[PATTERN_SIZE + 1] = { 0, 00, 00, 01, 01, 04, 05, 06, 07, 21, 21, 20, 400, 10000, 50000, 0 };
+constexpr Score defendScore[PATTERN_SIZE + 1] = { 0, 00, 00, 00, 00, 02, 02, 02, 02, 07, 07, 07,  90, 02000, 50000, 0 };
 
 using PatternKey = uint16_t;
 constexpr int PATTERN_KEY_BITS = 4;
@@ -16,7 +16,7 @@ constexpr int PATTERN_KEY_SIZE = 1 << (DIRECTION_SIZE * PATTERN_KEY_BITS);
 static_assert(PATTERN_SIZE < (1 << PATTERN_KEY_BITS),
     "Every Pattern value must fit in one packed nibble.");
 
-inline Pattern decodePatternKey(PatternKey key, int dir) {
+constexpr Pattern decodePatternKey(PatternKey key, int dir) {
     return static_cast<Pattern>((key >> (dir * PATTERN_KEY_BITS)) & 0xF);
 }
 
@@ -36,7 +36,7 @@ inline Score computeDefendScore(PatternKey key) {
     return score;
 }
 
-inline CompositePattern computeBlackComposite(PatternKey key) {
+constexpr CompositePattern computeBlackComposite(PatternKey key) {
     int pc[PATTERN_SIZE + 1] = {0};
     for (int dir = 0; dir < DIRECTION_SIZE; ++dir) {
         pc[decodePatternKey(key, dir)]++;
@@ -58,7 +58,7 @@ inline CompositePattern computeBlackComposite(PatternKey key) {
     return ETC;
 }
 
-inline CompositePattern computeWhiteComposite(PatternKey key) {
+constexpr CompositePattern computeWhiteComposite(PatternKey key) {
     int pc[PATTERN_SIZE + 1] = {0};
     for (int dir = 0; dir < DIRECTION_SIZE; ++dir) {
         pc[decodePatternKey(key, dir)]++;
@@ -79,49 +79,61 @@ inline CompositePattern computeWhiteComposite(PatternKey key) {
     return ETC;
 }
 
-inline const std::array<Score, PATTERN_KEY_SIZE>& attackScoreLUT() {
-    static const std::array<Score, PATTERN_KEY_SIZE> lut = []() {
-        std::array<Score, PATTERN_KEY_SIZE> table = {};
-        for (int key = 0; key < PATTERN_KEY_SIZE; ++key) {
-            table[key] = computeAttackScore(static_cast<PatternKey>(key));
-        }
-        return table;
-    }();
-    return lut;
+// updateDerived tables small enough to stay in L1: per key byte (two directions)
+// partial scores and a composite class, then composite by the four classes.
+constexpr int COMPOSITE_CLASS_BITS = 3;
+constexpr int COMPOSITE_CLASS_KEY_SIZE = 1 << (DIRECTION_SIZE * COMPOSITE_CLASS_BITS);
+
+// Patterns the composite rules tell apart; everything else is class 0.
+constexpr int getCompositeClass(Pattern pattern) {
+    switch (pattern) {
+        case BLOCKED_3: return 1;
+        case FREE_2: case FREE_2A: case FREE_2B: return 2;
+        case FREE_3: case FREE_3A: return 3;
+        case BLOCKED_4: return 4;
+        case FREE_4: return 5;
+        case OVERLINE: return 6;
+        case FIVE: return 7;
+        default: return 0;
+    }
 }
 
-inline const std::array<Score, PATTERN_KEY_SIZE>& defendScoreLUT() {
-    static const std::array<Score, PATTERN_KEY_SIZE> lut = []() {
-        std::array<Score, PATTERN_KEY_SIZE> table = {};
-        for (int key = 0; key < PATTERN_KEY_SIZE; ++key) {
-            table[key] = computeDefendScore(static_cast<PatternKey>(key));
+struct DerivedTables {
+    struct KeyByte {
+        Score attack;
+        Score defend;
+        uint16_t compositeClass;
+    };
+    KeyByte keyBytes[1 << (2 * PATTERN_KEY_BITS)];
+    CompositePattern blackComposite[COMPOSITE_CLASS_KEY_SIZE];
+    CompositePattern whiteComposite[COMPOSITE_CLASS_KEY_SIZE];
+};
+
+constexpr DerivedTables buildDerivedTables() {
+    DerivedTables tables = {};
+    for (int byte = 0; byte < (1 << (2 * PATTERN_KEY_BITS)); ++byte) {
+        const Pattern low = static_cast<Pattern>(byte & 0xF);
+        const Pattern high = static_cast<Pattern>(byte >> 4);
+        tables.keyBytes[byte].attack = attackScore[low] + attackScore[high];
+        tables.keyBytes[byte].defend = defendScore[low] + defendScore[high];
+        tables.keyBytes[byte].compositeClass = static_cast<uint16_t>(
+            getCompositeClass(low) | (getCompositeClass(high) << COMPOSITE_CLASS_BITS));
+    }
+    constexpr Pattern classPatterns[1 << COMPOSITE_CLASS_BITS] =
+        { DEAD, BLOCKED_3, FREE_2, FREE_3, BLOCKED_4, FREE_4, OVERLINE, FIVE };
+    for (int classKey = 0; classKey < COMPOSITE_CLASS_KEY_SIZE; ++classKey) {
+        PatternKey key = 0;
+        for (int dir = 0; dir < DIRECTION_SIZE; ++dir) {
+            const int cls = (classKey >> (dir * COMPOSITE_CLASS_BITS)) & 0x7;
+            key = static_cast<PatternKey>(key | (classPatterns[cls] << (dir * PATTERN_KEY_BITS)));
         }
-        return table;
-    }();
-    return lut;
+        tables.blackComposite[classKey] = computeBlackComposite(key);
+        tables.whiteComposite[classKey] = computeWhiteComposite(key);
+    }
+    return tables;
 }
 
-inline const std::array<CompositePattern, PATTERN_KEY_SIZE>& blackCompositeLUT() {
-    static const std::array<CompositePattern, PATTERN_KEY_SIZE> lut = []() {
-        std::array<CompositePattern, PATTERN_KEY_SIZE> table = {};
-        for (int key = 0; key < PATTERN_KEY_SIZE; ++key) {
-            table[key] = computeBlackComposite(static_cast<PatternKey>(key));
-        }
-        return table;
-    }();
-    return lut;
-}
-
-inline const std::array<CompositePattern, PATTERN_KEY_SIZE>& whiteCompositeLUT() {
-    static const std::array<CompositePattern, PATTERN_KEY_SIZE> lut = []() {
-        std::array<CompositePattern, PATTERN_KEY_SIZE> table = {};
-        for (int key = 0; key < PATTERN_KEY_SIZE; ++key) {
-            table[key] = computeWhiteComposite(static_cast<PatternKey>(key));
-        }
-        return table;
-    }();
-    return lut;
-}
+inline constexpr DerivedTables DERIVED_TABLES = buildDerivedTables();
 
 class Cell {
 
@@ -139,6 +151,7 @@ public:
     CompositePattern getCompositePattern(Piece piece) const;
     Score getScore(Piece piece) const;
     void setPattern(Piece piece, Direction dir, Pattern pattern);
+    bool hasSamePatternsExcept(const Cell& other, Direction dir) const;
     void clearCompositePattern();
     void setCompositePattern();
     void setScore();
@@ -185,30 +198,46 @@ void Cell::setPattern(Piece piece, Direction dir, Pattern pattern) {
         | (static_cast<PatternKey>(pattern) << shift));
 }
 
+bool Cell::hasSamePatternsExcept(const Cell& other, Direction dir) const {
+    const PatternKey mask = static_cast<PatternKey>(~(0xFu << (static_cast<int>(dir) * PATTERN_KEY_BITS)));
+    return ((patternKeys[BLACK] ^ other.patternKeys[BLACK]) & mask) == 0
+        && ((patternKeys[WHITE] ^ other.patternKeys[WHITE]) & mask) == 0;
+}
+
 void Cell::clearCompositePattern() {
     cPattern[BLACK] = NOT_EMPTY;
     cPattern[WHITE] = NOT_EMPTY;
 }
 
 void Cell::setCompositePattern() {
-    const PatternKey blackKey = patternKeys[BLACK];
-    const PatternKey whiteKey = patternKeys[WHITE];
-    cPattern[BLACK] = blackCompositeLUT()[blackKey];
-    cPattern[WHITE] = whiteCompositeLUT()[whiteKey];
+    const DerivedTables::KeyByte& black0 = DERIVED_TABLES.keyBytes[patternKeys[BLACK] & 0xFF];
+    const DerivedTables::KeyByte& black1 = DERIVED_TABLES.keyBytes[patternKeys[BLACK] >> 8];
+    const DerivedTables::KeyByte& white0 = DERIVED_TABLES.keyBytes[patternKeys[WHITE] & 0xFF];
+    const DerivedTables::KeyByte& white1 = DERIVED_TABLES.keyBytes[patternKeys[WHITE] >> 8];
+    cPattern[BLACK] = DERIVED_TABLES.blackComposite[
+        black0.compositeClass | (black1.compositeClass << (2 * COMPOSITE_CLASS_BITS))];
+    cPattern[WHITE] = DERIVED_TABLES.whiteComposite[
+        white0.compositeClass | (white1.compositeClass << (2 * COMPOSITE_CLASS_BITS))];
 }
 
 void Cell::setScore() {
-    const PatternKey blackKey = patternKeys[BLACK];
-    const PatternKey whiteKey = patternKeys[WHITE];
-    score[BLACK] = attackScoreLUT()[blackKey] + defendScoreLUT()[whiteKey];
-    score[WHITE] = attackScoreLUT()[whiteKey] + defendScoreLUT()[blackKey];
+    const DerivedTables::KeyByte& black0 = DERIVED_TABLES.keyBytes[patternKeys[BLACK] & 0xFF];
+    const DerivedTables::KeyByte& black1 = DERIVED_TABLES.keyBytes[patternKeys[BLACK] >> 8];
+    const DerivedTables::KeyByte& white0 = DERIVED_TABLES.keyBytes[patternKeys[WHITE] & 0xFF];
+    const DerivedTables::KeyByte& white1 = DERIVED_TABLES.keyBytes[patternKeys[WHITE] >> 8];
+    score[BLACK] = black0.attack + black1.attack + white0.defend + white1.defend;
+    score[WHITE] = white0.attack + white1.attack + black0.defend + black1.defend;
 }
 
 void Cell::updateDerived() {
-    const PatternKey blackKey = patternKeys[BLACK];
-    const PatternKey whiteKey = patternKeys[WHITE];
-    score[BLACK] = attackScoreLUT()[blackKey] + defendScoreLUT()[whiteKey];
-    score[WHITE] = attackScoreLUT()[whiteKey] + defendScoreLUT()[blackKey];
-    cPattern[BLACK] = blackCompositeLUT()[blackKey];
-    cPattern[WHITE] = whiteCompositeLUT()[whiteKey];
+    const DerivedTables::KeyByte& black0 = DERIVED_TABLES.keyBytes[patternKeys[BLACK] & 0xFF];
+    const DerivedTables::KeyByte& black1 = DERIVED_TABLES.keyBytes[patternKeys[BLACK] >> 8];
+    const DerivedTables::KeyByte& white0 = DERIVED_TABLES.keyBytes[patternKeys[WHITE] & 0xFF];
+    const DerivedTables::KeyByte& white1 = DERIVED_TABLES.keyBytes[patternKeys[WHITE] >> 8];
+    score[BLACK] = black0.attack + black1.attack + white0.defend + white1.defend;
+    score[WHITE] = white0.attack + white1.attack + black0.defend + black1.defend;
+    cPattern[BLACK] = DERIVED_TABLES.blackComposite[
+        black0.compositeClass | (black1.compositeClass << (2 * COMPOSITE_CLASS_BITS))];
+    cPattern[WHITE] = DERIVED_TABLES.whiteComposite[
+        white0.compositeClass | (white1.compositeClass << (2 * COMPOSITE_CLASS_BITS))];
 }

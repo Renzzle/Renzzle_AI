@@ -38,7 +38,15 @@ public:
     }
 
     void insert(const Pos& p) {
-        const uint8_t code = encode(p);
+        insertCode(encode(p));
+    }
+
+    void erase(const Pos& p) {
+        eraseCode(encode(p));
+    }
+
+    // code: (x << 4) | y
+    void insertCode(uint8_t code) {
         const int wordIndex = code / WORD_BITS;
         const uint64_t mask = 1ull << (code % WORD_BITS);
         if ((words[wordIndex] & mask) == 0) {
@@ -47,8 +55,7 @@ public:
         }
     }
 
-    void erase(const Pos& p) {
-        const uint8_t code = encode(p);
+    void eraseCode(uint8_t code) {
         const int wordIndex = code / WORD_BITS;
         const uint64_t mask = 1ull << (code % WORD_BITS);
         if ((words[wordIndex] & mask) != 0) {
