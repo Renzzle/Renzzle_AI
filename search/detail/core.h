@@ -665,21 +665,19 @@ void Search::appendUniqueMoves(CandidateList& moves, const CandidateList& extraM
     }
 }
 
+// highest cell score: the top attack and defend score in every direction
+constexpr Score maxCellScore() {
+    Score attack = 0;
+    Score defend = 0;
+    for (const Score score : attackScore) attack = std::max(attack, score);
+    for (const Score score : defendScore) defend = std::max(defend, score);
+    return (attack + defend) * DIRECTION_SIZE;
+}
+
 void Search::sortChildNodes(CandidateList& moves, bool isMax, bool defending, const TTEntry* entry) {
     if (moves.size() < 2) {
         return;
     }
-
-    struct MoveOrderInfo {
-        uint8_t moveCode;
-        bool isTTBest;
-        bool hasTT;
-        int flagPriority;
-        int32_t ttScore;
-        int historyScore;
-        int cellScore;
-        int killerRank;
-    };
 
     const Pos ttBestMove = (entry != nullptr && entry->bestMove != TranspositionTable::INVALID_MOVE)
         ? TranspositionTable::decodeMove(entry->bestMove)
@@ -718,12 +716,27 @@ void Search::sortChildNodes(CandidateList& moves, bool isMax, bool defending, co
         return 2;
     };
 
-    MoveOrderInfo infos[BOARD_SIZE * BOARD_SIZE];
-    size_t infoCount = 0;
+    // One ascending key per move, field by field in priority order (smaller = earlier):
+    //   TT best first; then moves with a child entry; their TT score, high first for Max
+    //   and low first for Min; the bound type, which refines a tied score (Max prefers
+    //   LOWER_BOUND: the value could be higher still, Min UPPER_BOUND); recent four-making
+    //   cutoff moves (killers), which outrank the static cell score as they refute the
+    //   line like they refuted a sibling or fail fast; the cell score; the history score.
+    // The sort is stable, so ties keep the generation order and also break equal results.
+    struct KeyedMove {
+        uint64_t key;
+        uint8_t moveCode;
+    };
+    constexpr int64_t TT_SCORE_HALF = int64_t{1} << 19;     // 20-bit field
+    constexpr int64_t CELL_SCORE_MAX = (int64_t{1} << 19) - 1;  // 19-bit field
+    static_assert(MAX_VALUE + 1 < TT_SCORE_HALF, "TT scores must fit their sort-key field");
+    static_assert(maxCellScore() <= CELL_SCORE_MAX, "cell scores must fit their sort-key field");
+    static_assert(2 * HISTORY_ABS_LIMIT < (1 << 16), "history scores must fit their sort-key field");
+    KeyedMove keyed[BOARD_SIZE * BOARD_SIZE];
+    size_t keyedCount = 0;
 
     // Attacker prefers self-attack score; defender wants to block opponent's most
     // threatening spot, so uses opponent's score. Matches the evaluator's previous sort intent.
-    // Ties keep the first-searched move, so this order also breaks equal-result ties.
     const Piece sideToMovePiece = sideToMoveIsBlack ? BLACK : WHITE;
     const Piece opposingPiece   = sideToMoveIsBlack ? WHITE : BLACK;
     const Piece scorePiece = defending ? opposingPiece : sideToMovePiece;
@@ -739,58 +752,53 @@ void Search::sortChildNodes(CandidateList& moves, bool isMax, bool defending, co
                 && tt.probeCopy(getChildTTKey(move), &childEntryStorage)
                 ? &childEntryStorage
                 : nullptr;
-        MoveOrderInfo info;
-        info.moveCode = static_cast<uint8_t>((move.getX() << 4) | move.getY());
-        info.isTTBest = !ttBestMove.isDefault() && move == ttBestMove;
-        info.hasTT = childEntry != nullptr;
-        info.flagPriority = childEntry != nullptr ? getValueTypePriority(childEntry->getFlag()) : getValueTypePriority(TTFlag::NONE);
-        info.ttScore = childEntry != nullptr ? childEntry->score : 0;
-        info.historyScore = getHistoryScore(move, sideToMoveIsBlack);
-        info.cellScore = board.getCell(move).getScore(scorePiece);
-        info.killerRank = 0;
-        if (info.moveCode == killerCode0 || info.moveCode == killerCode1) {
+        const uint8_t moveCode = static_cast<uint8_t>((move.getX() << 4) | move.getY());
+        const bool isTTBest = !ttBestMove.isDefault() && move == ttBestMove;
+        const int flagPriority = getValueTypePriority(childEntry != nullptr ? childEntry->getFlag() : TTFlag::NONE);
+        const int64_t ttScore = std::clamp<int64_t>(
+            childEntry != nullptr ? childEntry->score : 0, -(TT_SCORE_HALF - 1), TT_SCORE_HALF - 1);
+        const int64_t cellScore = std::clamp<int64_t>(board.getCell(move).getScore(scorePiece), 0, CELL_SCORE_MAX);
+        int killerRank = 0;
+        if (moveCode == killerCode0 || moveCode == killerCode1) {
             // stored killers made a four where they cut off; re-validate on this
             // board since the same cell may no longer make one here
             if (board.getCell(move).getScore(sideToMovePiece) >= KILLER_MIN_FOUR_SCORE) {
-                info.killerRank = info.moveCode == killerCode0 ? 2 : 1;
+                killerRank = moveCode == killerCode0 ? 2 : 1;
             }
         }
-        infos[infoCount++] = info;
+        const int64_t historyScore = getHistoryScore(move, sideToMoveIsBlack);
+
+        // bits: TT best 60 | has TT 59 | TT score 39-58 | bound 37-38 | killer 35-36 |
+        // cell score 16-34 | history 0-15
+        uint64_t key = 0;
+        key |= static_cast<uint64_t>(isTTBest ? 0 : 1) << 60;
+        key |= static_cast<uint64_t>(childEntry != nullptr ? 0 : 1) << 59;
+        key |= static_cast<uint64_t>(isMax ? (TT_SCORE_HALF - 1 - ttScore) : (ttScore + TT_SCORE_HALF)) << 39;
+        key |= static_cast<uint64_t>(flagPriority) << 37;
+        key |= static_cast<uint64_t>(2 - killerRank) << 35;
+        key |= static_cast<uint64_t>(CELL_SCORE_MAX - cellScore) << 16;
+        key |= static_cast<uint64_t>(HISTORY_ABS_LIMIT - historyScore);
+        keyed[keyedCount++] = {key, moveCode};
     }
 
-    std::stable_sort(infos, infos + infoCount, [&](const MoveOrderInfo& a, const MoveOrderInfo& b) {
-        if (a.isTTBest != b.isTTBest) {
-            return a.isTTBest;
+    if (keyedCount <= 32) {
+        // insertion sort: stable and fastest for the usual short lists
+        for (size_t i = 1; i < keyedCount; ++i) {
+            const KeyedMove item = keyed[i];
+            size_t j = i;
+            while (j > 0 && keyed[j - 1].key > item.key) {
+                keyed[j] = keyed[j - 1];
+                --j;
+            }
+            keyed[j] = item;
         }
-        if (a.hasTT != b.hasTT) {
-            return a.hasTT;
-        }
-        if (a.ttScore != b.ttScore) {
-            return isMax ? (a.ttScore > b.ttScore) : (a.ttScore < b.ttScore);
-        }
-        // bound type refines tied ttScore (esp. for mate values):
-        //   Max prefers LOWER_BOUND (actual value could be even higher → faster mate)
-        //   Min prefers UPPER_BOUND (actual value could be even lower → slower mate)
-        // getValueTypePriority(flag) already encodes that via isMax. Smaller = better.
-        if (a.flagPriority != b.flagPriority) {
-            return a.flagPriority < b.flagPriority;
-        }
-        // recent four-making cutoff moves outrank the static cell score: they either
-        // refute the line the same way they refuted a sibling, or fail fast (forcing)
-        if (a.killerRank != b.killerRank) {
-            return a.killerRank > b.killerRank;
-        }
-        if (a.cellScore != b.cellScore) {
-            return a.cellScore > b.cellScore;
-        }
-        if (a.historyScore != b.historyScore) {
-            return a.historyScore > b.historyScore;
-        }
-        return false;
-    });
+    } else {
+        std::stable_sort(keyed, keyed + keyedCount,
+            [](const KeyedMove& a, const KeyedMove& b) { return a.key < b.key; });
+    }
 
     for (size_t i = 0; i < moves.size(); ++i) {
-        const uint8_t code = infos[i].moveCode;
+        const uint8_t code = keyed[i].moveCode;
         moves[i] = Pos(code >> 4, code & 0x0F);
     }
 }
