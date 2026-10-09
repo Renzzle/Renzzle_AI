@@ -10,6 +10,7 @@ struct VCFReplayTrace {
     std::array<uint8_t, 256> defenderFours = {};  // defender four points at any step
     bool forbiddenBlock = false;                  // won through a forbidden black block
     bool forbiddenSensitive = false;              // a black attacker move was a 3-3 candidate
+    std::array<uint8_t, 256> forbiddenReach = {}; // cells those forbidden verdicts read
 };
 
 namespace vcf_replay_detail {
@@ -68,6 +69,7 @@ inline bool replayVCFWins(Board& board, const MoveList& line, VCFReplayTrace* tr
         if (trace != nullptr && attacker == BLACK
             && board.getCell(line[i]).getCompositePattern(BLACK) == FORBID_33) {
             trace->forbiddenSensitive = true;
+            board.isForbidden(line[i], &trace->forbiddenReach);
         }
         if (!board.move(line[i])) {
             break;
@@ -89,6 +91,15 @@ inline bool replayVCFWins(Board& board, const MoveList& line, VCFReplayTrace* tr
         }
         // a forbidden black block is played and loses for black
         const Pos block = fives.front();
+        if (trace != nullptr && defender == BLACK) {
+            const CompositePattern blockPattern = board.getCell(block).getCompositePattern(BLACK);
+            if (blockPattern == FORBID || blockPattern == FORBID_33) {
+                std::array<uint8_t, 256> reach = {};
+                if (board.isForbidden(block, &reach)) {
+                    for (size_t c = 0; c < reach.size(); ++c) trace->forbiddenReach[c] |= reach[c];
+                }
+            }
+        }
         if (!board.move(block)) {
             break;
         }
@@ -108,35 +119,43 @@ inline bool replayVCFWins(Board& board, const MoveList& line, VCFReplayTrace* tr
 }
 
 // Cells a defender stone must take to change the replay: the line's cells, the final five
-// points (attacker fives depend on attacker stones only) and defender four points. False
-// when forbidden status could flip (a black 3-3 candidate, a forbidden-block win).
+// points (attacker fives depend on attacker stones only) and defender four points. When a
+// forbidden verdict is in play (a black 3-3 candidate, a forbidden-block win), the cells that
+// verdict reads are added and `confirm` is set: those candidates need a replay each. False
+// if the line does not win.
 inline bool markVCFRefutationCandidates(Board& board, const MoveList& line,
-    std::array<uint8_t, 256>& candidate) {
+    std::array<uint8_t, 256>& candidate, bool& confirm) {
     if (!board.pass()) {
         return false;
     }
     VCFReplayTrace trace;
     const bool wins = replayVCFWins(board, line, &trace);
     board.undo();
-    if (!wins || trace.forbiddenBlock || trace.forbiddenSensitive) {
+    if (!wins) {
         return false;
     }
 
     candidate = trace.defenderFours;
     for (const Pos& p : trace.played) candidate[vcf_replay_detail::cellCode(p.getX(), p.getY())] = 1;
     for (const Pos& p : trace.finalFives) candidate[vcf_replay_detail::cellCode(p.getX(), p.getY())] = 1;
+    confirm = trace.forbiddenBlock || trace.forbiddenSensitive;
+    if (confirm) {
+        for (size_t c = 0; c < candidate.size(); ++c) candidate[c] |= trace.forbiddenReach[c];
+    }
     return true;
 }
 
 // A complete defense set against `line`: every move left out loses to it. With the filter
-// the candidates are taken as is; `filter` = false replays every move (test reference).
+// the candidates are taken as is, or replayed one by one when a forbidden verdict is in play;
+// `filter` = false replays every move (test reference).
 inline void collectVCFRefutations(Board& board, const MoveList& line, CandidateList& result,
     bool filter = true) {
     result.clear();
     const bool defenderIsBlack = board.isBlackTurn();
 
     std::array<uint8_t, 256> candidate;
-    const bool filtered = filter && markVCFRefutationCandidates(board, line, candidate);
+    bool confirm = false;
+    const bool filtered = filter && markVCFRefutationCandidates(board, line, candidate, confirm);
 
     for (int x = 1; x <= BOARD_SIZE; ++x) {
         for (int y = 1; y <= BOARD_SIZE; ++y) {
@@ -151,7 +170,7 @@ inline void collectVCFRefutations(Board& board, const MoveList& line, CandidateL
             if (defenderIsBlack && board.isForbidden(move)) {
                 continue;
             }
-            if (filtered) {
+            if (filtered && !confirm) {
                 result.push_back(move);
                 continue;
             }

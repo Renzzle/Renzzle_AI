@@ -93,7 +93,9 @@ PUBLIC
     void undo();
     bool pass();
     Result getResult();
-    bool isForbidden(const Pos& p);
+    // with `reach`, also marks every cell whose stone could change the verdict: the line
+    // windows of the cells the 3-3 walk reads (codes are (x << 4) | y)
+    bool isForbidden(const Pos& p, std::array<uint8_t, 256>* reach = nullptr);
     template <typename Fn>
     void forEachFivePointAfter(const Pos& p, Piece piece, Fn&& fn);
     bool hasCompositePattern(Piece piece, CompositePattern pattern) const;
@@ -244,7 +246,23 @@ void Board::forEachFivePointAfter(const Pos& p, Piece piece, Fn&& fn) {
     }
 }
 
-bool Board::isForbidden(const Pos& p) {
+// Marks the line window that `p`'s pattern in `dir` is read from.
+static void markLineReach(const Pos& p, Direction dir, std::array<uint8_t, 256>& reach) {
+    const int dx = getDirectionDx(dir);
+    const int dy = getDirectionDy(dir);
+    for (int offset = -(LINE_LENGTH / 2); offset <= LINE_LENGTH / 2; offset++) {
+        const int x = p.getX() + (dx * offset);
+        const int y = p.getY() + (dy * offset);
+        if (isBoardCoord(x, y)) reach[static_cast<uint8_t>((x << 4) | y)] = 1;
+    }
+}
+
+bool Board::isForbidden(const Pos& p, std::array<uint8_t, 256>* reach) {
+    if (reach != nullptr) {
+        for (Direction dir = DIRECTION_START; dir < DIRECTION_SIZE; dir++) {
+            markLineReach(p, dir, *reach);
+        }
+    }
     Cell& targetCell = getCell(p);
     if (targetCell.getPiece() != EMPTY) return false;
 
@@ -290,7 +308,8 @@ bool Board::isForbidden(const Pos& p) {
                 if (cell.getPiece() != EMPTY)
                     break;
 
-                if (cell.getPattern(BLACK, dir) == FREE_4 && !isForbidden(Pos(x, y))) {
+                if (reach != nullptr) markLineReach(Pos(x, y), dir, *reach);
+                if (cell.getPattern(BLACK, dir) == FREE_4 && !isForbidden(Pos(x, y), reach)) {
                     bool isFive = false;
                     for (Direction eDir = DIRECTION_START; eDir < DIRECTION_SIZE; eDir++) {
                         if (cell.getPattern(BLACK, eDir) == FIVE)

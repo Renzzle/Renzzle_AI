@@ -266,7 +266,8 @@ PRIVATE
         auto compare = [&](Board& board, const MoveList& line) {
             ++threats;
             std::array<uint8_t, 256> mask;
-            if (markVCFRefutationCandidates(board, line, mask)) ++filtered;
+            bool confirm = false;
+            if (markVCFRefutationCandidates(board, line, mask, confirm) && !confirm) ++filtered;
 
             CandidateList fast;
             CandidateList full;
