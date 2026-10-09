@@ -41,7 +41,11 @@ void Search::ids() {
         current = next;
         SearchStage& stage = stages[current];
 
-        tt.nextGeneration();
+        // only the classic stage ages the table: widened iterations would otherwise make the
+        // classic entries look stale and push them out before the classic stage resumes
+        if (current == 0) {
+            tt.nextGeneration();
+        }
 
         const size_t nodesBefore = monitor.getVisitCnt();
         MoveList iterationPV;
