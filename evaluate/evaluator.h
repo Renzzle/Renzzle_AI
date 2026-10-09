@@ -36,6 +36,7 @@ PUBLIC
     void getFourThreeMakers(CandidateList& result);
     MoveList getFourThreeDefend();
     void getFourThreeDefend(CandidateList& result);
+    void getVCFThreatMakers(CandidateList& result);
     Pos getOppoWinningDefend();
     bool isOppoMateExist();
     bool isOppoFourThreeExist();
@@ -740,6 +741,77 @@ void Evaluator::getFourThreeDefend(CandidateList& result) {
     }
 
     // sort omitted — Search::sortChildNodes handles ordering uniformly (cellScore + TT/history)
+}
+
+// Quiet moves that may hand the side a VCF next turn: blocked-three makers (a new four
+// point) and cells sharing a clean five-cell window with a four point plus one more own
+// stone or four point, where later fours can grow into a five (e.g. a stone between two
+// four points of one line). Only a candidate filter — the VCF itself is checked by search.
+void Evaluator::getVCFThreatMakers(CandidateList& result) {
+    result.clear();
+    array<uint8_t, 256> seen = {};
+
+    auto appendUniqueLegal = [&](const Pos& p) {
+        const uint8_t key = static_cast<uint8_t>((p.getX() << 4) | p.getY());
+        if (seen[key]) return;
+        seen[key] = 1;
+        if (isMoveForbidden(p)) return;
+        result.push_back(p);
+    };
+
+    bucket(self, B3_PLUS).forEach([&](const Pos& p) { appendUniqueLegal(p); });
+    bucket(self, B3_ANY).forEach([&](const Pos& p) { appendUniqueLegal(p); });
+
+    auto isFourPoint = [&](const Cell& cell) {
+        const CompositePattern c = cell.getCompositePattern(self);
+        return c == B4_ANY || c == B4_PLUS || c == B4_F3 || c == MATE;
+    };
+
+    constexpr int SPAN = 4;
+    auto scanFourPoint = [&](const Pos& center) {
+        const int baseX = center.getX();
+        const int baseY = center.getY();
+        for (Direction dir = DIRECTION_START; dir < DIRECTION_SIZE; dir++) {
+            const int dx = getDirectionDx(dir);
+            const int dy = getDirectionDy(dir);
+
+            // per offset: -1 blocks a five (wall / opponent), 1 counts (own stone or four point)
+            int weight[2 * SPAN + 1];
+            bool empty[2 * SPAN + 1];
+            for (int k = 0; k <= 2 * SPAN; ++k) {
+                const int x = baseX + dx * (k - SPAN);
+                const int y = baseY + dy * (k - SPAN);
+                empty[k] = false;
+                if (!isBoardCoord(x, y)) { weight[k] = -1; continue; }
+                const Cell& cell = board.getCell(x, y);
+                if (cell.getPiece() == oppo) { weight[k] = -1; continue; }
+                if (cell.getPiece() == self) { weight[k] = 1; continue; }
+                empty[k] = true;
+                weight[k] = isFourPoint(cell) ? 1 : 0;
+            }
+
+            for (int start = 0; start <= SPAN; ++start) {
+                int count = 0;
+                bool blocked = false;
+                for (int k = start; k < start + 5; ++k) {
+                    if (weight[k] < 0) { blocked = true; break; }
+                    count += weight[k];
+                }
+                if (blocked) continue;
+                for (int k = start; k < start + 5; ++k) {
+                    if (k == SPAN || !empty[k]) continue;
+                    if (count - weight[k] >= 2) {
+                        appendUniqueLegal(Pos(baseX + dx * (k - SPAN), baseY + dy * (k - SPAN)));
+                    }
+                }
+            }
+        }
+    };
+
+    bucket(self, MATE).forEach(scanFourPoint);
+    bucket(self, B4_F3).forEach(scanFourPoint);
+    bucket(self, B4_PLUS).forEach(scanFourPoint);
+    bucket(self, B4_ANY).forEach(scanFourPoint);
 }
 
 Pos Evaluator::getOppoWinningDefend() {

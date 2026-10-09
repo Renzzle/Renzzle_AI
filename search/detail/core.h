@@ -379,7 +379,8 @@ Value Search::abp(int depth, bool isMax, Value alpha, Value beta, MoveList* pv) 
     // applying it in DEFENSIVE mode would invent false LOSE/WIN at quiet positions.
     const bool threatBrokenLeaf = options.mode == Mode::VCT
         && !attackerTurn && !evaluator.isOppoMateExist();
-    CandidateList moves = getCandidates(evaluator, isMax);
+    bool vcfThreatNode = false;
+    CandidateList moves = getCandidates(evaluator, isMax, depth, vcfThreatNode);
     if (moves.empty()) {
         return threatBrokenLeaf
             ? evaluateThreatBrokenLeaf(isMax, depth)
@@ -389,7 +390,7 @@ Value Search::abp(int depth, bool isMax, Value alpha, Value beta, MoveList* pv) 
     // DEFENSIVE root defends when the opponent threatens; elsewhere Max attacks
     const bool defensiveRoot = options.mode == Mode::DEFENSIVE && isRootNode;
     const bool defending = defensiveRoot
-        ? (evaluator.isOppoMateExist() || evaluator.isOppoFourThreeExist())
+        ? (evaluator.isOppoMateExist() || evaluator.isOppoFourThreeExist() || vcfThreatNode)
         : !isMax;
     sortChildNodes(moves, isMax, defending, ttEntry);
 
@@ -503,7 +504,7 @@ Value Search::evaluateNode(Evaluator& evaluator) {
     return evaluator.evaluateTactical();
 }
 
-CandidateList Search::getCandidates(Evaluator& evaluator, bool isMax) {
+CandidateList Search::getCandidates(Evaluator& evaluator, bool isMax, int depth, bool& vcfThreatNode) {
     CandidateList moves;
 
     Pos sureMove = evaluator.getSureMove();
@@ -512,16 +513,24 @@ CandidateList Search::getCandidates(Evaluator& evaluator, bool isMax) {
         return moves;
     }
 
+    const bool patternThreat = evaluator.isOppoMateExist() || evaluator.isOppoFourThreeExist();
+
     // DEFENSIVE: at root broaden to full candidates when opp is quiet;
     // non-root stays threats-only to limit fanout.
     if (options.mode == Mode::DEFENSIVE) {
         const bool atRoot = (board.getPath().size() == rootBoard.getPath().size());
 
-        if (evaluator.isOppoMateExist() || evaluator.isOppoFourThreeExist()) {
+        if (patternThreat) {
             // a move still has to be chosen when nothing refutes or the threat is fake
-            if (!getThreatRefutations(moves) || moves.empty()) {
+            if (getThreatDefense(moves, true, false) == NO_THREAT || moves.empty()) {
                 getPatternThreatDefend(evaluator, moves);
             }
+        } else if (atRoot && state.vcfThreats
+            && getThreatDefense(moves, false, true) == VCF_THREAT && !moves.empty()) {
+            // an opponent VCF threat against the move being chosen; deeper nodes skip the
+            // check (it costs 3-10x there). With no refutation the broad set below picks
+            // the longest defense.
+            vcfThreatNode = true;
         } else {
             if (atRoot) {
                 evaluator.getCandidates(moves);
@@ -542,11 +551,22 @@ CandidateList Search::getCandidates(Evaluator& evaluator, bool isMax) {
             CandidateList makers;
             evaluator.getFourThreeMakers(makers);
             appendUniqueMoves(moves, makers);
-        } else if (evaluator.isOppoMateExist() || evaluator.isOppoFourThreeExist()) {
-            // no replayable line leaves moves empty: the threat is not real
-            if (getThreatRefutations(moves) && moves.empty()) {
-                // every move loses to the line; search the usual set to prove it
-                getPatternThreatDefend(evaluator, moves);
+            if (depth >= VCF_THREAT_MIN_DEPTH && state.vcfThreats) {
+                CandidateList vcfMakers;
+                evaluator.getVCFThreatMakers(vcfMakers);
+                appendUniqueMoves(moves, vcfMakers);
+            }
+        } else {
+            // no threat leaves moves empty: the attacker's threat is broken (or not real)
+            const ThreatKind threat = getThreatDefense(moves, patternThreat, state.vcfThreats);
+            vcfThreatNode = threat == VCF_THREAT;
+            if (threat != NO_THREAT && moves.empty()) {
+                // every move loses to the line; search some move to prove it
+                if (patternThreat) {
+                    getPatternThreatDefend(evaluator, moves);
+                } else {
+                    appendFirstLegalMove(moves);
+                }
             }
         }
     }
@@ -554,38 +574,70 @@ CandidateList Search::getCandidates(Evaluator& evaluator, bool isMax) {
     return moves;
 }
 
-// Moves that break the opponent's quickest win behind an open three or 4-3, so no real
-// defense is left out; false if that win does not replay.
-bool Search::getThreatRefutations(CandidateList& moves) {
+// The side to move's complete defense against the opponent's quickest win: every move
+// that breaks it. Open threes and 4-3s (patternThreat) come first; with vcfThreats, any
+// VCF the opponent would have after a pass counts too. The result is cached per position.
+Search::ThreatKind Search::getThreatDefense(CandidateList& moves, bool patternThreat, bool vcfThreats) {
+    moves.clear();
+    if (!patternThreat && !vcfThreats) {
+        return NO_THREAT;
+    }
+
+    // the TT key carries the stage salt, and a stage always asks with the same flags
     const uint64_t key = getTTKey(board);
     ThreatDefenseEntry& cached = threatDefenseCache[key & (THREAT_DEFENSE_CACHE_SIZE - 1)];
     if (cached.valid && cached.key == key) {
-        moves.clear();
         for (uint8_t i = 0; i < cached.count; ++i) {
             moves.push_back(Pos(cached.moves[i] >> 4, cached.moves[i] & 0x0F));
         }
-        return cached.hasLine;
+        return static_cast<ThreatKind>(cached.kind);
     }
 
-    // open threes come straight from line patterns; 4-3s are played out
-    bool hasLine = collectOpenFourDefense(board, moves);
-    if (!hasLine) {
+    ThreatKind kind = NO_THREAT;
+    if (patternThreat) {
+        // open threes come straight from line patterns; 4-3s are played out
         MoveList line;
-        hasLine = findThreatLine(board, line);
-        if (hasLine) {
+        if (collectOpenFourDefense(board, moves)) {
+            kind = PATTERN_THREAT;
+        } else if (findThreatLine(board, line)) {
             collectVCFRefutations(board, line, moves);
+            kind = PATTERN_THREAT;
         }
     }
+    if (kind == NO_THREAT && vcfThreats) {
+        MoveList line;
+        if (findVCFThreatLine(line)) {
+            collectVCFRefutations(board, line, moves);
+            kind = VCF_THREAT;
+        }
+    }
+    if (!searchActive()) {
+        return kind;
+    }
+
     if (moves.size() <= cached.moves.size()) {
         cached.key = key;
         cached.valid = true;
-        cached.hasLine = hasLine;
+        cached.kind = static_cast<uint8_t>(kind);
         cached.count = static_cast<uint8_t>(moves.size());
         for (size_t i = 0; i < moves.size(); ++i) {
             cached.moves[i] = static_cast<uint8_t>((moves[i].getX() << 4) | moves[i].getY());
         }
     }
-    return hasLine;
+    return kind;
+}
+
+void Search::appendFirstLegalMove(CandidateList& moves) {
+    const bool sideIsBlack = board.isBlackTurn();
+    for (int x = 1; x <= BOARD_SIZE; ++x) {
+        for (int y = 1; y <= BOARD_SIZE; ++y) {
+            const Pos move(x, y);
+            if (board.getCell(move).getPiece() != EMPTY) continue;
+            if (sideIsBlack && board.isForbidden(move)) continue;
+            moves.push_back(move);
+            return;
+        }
+    }
 }
 
 // Pattern-based defenses (blocks guessed from the threat's shape) plus own fours.

@@ -3,13 +3,13 @@
 uint64_t Search::getTTKey(Board& board) const {
     uint64_t key = static_cast<uint64_t>(board.getCurrentHash());
     key ^= board.isBlackTurn() ? TURN_KEY_BLACK : TURN_KEY_WHITE;
-    return key;
+    return key ^ state.ttSalt;
 }
 
 uint64_t Search::getChildTTKey(const Pos& move) {
     uint64_t key = static_cast<uint64_t>(board.getChildHash(move));
     key ^= board.isBlackTurn() ? TURN_KEY_WHITE : TURN_KEY_BLACK;
-    return key;
+    return key ^ state.ttSalt;
 }
 
 uint8_t Search::getTTDepth(int depth) const {

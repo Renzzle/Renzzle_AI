@@ -1,6 +1,7 @@
 #include "../util.h"
 #include "../test.h"
 #include "../../search/search.h"
+#include "../../engine/engine.h"
 #include <algorithm>
 #include <array>
 #include <iomanip>
@@ -24,6 +25,12 @@ PRIVATE
     struct SearchRunMetrics {
         double elapsedSeconds = 0.0;
         size_t visitedNodes = 0;
+    };
+
+    struct TargetPuzzleCase {
+        string process;
+        string expectedFirstMove;  // "h8" form; the only winning first move
+        string note;
     };
 
     int posKey(const Pos& pos) {
@@ -344,6 +351,49 @@ PRIVATE
         return {elapsedSeconds, monitor.getVisitCnt()};
     }
 
+    // same stop rule as validatePuzzle, so an unsolved puzzle ends at the time limit
+    void targetPuzzleTest(const TargetPuzzleCase& tc) {
+        TEST_PRINT("=================================");
+        TEST_PRINT("[TARGET] " << tc.note);
+        TEST_PRINT("process: " << tc.process);
+        TEST_PRINT("expect:  WIN starting with " << tc.expectedFirstMove);
+
+        Board board = getBoard(tc.process);
+        printBoard(board);
+
+        SearchMonitor monitor;
+        Search searcher(board, monitor);
+        monitor.setTrigger([](SearchMonitor& m) {
+            const double t = m.getElapsedTime();
+            if (t >= HARD_THINKING_TIME) return true;
+            if (t >= MAX_THINKING_TIME) return !m.getBestValue().isWin();
+            return false;
+        });
+        monitor.setSearchListener([&searcher](SearchMonitor&) {
+            searcher.stop();
+        });
+
+        searcher.ids();
+
+        Value value = monitor.getBestValue();
+        const MoveList path = monitor.getBestPath();
+        const string firstMove = path.empty() ? "(none)" : posToString(path.front());
+        const bool passed = value.isWin() && firstMove == tc.expectedFirstMove;
+
+        TEST_PRINT("time: " << formatMilliseconds(monitor.getElapsedTime())
+            << ", nodes: " << monitor.getVisitCnt()
+            << ", depth: " << monitor.getDepth()
+            << ", value: " << valueToString(value));
+        TEST_PRINT("pv: " << (path.empty() ? "(none)" : convertPath2String(path)));
+        if (passed) {
+            TEST_PRINT("[PASS]");
+        } else {
+            TEST_PRINT("[FAIL] expected WIN starting with " << tc.expectedFirstMove << ", got "
+                << (value.isWin() ? "WIN" : "NO-WIN") << " starting with " << firstMove);
+        }
+        TEST_ASSERT(passed);
+    }
+
     void deepAnalysisTest(const string& process, int maxDepth, size_t rootPreviewCount) {
         Board board = getBoard(process);
         SearchMonitor monitor;
@@ -414,6 +464,7 @@ PRIVATE
 PUBLIC
     SearchTest() {
         registerTestMethod("alpha_beta_search_suite", [this]() { testAlphaBetaSearch(); });
+        registerTestMethod("target_puzzle_suite", [this]() { testTargetPuzzles(); });
         //registerTestMethod("deep_single_case_profile", [this]() { testDeepSingleCaseProfile(); });
     }
 
@@ -458,6 +509,20 @@ PUBLIC
             << ", nodes=" << totalNodes
             << ", us/node=" << formatDouble(microsPerNode, 6)
             << ", NPS=" << formatDouble(nodesPerSecond, 0));
+    }
+
+    // Puzzles the engine should solve but may still miss (e.g. a VCF-threat first move).
+    // Kept out of alpha_beta_search_suite so its deterministic node baseline stays intact.
+    void testTargetPuzzles() {
+        const vector<TargetPuzzleCase> cases = {
+            { "h8g8h7h6i8i9j8j9k9k10i10j10i11j11i12l11k11l10j13i7j6j5k6", "n11", "white first, VCF-threat move" },
+            { "h8g7g9i7j8i8h7h9i6j5h10i11f10i10i9g11h11i12g10f9g8f8h6h4e7f6g12h12f13i13i14h13e10d10c10e11c11c12c9e9g5l6",
+                "c8", "black first, 4-3 threats (classic VCT, 23 plies)" },
+        };
+
+        for (const auto& tc : cases) {
+            targetPuzzleTest(tc);
+        }
     }
 
     void testDeepSingleCaseProfile() {

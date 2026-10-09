@@ -13,24 +13,50 @@ void Search::ids() {
     tt.clear();
     std::fill(threatDefenseCache.begin(), threatDefenseCache.end(), ThreatDefenseEntry());
 
+    // no line outlasts the empty cells; beyond this, iterations only replay the TT
+    const int maxDepth = BOARD_SIZE * BOARD_SIZE - static_cast<int>(rootBoard.getPath().size());
+
+    // stage 0 is the classic threat set (DEFENSIVE's only stage, where it also watches for
+    // VCF threats at the root); stage 1 widens VCT with VCF-threat moves
+    SearchStage stages[2];
+    stages[0].enabled = true;
+    stages[0].depth = monitor.getDepth();
+    stages[0].vcfThreats = options.mode != Mode::VCT && options.vcfThreats;
+    stages[1].enabled = options.mode == Mode::VCT && options.vcfThreats;
+    stages[1].depth = monitor.getDepth();
+    stages[1].vcfThreats = true;
+    stages[1].ttSalt = WIDENED_STAGE_TT_SALT;
+    int current = 0;
+    enterSearchStage(stages, current, current);
+
     while (true) {
         // refresh wall-clock + fire time-based trigger; guards against TT-cached
         // iterations that visit too few nodes to hit pollMonitorIfDue's interval
         monitor.updateElapsedTime();
         if (!state.isRunning) break;
 
+        const int next = pickSearchStage(stages);
+        if (next < 0) break;
+        enterSearchStage(stages, current, next);
+        current = next;
+        SearchStage& stage = stages[current];
+
         tt.nextGeneration();
 
+        const size_t nodesBefore = monitor.getVisitCnt();
         MoveList iterationPV;
-        Value result = searchRootWithAspiration(monitor.getDepth(), &iterationPV);
+        Value result = searchRootWithAspiration(stage.depth, &iterationPV);
 
         if (!state.isRunning) break;
+        stage.cost += monitor.getVisitCnt() - nodesBefore;
 
         const bool provenWin =
             result.isWin() && result.getType() == Value::Type::EXACT && !result.isQVCFDerived();
         state.bestValue = result;
         state.bestPath = iterationPV;
         completeWinPV(state.bestValue, state.bestPath);
+        stage.bestValue = state.bestValue;
+        stage.bestPath = state.bestPath;
 
         monitor.setBestPath(state.bestPath);
 
@@ -55,11 +81,76 @@ void Search::ids() {
             }
         }
 
-        monitor.incDepth(2);
+        stage.depth += 2;
+        stage.done = stage.depth > maxDepth;
+        setMonitorDepth(stage.depth);
     }
 
+    publishSearchStages(stages, current);
     updateMonitorElapsedTime();
     state.isRunning = false;
+}
+
+int Search::pickSearchStage(SearchStage* stages) {
+    auto runnable = [&](int i) { return stages[i].enabled && !stages[i].done; };
+
+    // a stage holding an unproven (QVCF-derived) win keeps going alone until it proves it
+    for (int i = 0; i < 2; ++i) {
+        if (runnable(i) && stages[i].bestValue.isWin()) return i;
+    }
+    if (!runnable(1)) return runnable(0) ? 0 : -1;
+    if (!runnable(0)) return 1;
+    if (stages[0].cost < VCF_THREAT_WIDEN_COST) return 0;
+    return stages[0].cost <= stages[1].cost * WIDENED_STAGE_COST_WEIGHT ? 0 : 1;
+}
+
+// swaps the per-stage search state in; the TT salt keeps each stage's entries apart, so
+// classic "threat broken" results never read as losses for the widened stage
+void Search::enterSearchStage(SearchStage* stages, int from, int to) {
+    if (from != to) {
+        stages[from].historyScores = state.historyScores;
+        stages[from].killerMoves = state.killerMoves;
+        stages[from].qvcfDisabledAfterWin = state.qvcfDisabledAfterWin;
+        state.historyScores = stages[to].historyScores;
+        state.killerMoves = stages[to].killerMoves;
+        state.qvcfDisabledAfterWin = stages[to].qvcfDisabledAfterWin;
+    }
+    state.vcfThreats = stages[to].vcfThreats;
+    state.ttSalt = stages[to].ttSalt;
+    // aspiration windows center on the stage's own last value
+    state.bestValue = stages[to].bestValue;
+    state.bestPath = stages[to].bestPath;
+    setMonitorDepth(stages[to].depth);
+}
+
+// the caller sees a win from either stage, otherwise the classic stage's result
+void Search::publishSearchStages(SearchStage* stages, int current) {
+    int shown = current;
+    if (!stages[shown].bestValue.isWin()) {
+        shown = 0;
+        for (int i = 0; i < 2; ++i) {
+            if (stages[i].enabled && stages[i].bestValue.isWin()) {
+                shown = i;
+                break;
+            }
+        }
+    }
+    if (shown == current) {
+        return;
+    }
+    state.bestValue = stages[shown].bestValue;
+    state.bestPath = stages[shown].bestPath;
+    state.ttSalt = stages[shown].ttSalt;
+    monitor.setBestPath(state.bestPath);
+}
+
+void Search::setMonitorDepth(int depth) {
+    const int current = monitor.getDepth();
+    if (depth > current) {
+        monitor.incDepth(depth - current);
+    } else if (depth < current) {
+        monitor.decDepth(current - depth);
+    }
 }
 
 void Search::completeWinPV(Value value, MoveList& pv) {

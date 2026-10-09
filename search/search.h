@@ -53,6 +53,8 @@ PRIVATE
         bool leafVCFEnabled = true;
         int leafVCFMaxPly = 17;
         size_t leafVCFNodeLimit = 4096;
+        // quiet moves that leave a VCF (VCT: widened stage; DEFENSIVE: root threat check)
+        bool vcfThreats = true;
         Mode mode = Mode::VCT;
     };
 
@@ -69,13 +71,35 @@ PRIVATE
         // two killer slots per ply from root; entries are packed (x<<4)|y codes, 0 = empty
         std::array<std::array<uint8_t, 2>, BOARD_SIZE * BOARD_SIZE + 4> killerMoves = {};
         size_t nodesSinceMonitorPoll = 0;
+        // the running stage plays and defends VCF-threat moves
+        bool vcfThreats = false;
+        // XORed into every TT key, so each VCT stage keeps its own entries in one table
+        uint64_t ttSalt = 0;
     };
 
-    // getThreatRefutations result per position, so revisits skip the line and the scan
+    // One iterative-deepening track. VCT runs a classic track (4 / 3 / 4-3 threats) and a
+    // widened one (plus VCF-threat moves); ids() alternates them so neither restarts.
+    struct SearchStage {
+        bool enabled = false;
+        bool done = false;
+        int depth = 5;
+        bool vcfThreats = false;
+        uint64_t ttSalt = 0;
+        size_t cost = 0;
+        bool qvcfDisabledAfterWin = false;
+        Value bestValue;
+        MoveList bestPath;
+        std::array<std::array<int, BOARD_SIZE * BOARD_SIZE>, 2> historyScores = {};
+        std::array<std::array<uint8_t, 2>, BOARD_SIZE * BOARD_SIZE + 4> killerMoves = {};
+    };
+
+    enum ThreatKind : uint8_t { NO_THREAT, PATTERN_THREAT, VCF_THREAT };
+
+    // getThreatDefense result per position, so revisits skip the line and the scan
     struct ThreatDefenseEntry {
         uint64_t key = 0;
         bool valid = false;
-        bool hasLine = false;
+        uint8_t kind = NO_THREAT;
         uint8_t count = 0;
         std::array<uint8_t, 32> moves = {};  // larger sets are not cached
     };
@@ -84,6 +108,10 @@ PRIVATE
         size_t nodeCount = 0;
         size_t nodeLimit = 0;
         bool stopped = false;
+        Piece attacker = BLACK;
+        uint64_t keySalt = 0;
+        // threat probes need a replayable line, so they skip the 4-3 / 3-3 shortcuts
+        bool foursOnly = false;
     };
 
     Board rootBoard;
@@ -97,6 +125,9 @@ PRIVATE
     static constexpr uint64_t TURN_KEY_BLACK = 0x9e3779b97f4a7c15ULL;
     static constexpr uint64_t TURN_KEY_WHITE = 0xc2b2ae3d27d4eb4fULL;
     static constexpr uint64_t QVCF_TT_KEY = 0x6a09e667f3bcc909ULL;
+    static constexpr uint64_t QVCF_THREAT_TT_KEY_BLACK = 0xbb67ae8584caa73bULL;
+    static constexpr uint64_t QVCF_THREAT_TT_KEY_WHITE = 0x3c6ef372fe94f82bULL;
+    static constexpr uint64_t QVCF_RETRY_TT_KEY = 0x510e527fade682d1ULL;
     static constexpr int QVCF_HEURISTIC_WIN_SCORE = MAX_VALUE - (BOARD_SIZE * BOARD_SIZE) - 1024;
     static constexpr int HISTORY_ABS_LIMIT = 16384;
     // attackScore[B4] — a killer must make at least a four (for the mover) to be
@@ -104,12 +135,26 @@ PRIVATE
     static constexpr int KILLER_MIN_FOUR_SCORE = 400;
     static constexpr int ASPIRATION_START_DELTA = 32;
     static constexpr size_t THREAT_DEFENSE_CACHE_SIZE = 1u << 16;
+    static constexpr uint64_t WIDENED_STAGE_TT_SALT = 0xa54ff53a5f1d36f1ULL;
+    // classic VCT runs alone for this many nodes before the widened stage gets iterations;
+    // every search_test case keeps its classic node count
+    static constexpr size_t VCF_THREAT_WIDEN_COST = 1000000;
+    // after that, the stage with less cost so far runs next; widened cost counts double so
+    // classic keeps about two thirds of the time
+    static constexpr size_t WIDENED_STAGE_COST_WEIGHT = 2;
+    // a VCF-threat move needs a defense ply and then an attacker ply to cash the VCF in
+    static constexpr int VCF_THREAT_MIN_DEPTH = 2;
     Value abp(int depth, bool isMax, Value alpha, Value beta, MoveList* pv = nullptr);
     Value searchRootWithAspiration(int depth, MoveList* pv);
+    int pickSearchStage(SearchStage* stages);
+    void enterSearchStage(SearchStage* stages, int from, int to);
+    void publishSearchStages(SearchStage* stages, int current);
+    void setMonitorDepth(int depth);
     Value evaluateNode(Evaluator& evaluator);
     bool searchActive() const;
-    CandidateList getCandidates(Evaluator& evaluator, bool isMax);
-    bool getThreatRefutations(CandidateList& moves);
+    CandidateList getCandidates(Evaluator& evaluator, bool isMax, int depth, bool& vcfThreatNode);
+    ThreatKind getThreatDefense(CandidateList& moves, bool patternThreat, bool vcfThreats);
+    void appendFirstLegalMove(CandidateList& moves);
     void getPatternThreatDefend(Evaluator& evaluator, CandidateList& moves);
     void appendUniqueMoves(CandidateList& moves, const CandidateList& extraMoves) const;
     void sortChildNodes(CandidateList& moves, bool isMax, bool defending, const TTEntry* entry);
@@ -153,17 +198,22 @@ PRIVATE
         bool causedCutoff, Value result, bool sideToMoveIsBlack);
     void rebuildPV(const Pos& bestMove, const MoveList& bestChildPV, Value result, MoveList* pv) const;
     void completeWinPV(Value value, MoveList& pv);
-    bool isRootAttackerTurn(Board& targetBoard);
-    Result getRootWinResult();
-    uint64_t getQVCFTTKey(Board& targetBoard) const;
+    QVCFContext makeLeafQVCFContext();
+    QVCFContext makeThreatQVCFContext(Piece attacker) const;
+    bool isQVCFAttackerTurn(Board& targetBoard, const QVCFContext& context) const;
+    Result getQVCFWinResult(const QVCFContext& context) const;
+    uint64_t getQVCFTTKey(Board& targetBoard, const QVCFContext& context) const;
     bool enterQVCFNode(QVCFContext& context);
     void moveQVCFTTBestFirst(CandidateList& moves, const Pos& bestMove) const;
-    bool probeQVCFTT(Board& targetBoard, int remainingPly, Value& value, Pos& bestMove) const;
-    void storeQVCFWin(Board& targetBoard, Value value, int remainingPly, const Pos& bestMove);
-    void storeQVCFFail(Board& targetBoard, int remainingPly);
-    void appendQVCFTTPV(Board tempBoard, MoveList& pv, int remainingPly) const;
+    bool probeQVCFTT(Board& targetBoard, const QVCFContext& context, int remainingPly,
+        Value& value, Pos& bestMove) const;
+    void storeQVCFWin(Board& targetBoard, const QVCFContext& context, Value value,
+        int remainingPly, const Pos& bestMove);
+    void storeQVCFFail(Board& targetBoard, const QVCFContext& context, int remainingPly);
+    void appendQVCFTTPV(Board tempBoard, const QVCFContext& context, MoveList& pv, int remainingPly) const;
     Value qvcfSearch(int remainingPly, QVCFContext& context, MoveList* pv);
     bool tryResolveLeafVCF(MoveList* pv, Value& resolvedValue);
+    bool findVCFThreatLine(MoveList& line);
     Value qvcfAttack(int remainingPly, QVCFContext& context, MoveList* pv);
     Value qvcfDefend(int remainingPly, QVCFContext& context, MoveList* pv);
 
