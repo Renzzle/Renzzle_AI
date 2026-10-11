@@ -11,6 +11,7 @@ void Search::ids() {
     monitor.incDepth(5);
     monitor.initStartTime();
     tt.clear();
+    threatTT.clear();
     std::fill(threatDefenseCache.begin(), threatDefenseCache.end(), ThreatDefenseEntry());
 
     // no line outlasts the empty cells; beyond this, iterations only replay the TT
@@ -234,6 +235,7 @@ size_t Search::getNodeCount() const {
 
 size_t Search::getEstimatedMemoryBytes() const {
     return tt.getMemoryBytes()
+        + threatTT.getMemoryBytes()
         + (sizeof(Board) * 2)
         + (state.bestPath.capacity() * sizeof(Pos))
         + sizeof(state.historyScores)

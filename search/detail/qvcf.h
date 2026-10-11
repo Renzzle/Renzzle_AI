@@ -5,15 +5,17 @@ Search::QVCFContext Search::makeLeafQVCFContext() {
     QVCFContext context;
     context.attacker = rootBoard.isBlackTurn() ? BLACK : WHITE;
     context.keySalt = QVCF_TT_KEY;
+    context.table = &tt;
     return context;
 }
 
-// threat probes serve either side and keep their own key space per attacker
-Search::QVCFContext Search::makeThreatQVCFContext(Piece attacker) const {
+// threat probes serve either side, keep their own key space per attacker and their own table
+Search::QVCFContext Search::makeThreatQVCFContext(Piece attacker) {
     QVCFContext context;
     context.attacker = attacker;
     context.keySalt = attacker == BLACK ? QVCF_THREAT_TT_KEY_BLACK : QVCF_THREAT_TT_KEY_WHITE;
     context.foursOnly = true;
+    context.table = &threatTT;
     return context;
 }
 
@@ -65,7 +67,7 @@ bool Search::probeQVCFTT(Board& targetBoard, const QVCFContext& context, int rem
     Value& value, Pos& bestMove) const {
     TTEntry entryStorage;
     const uint64_t key = getQVCFTTKey(targetBoard, context);
-    if (!tt.probeCopy(key, &entryStorage)) {
+    if (!context.table->probeCopy(key, &entryStorage)) {
         return false;
     }
 
@@ -95,7 +97,7 @@ bool Search::probeQVCFTT(Board& targetBoard, const QVCFContext& context, int rem
 
 void Search::storeQVCFWin(Board& targetBoard, const QVCFContext& context, Value value,
     int remainingPly, const Pos& bestMove) {
-    tt.store(
+    context.table->store(
         getQVCFTTKey(targetBoard, context),
         encodeTTScore(value),
         getTTDepth(remainingPly),
@@ -105,7 +107,7 @@ void Search::storeQVCFWin(Board& targetBoard, const QVCFContext& context, Value 
 }
 
 void Search::storeQVCFFail(Board& targetBoard, const QVCFContext& context, int remainingPly) {
-    tt.store(
+    context.table->store(
         getQVCFTTKey(targetBoard, context),
         0,
         getTTDepth(remainingPly),
@@ -118,7 +120,7 @@ void Search::appendQVCFTTPV(Board tempBoard, const QVCFContext& context, MoveLis
     for (int ply = 0; ply < remainingPly; ++ply) {
         TTEntry entryStorage;
         const uint64_t key = getQVCFTTKey(tempBoard, context);
-        if (!tt.probeCopy(key, &entryStorage)) {
+        if (!context.table->probeCopy(key, &entryStorage)) {
             break;
         }
         if (entryStorage.getFlag() != TTFlag::EXACT || entryStorage.score == 0) {
@@ -254,7 +256,7 @@ Value Search::qvcfAttack(int remainingPly, QVCFContext& context, MoveList* pv) {
         if (!board.move(move)) {
             continue;
         }
-        tt.prefetch(getQVCFTTKey(board, context));
+        context.table->prefetch(getQVCFTTKey(board, context));
 
         MoveList childPV;
         Value childValue = qvcfDefend(remainingPly - 1, context, pv != nullptr ? &childPV : nullptr);
@@ -342,7 +344,7 @@ Value Search::qvcfDefend(int remainingPly, QVCFContext& context, MoveList* pv) {
         storeQVCFWin(board, context, value, remainingPly, Pos());
         return value;
     }
-    tt.prefetch(getQVCFTTKey(board, context));
+    context.table->prefetch(getQVCFTTKey(board, context));
 
     MoveList childPV;
     Value childValue = qvcfAttack(remainingPly - 1, context, pv != nullptr ? &childPV : nullptr);

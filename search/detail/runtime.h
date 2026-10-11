@@ -5,6 +5,7 @@ Search::Search(Board& initialBoard, SearchMonitor& monitor, size_t ttBytes)
       board(initialBoard),
       monitor(monitor),
       tt(ttBytes, 4),
+      threatTT(THREAT_TT_BYTES, 4),
       threatDefenseCache(THREAT_DEFENSE_CACHE_SIZE) {
     monitor.setBestLineProvider([this](int i) {
         return i == 0 ? state.bestPath : MoveList();

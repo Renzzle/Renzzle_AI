@@ -112,12 +112,14 @@ PRIVATE
         uint64_t keySalt = 0;
         // threat probes need a replayable line, so they skip the 4-3 / 3-3 shortcuts
         bool foursOnly = false;
+        TranspositionTable* table = nullptr;
     };
 
     Board rootBoard;
     Board board;
     SearchMonitor& monitor;
     TranspositionTable tt;
+    TranspositionTable threatTT;
     SearchOptions options;
     SearchState state;
     std::vector<ThreatDefenseEntry> threatDefenseCache;
@@ -135,6 +137,9 @@ PRIVATE
     static constexpr int KILLER_MIN_FOUR_SCORE = 400;
     static constexpr int ASPIRATION_START_DELTA = 32;
     static constexpr size_t THREAT_DEFENSE_CACHE_SIZE = 1u << 16;
+    // VCF-threat probes are many small searches (tens of nodes each): a table this size
+    // stays in cache, and their entries no longer push main-tree entries out of tt
+    static constexpr size_t THREAT_TT_BYTES = 4ull * 1024ull * 1024ull;
     static constexpr uint64_t WIDENED_STAGE_TT_SALT = 0xa54ff53a5f1d36f1ULL;
     // classic VCT runs alone for this many nodes before the widened stage gets iterations;
     // every search_test case keeps its classic node count
@@ -199,7 +204,7 @@ PRIVATE
     void rebuildPV(const Pos& bestMove, const MoveList& bestChildPV, Value result, MoveList* pv) const;
     void completeWinPV(Value value, MoveList& pv);
     QVCFContext makeLeafQVCFContext();
-    QVCFContext makeThreatQVCFContext(Piece attacker) const;
+    QVCFContext makeThreatQVCFContext(Piece attacker);
     bool isQVCFAttackerTurn(Board& targetBoard, const QVCFContext& context) const;
     Result getQVCFWinResult(const QVCFContext& context) const;
     uint64_t getQVCFTTKey(Board& targetBoard, const QVCFContext& context) const;
