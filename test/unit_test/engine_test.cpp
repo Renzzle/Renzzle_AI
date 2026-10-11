@@ -291,14 +291,14 @@ PUBLIC
             { "h8h9i8h7i9i7j7j6k9k8i10j10i11i12j11k11j12j13l10k13l9k6", true, "vct #40" },
             { "h8i9h6h7i6i7j7j6k8l9g7g8f6f7g9f8f9e7e9d9f10g11d8e10", true, "vct #41*" },
             { "h8h9i7i9g7g9j9i8j7h7k7j8j6k5k6l6m7l7l5m5n7h6i5h4f6g6", true, "vct #42" },
-            { "", true, "vct #43" },
-            { "", true, "vct #44" },
-            { "", true, "vct #45" },
-            { "", true, "vct #46" },
-            { "", true, "vct #47" },
-            { "", true, "vct #48" },
-            { "", true, "vct #49" },
-            { "", true, "vct #50" },
+            { "h8h9h10i9i10j9g9j10i11j12j11g8g7f7e6f6g6e8f9e9f11f10g11h11g12g10f12e12d11f13d8c9c8d7", true, "vct #43" },
+            { "h8i9h9g9j9h7i7j7g7k7m8k8i6k6k5l7l5i4j4g3h3h2i3h6j3l4k3l3", true, "vct #44*" },
+            { "h8h9i9i8j8j9k10k9k8l8i7h7j6g9j7h10k7j4h5i6", true, "vct #45" },
+            { "h8h9i10i8h7i7g7f7e6f6f4g6h5h6i5i6j6k7j5g5h4i4j4j3l4k4e4e5", true, "vct #46*" },
+            { "h8h9j9i9i7g9j6k9i6h6i5i4k6k7j4j5k3k5j3h4g4g5m6l6m5m7l8l7n7k4", true, "vct #47*" },
+            { "h8i9h9h6g9f10h10h11i11j12g7f8f6e7e6d6e8e5e9d10e11f7f12g11g13i10", true, "vct #48" },
+            { "h8i9g7g8f7h7f9g9f8f10f6f5g6h6i6h5g5i5e5d4e9e7d9d10g10h11", true, "vct #49" },
+            { "h8h9i8g8i10i11i9j9j8k8k9i7h7g7h6h5g9f9f8f10e8e9e6f7", true, "vct #50" },
         };
         runSuite(cases, "winning_cases");
     }
