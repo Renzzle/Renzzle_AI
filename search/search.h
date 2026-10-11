@@ -93,7 +93,9 @@ PRIVATE
         std::array<std::array<uint8_t, 2>, BOARD_SIZE * BOARD_SIZE + 4> killerMoves = {};
     };
 
-    enum ThreatKind : uint8_t { NO_THREAT, PATTERN_THREAT, VCF_THREAT };
+    // UNSETTLED_THREAT: the VCF probe stopped at its node limit or found a line that does not
+    // replay, so it proves neither a threat nor its absence
+    enum ThreatKind : uint8_t { NO_THREAT, PATTERN_THREAT, VCF_THREAT, UNSETTLED_THREAT };
 
     // getThreatDefense result per position, so revisits skip the line and the scan
     struct ThreatDefenseEntry {
@@ -139,6 +141,9 @@ PRIVATE
     // VCF-threat probes are many small searches (tens of nodes each): a table this size
     // stays in cache, and their entries no longer push main-tree entries out of tt
     static constexpr size_t THREAT_TT_BYTES = 4ull * 1024ull * 1024ull;
+    // a threat probe that runs out of nodes settles nothing, and almost all that pass the
+    // 4096-node leaf limit finish within this
+    static constexpr size_t THREAT_QVCF_NODE_LIMIT = 65536;
     static constexpr uint64_t WIDENED_STAGE_TT_SALT = 0xa54ff53a5f1d36f1ULL;
     // classic VCT runs alone for this many nodes before the widened stage gets iterations;
     // every search_test case keeps its classic node count
@@ -156,7 +161,7 @@ PRIVATE
     void setMonitorDepth(int depth);
     Value evaluateNode(Evaluator& evaluator);
     bool searchActive() const;
-    CandidateList getCandidates(Evaluator& evaluator, bool isMax, int depth, bool& vcfThreatNode);
+    CandidateList getCandidates(Evaluator& evaluator, bool isMax, int depth, ThreatKind& threat);
     ThreatKind getThreatDefense(CandidateList& moves, bool patternThreat, bool vcfThreats);
     void appendFirstLegalMove(CandidateList& moves);
     void getPatternThreatDefend(Evaluator& evaluator, CandidateList& moves);
@@ -216,7 +221,7 @@ PRIVATE
     void storeQVCFFail(Board& targetBoard, const QVCFContext& context, int remainingPly);
     Value qvcfSearch(int remainingPly, QVCFContext& context, MoveList* pv);
     bool tryResolveLeafVCF(MoveList* pv, Value& resolvedValue);
-    bool findVCFThreatLine(MoveList& line);
+    ThreatKind findVCFThreatLine(MoveList& line);
     Value qvcfAttack(int remainingPly, QVCFContext& context, MoveList* pv);
     Value qvcfDefend(int remainingPly, QVCFContext& context, MoveList* pv);
 

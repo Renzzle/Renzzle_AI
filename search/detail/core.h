@@ -379,10 +379,11 @@ Value Search::abp(int depth, bool isMax, Value alpha, Value beta, MoveList* pv) 
     // applying it in DEFENSIVE mode would invent false LOSE/WIN at quiet positions.
     const bool threatBrokenLeaf = options.mode == Mode::VCT
         && !attackerTurn && !evaluator.isOppoMateExist();
-    bool vcfThreatNode = false;
-    CandidateList moves = getCandidates(evaluator, isMax, depth, vcfThreatNode);
+    ThreatKind threat = NO_THREAT;
+    CandidateList moves = getCandidates(evaluator, isMax, depth, threat);
     if (moves.empty()) {
-        return threatBrokenLeaf
+        // an unsettled probe proves nothing: a plain leaf, probed again by a deeper iteration
+        return threatBrokenLeaf && threat != UNSETTLED_THREAT
             ? evaluateThreatBrokenLeaf(isMax, depth)
             : evaluateLeafNode(isMax, depth);
     }
@@ -390,7 +391,7 @@ Value Search::abp(int depth, bool isMax, Value alpha, Value beta, MoveList* pv) 
     // DEFENSIVE root defends when the opponent threatens; elsewhere Max attacks
     const bool defensiveRoot = options.mode == Mode::DEFENSIVE && isRootNode;
     const bool defending = defensiveRoot
-        ? (evaluator.isOppoMateExist() || evaluator.isOppoFourThreeExist() || vcfThreatNode)
+        ? (evaluator.isOppoMateExist() || evaluator.isOppoFourThreeExist() || threat == VCF_THREAT)
         : !isMax;
     sortChildNodes(moves, isMax, defending, ttEntry);
 
@@ -504,7 +505,7 @@ Value Search::evaluateNode(Evaluator& evaluator) {
     return evaluator.evaluateTactical();
 }
 
-CandidateList Search::getCandidates(Evaluator& evaluator, bool isMax, int depth, bool& vcfThreatNode) {
+CandidateList Search::getCandidates(Evaluator& evaluator, bool isMax, int depth, ThreatKind& threat) {
     CandidateList moves;
 
     Pos sureMove = evaluator.getSureMove();
@@ -530,7 +531,7 @@ CandidateList Search::getCandidates(Evaluator& evaluator, bool isMax, int depth,
             // an opponent VCF threat against the move being chosen; deeper nodes skip the
             // check (it costs 3-10x there). With no refutation the broad set below picks
             // the longest defense.
-            vcfThreatNode = true;
+            threat = VCF_THREAT;
         } else {
             if (atRoot) {
                 evaluator.getCandidates(moves);
@@ -558,9 +559,8 @@ CandidateList Search::getCandidates(Evaluator& evaluator, bool isMax, int depth,
             }
         } else {
             // no threat leaves moves empty: the attacker's threat is broken (or not real)
-            const ThreatKind threat = getThreatDefense(moves, patternThreat, state.vcfThreats);
-            vcfThreatNode = threat == VCF_THREAT;
-            if (threat != NO_THREAT && moves.empty()) {
+            threat = getThreatDefense(moves, patternThreat, state.vcfThreats);
+            if ((threat == PATTERN_THREAT || threat == VCF_THREAT) && moves.empty()) {
                 // every move loses to the line; search some move to prove it
                 if (patternThreat) {
                     getPatternThreatDefend(evaluator, moves);
@@ -606,12 +606,13 @@ Search::ThreatKind Search::getThreatDefense(CandidateList& moves, bool patternTh
     }
     if (kind == NO_THREAT && vcfThreats) {
         MoveList line;
-        if (findVCFThreatLine(line)) {
+        kind = findVCFThreatLine(line);
+        if (kind == VCF_THREAT) {
             collectVCFRefutations(board, line, moves);
-            kind = VCF_THREAT;
         }
     }
-    if (!searchActive()) {
+    // an unsettled probe is asked again on the next visit
+    if (!searchActive() || kind == UNSETTLED_THREAT) {
         return kind;
     }
 

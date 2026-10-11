@@ -16,6 +16,7 @@ Search::QVCFContext Search::makeThreatQVCFContext(Piece attacker) {
     context.keySalt = attacker == BLACK ? QVCF_THREAT_TT_KEY_BLACK : QVCF_THREAT_TT_KEY_WHITE;
     context.foursOnly = true;
     context.table = &threatTT;
+    context.nodeLimit = THREAT_QVCF_NODE_LIMIT;
     return context;
 }
 
@@ -145,19 +146,25 @@ bool Search::tryResolveLeafVCF(MoveList* pv, Value& resolvedValue) {
     return true;
 }
 
-// The opponent's VCF if the side to move passed, as a replayable fours-only line. False
-// when there is none, the probe ran out of nodes, or the line does not replay.
-bool Search::findVCFThreatLine(MoveList& line) {
+// The opponent's VCF if the side to move passed, as a replayable fours-only line: VCF_THREAT
+// with the line, NO_THREAT when there is none, UNSETTLED_THREAT when the probe ran out
+// of nodes or its line does not replay.
+Search::ThreatKind Search::findVCFThreatLine(MoveList& line) {
     const Piece attacker = board.isBlackTurn() ? WHITE : BLACK;
     if (!board.pass()) {
-        return false;
+        return NO_THREAT;
     }
 
     QVCFContext context = makeThreatQVCFContext(attacker);
     Value value = qvcfAttack(options.leafVCFMaxPly, context, &line);
-    const bool replays = searchActive() && value.isWin() && replayVCFWins(board, line);
+    ThreatKind kind = NO_THREAT;
+    if (value.isWin()) {
+        kind = searchActive() && replayVCFWins(board, line) ? VCF_THREAT : UNSETTLED_THREAT;
+    } else if (context.stopped) {
+        kind = UNSETTLED_THREAT;
+    }
     board.undo();
-    return replays;
+    return kind;
 }
 
 Value Search::qvcfSearch(int remainingPly, QVCFContext& context, MoveList* pv) {

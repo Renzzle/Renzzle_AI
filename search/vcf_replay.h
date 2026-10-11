@@ -62,9 +62,13 @@ inline bool replayVCFWins(Board& board, const MoveList& line, VCFReplayTrace* tr
             wins = true;
             break;
         }
-        // a defender five threat outranks the next four
+        // a defender five threat outranks the next four, unless that four takes its one five
+        // point
         if (board.hasCompositePattern(defender, WINNING)) {
-            break;
+            const MoveBucket& defenderFives = board.getPatternBucket(defender, WINNING);
+            if (defenderFives.size() != 1 || !(defenderFives.front() == line[i])) {
+                break;
+            }
         }
         if (trace != nullptr && attacker == BLACK
             && board.getCell(line[i]).getCompositePattern(BLACK) == FORBID_33) {
