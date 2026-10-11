@@ -129,7 +129,6 @@ PRIVATE
     static constexpr uint64_t QVCF_TT_KEY = 0x6a09e667f3bcc909ULL;
     static constexpr uint64_t QVCF_THREAT_TT_KEY_BLACK = 0xbb67ae8584caa73bULL;
     static constexpr uint64_t QVCF_THREAT_TT_KEY_WHITE = 0x3c6ef372fe94f82bULL;
-    static constexpr uint64_t QVCF_RETRY_TT_KEY = 0x510e527fade682d1ULL;
     static constexpr int QVCF_HEURISTIC_WIN_SCORE = MAX_VALUE - (BOARD_SIZE * BOARD_SIZE) - 1024;
     static constexpr int HISTORY_ABS_LIMIT = 16384;
     // attackScore[B4] — a killer must make at least a four (for the mover) to be
@@ -215,7 +214,6 @@ PRIVATE
     void storeQVCFWin(Board& targetBoard, const QVCFContext& context, Value value,
         int remainingPly, const Pos& bestMove);
     void storeQVCFFail(Board& targetBoard, const QVCFContext& context, int remainingPly);
-    void appendQVCFTTPV(Board tempBoard, const QVCFContext& context, MoveList& pv, int remainingPly) const;
     Value qvcfSearch(int remainingPly, QVCFContext& context, MoveList* pv);
     bool tryResolveLeafVCF(MoveList* pv, Value& resolvedValue);
     bool findVCFThreatLine(MoveList& line);

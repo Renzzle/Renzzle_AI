@@ -116,32 +116,6 @@ void Search::storeQVCFFail(Board& targetBoard, const QVCFContext& context, int r
     );
 }
 
-void Search::appendQVCFTTPV(Board tempBoard, const QVCFContext& context, MoveList& pv, int remainingPly) const {
-    for (int ply = 0; ply < remainingPly; ++ply) {
-        TTEntry entryStorage;
-        const uint64_t key = getQVCFTTKey(tempBoard, context);
-        if (!context.table->probeCopy(key, &entryStorage)) {
-            break;
-        }
-        if (entryStorage.getFlag() != TTFlag::EXACT || entryStorage.score == 0) {
-            break;
-        }
-        if (entryStorage.bestMove == TranspositionTable::INVALID_MOVE) {
-            break;
-        }
-
-        const Pos move = TranspositionTable::decodeMove(entryStorage.bestMove);
-        if (move.isDefault() || !tempBoard.move(move)) {
-            break;
-        }
-
-        pv.push_back(move);
-        if (tempBoard.getResult() != ONGOING) {
-            break;
-        }
-    }
-}
-
 bool Search::tryResolveLeafVCF(MoveList* pv, Value& resolvedValue) {
     if (!options.leafVCFEnabled || state.qvcfDisabledAfterWin || options.leafVCFMaxPly <= 0) {
         return false;
@@ -181,16 +155,7 @@ bool Search::findVCFThreatLine(MoveList& line) {
 
     QVCFContext context = makeThreatQVCFContext(attacker);
     Value value = qvcfAttack(options.leafVCFMaxPly, context, &line);
-    bool replays = searchActive() && value.isWin() && replayVCFWins(board, line);
-    // a line rebuilt from TT entries comes back cut short once some were evicted; search
-    // it once more in a private key space instead of wasting the probe
-    if (searchActive() && value.isWin() && !replays
-        && static_cast<int>(line.size()) < value.getResultDepth()) {
-        QVCFContext retry = makeThreatQVCFContext(attacker);
-        retry.keySalt ^= QVCF_RETRY_TT_KEY;
-        value = qvcfAttack(options.leafVCFMaxPly, retry, &line);
-        replays = searchActive() && value.isWin() && replayVCFWins(board, line);
-    }
+    const bool replays = searchActive() && value.isWin() && replayVCFWins(board, line);
     board.undo();
     return replays;
 }
@@ -216,10 +181,10 @@ Value Search::qvcfAttack(int remainingPly, QVCFContext& context, MoveList* pv) {
 
     Value cachedValue;
     Pos cachedBestMove;
-    if (probeQVCFTT(board, context, remainingPly, cachedValue, cachedBestMove)) {
-        if (cachedValue.isWin() && pv != nullptr) {
-            appendQVCFTTPV(board, context, *pv, remainingPly);
-        }
+    // a win can outlive the entries of its line, so a caller that needs the line searches
+    // the node again, the table's move first
+    if (probeQVCFTT(board, context, remainingPly, cachedValue, cachedBestMove)
+        && (pv == nullptr || !cachedValue.isWin())) {
         return cachedValue;
     }
 
@@ -299,10 +264,9 @@ Value Search::qvcfDefend(int remainingPly, QVCFContext& context, MoveList* pv) {
 
     Value cachedValue;
     Pos cachedBestMove;
-    if (probeQVCFTT(board, context, remainingPly, cachedValue, cachedBestMove)) {
-        if (cachedValue.isWin() && pv != nullptr) {
-            appendQVCFTTPV(board, context, *pv, remainingPly);
-        }
+    // as in qvcfAttack: a caller that needs the line does not take a win from the table
+    if (probeQVCFTT(board, context, remainingPly, cachedValue, cachedBestMove)
+        && (pv == nullptr || !cachedValue.isWin())) {
         return cachedValue;
     }
 
