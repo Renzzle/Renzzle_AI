@@ -38,7 +38,7 @@ PUBLIC
 };
 
 SearchWin::SearchWin(Board& initialBoard, SearchMonitor& monitor)
-    : board(initialBoard), rootPath(this->board.getPath()), monitor(monitor), tt(64ull * 1024ull * 1024ull, 4) {
+    : board(initialBoard), rootPath(this->board.getPath()), monitor(monitor), tt(64ull * 1024ull * 1024ull) {
     targetColor = this->board.isBlackTurn() ? COLOR_BLACK : COLOR_WHITE;
     targetResult = (targetColor == COLOR_BLACK) ? BLACK_WIN : WHITE_WIN;
 }

@@ -64,15 +64,15 @@ class TranspositionTable {
 private:
     static constexpr size_t DEFAULT_BYTES = 64ull * 1024ull * 1024ull; // 64MB
 
+    // entries per bucket: one 64-byte line of four 16-byte entries
+    static constexpr size_t ASSOCIATIVITY = 4;
+
     struct SharedState {
         std::vector<TTEntry> entries;
         size_t bucketCount = 0;
-        size_t associativity = 4;
         size_t memoryBytes = 0;
         std::atomic<size_t> usedEntries {0};
         std::atomic<unsigned int> generation {0};
-        mutable std::atomic<size_t> probeCount {0};
-        mutable std::atomic<size_t> hitCount {0};
     };
 
     std::shared_ptr<SharedState> state = std::make_shared<SharedState>();
@@ -86,7 +86,7 @@ private:
     }
 
     size_t getBucketBase(size_t bucketIndex) const {
-        return bucketIndex * state->associativity;
+        return bucketIndex * ASSOCIATIVITY;
     }
 
     size_t getBucketIndex(uint64_t key) const {
@@ -103,24 +103,20 @@ private:
 public:
     static constexpr uint16_t INVALID_MOVE = 0xFFFF;
 
-    explicit TranspositionTable(size_t bytes = DEFAULT_BYTES, size_t assoc = 4) {
-        resize(bytes, assoc);
+    explicit TranspositionTable(size_t bytes = DEFAULT_BYTES) {
+        resize(bytes);
     }
 
-    void resize(size_t bytes, size_t assoc = 4) {
-        if (assoc == 0) assoc = 1;
-
+    void resize(size_t bytes) {
         const size_t entryBytes = sizeof(TTEntry);
-        size_t rawBucketCount = bytes / (entryBytes * assoc);
+        size_t rawBucketCount = bytes / (entryBytes * ASSOCIATIVITY);
         if (rawBucketCount == 0) rawBucketCount = 1;
 
-        state->associativity = assoc;
         state->bucketCount = floorPowerOfTwo(rawBucketCount);
-        state->entries.assign(state->bucketCount * state->associativity, TTEntry());
+        state->entries.assign(state->bucketCount * ASSOCIATIVITY, TTEntry());
         state->memoryBytes = state->entries.size() * sizeof(TTEntry);
         state->usedEntries.store(0, std::memory_order_relaxed);
         state->generation.store(0, std::memory_order_relaxed);
-        resetStats();
     }
 
     void clear() {
@@ -129,7 +125,6 @@ public:
         }
         state->usedEntries.store(0, std::memory_order_relaxed);
         state->generation.store(0, std::memory_order_relaxed);
-        resetStats();
     }
 
     void nextGeneration() {
@@ -143,15 +138,13 @@ public:
             return false;
         }
 
-        state->probeCount.fetch_add(1, std::memory_order_relaxed);
         const size_t bucketIndex = getBucketIndex(key);
         const size_t base = getBucketBase(bucketIndex);
 
-        for (size_t i = 0; i < state->associativity; i++) {
+        for (size_t i = 0; i < ASSOCIATIVITY; i++) {
             const TTEntry& entry = state->entries[base + i];
             if (!entry.isEmpty() && entry.key == key) {
                 *out = entry;
-                state->hitCount.fetch_add(1, std::memory_order_relaxed);
                 return true;
             }
         }
@@ -186,7 +179,7 @@ public:
         size_t victimIdx = base;
         int victimScore = std::numeric_limits<int>::max();
 
-        for (size_t i = 0; i < state->associativity; i++) {
+        for (size_t i = 0; i < ASSOCIATIVITY; i++) {
             const size_t idx = base + i;
             const TTEntry& entry = state->entries[idx];
 
@@ -256,7 +249,7 @@ public:
     }
 
     size_t getAssociativity() const {
-        return state->associativity;
+        return ASSOCIATIVITY;
     }
 
     size_t getMemoryBytes() const {
@@ -265,26 +258,6 @@ public:
 
     uint8_t getGeneration() const {
         return static_cast<uint8_t>(state->generation.load(std::memory_order_relaxed) & TTEntry::AGE_MASK);
-    }
-
-    void resetStats() const {
-        state->probeCount.store(0, std::memory_order_relaxed);
-        state->hitCount.store(0, std::memory_order_relaxed);
-    }
-
-    size_t getProbeCount() const {
-        return state->probeCount.load(std::memory_order_relaxed);
-    }
-
-    size_t getHitCount() const {
-        return state->hitCount.load(std::memory_order_relaxed);
-    }
-
-    double getHitRate() const {
-        const size_t probeCount = state->probeCount.load(std::memory_order_relaxed);
-        if (probeCount == 0) return 0.0;
-        return static_cast<double>(state->hitCount.load(std::memory_order_relaxed))
-            / static_cast<double>(probeCount);
     }
 
     static uint16_t encodeMove(const Pos& move) {

@@ -15,7 +15,6 @@ struct VCFCandidateFinderOptions {
     double perMoveTimeLimitSeconds = 0.0;
     size_t perMoveNodeLimit = 0;
     size_t ttBytes = 4ull * 1024ull * 1024ull;
-    size_t ttAssociativity = 4;
     size_t timeCheckNodeInterval = 64;
     bool skipCandidatesWhenRootHasVCF = true;
 };
@@ -80,7 +79,7 @@ PUBLIC
 };
 
 VCFCandidateFinder::VCFCandidateFinder(Board& board, VCFCandidateFinderOptions options)
-    : rootBoard(board), options(options), vcfTT(options.ttBytes, options.ttAssociativity) {
+    : rootBoard(board), options(options), vcfTT(options.ttBytes) {
     vcfTT.nextGeneration();
 }
 

@@ -436,7 +436,6 @@ PRIVATE
                 << ", totalTime=" << formatMilliseconds(monitor.getElapsedTime())
                 << ", deltaTime=" << formatMilliseconds(monitor.getElapsedTime() - timeBefore)
                 << ", ttEntries=" << searcher.getNodeCount()
-                << ", ttHitRate=" << (searcher.tt.getHitRate() * 100.0) << "%"
                 << ", value=" << valueToString(result));
             TEST_PRINT("[DEEP][depth " << depth << "] best pv: " << convertPath2String(pv));
             TEST_PRINT("[DEEP][depth " << depth << "] root profile (final aspiration pass)");
