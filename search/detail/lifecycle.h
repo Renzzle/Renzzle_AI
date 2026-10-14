@@ -42,8 +42,7 @@ void Search::ids() {
         current = next;
         SearchStage& stage = stages[current];
 
-        // only the classic stage ages the table: widened iterations would otherwise make the
-        // classic entries look stale and push them out before the classic stage resumes
+        // only the classic stage ages the table, so widened iterations don't evict its entries
         if (current == 0) {
             tt.nextGeneration();
         }

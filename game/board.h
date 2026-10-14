@@ -93,8 +93,7 @@ PUBLIC
     void undo();
     bool pass();
     Result getResult();
-    // with `reach`, also marks every cell whose stone could change the verdict: the line
-    // windows of the cells the 3-3 walk reads (codes are (x << 4) | y)
+    // `reach` collects the cells that could change the verdict (codes (x << 4) | y)
     bool isForbidden(const Pos& p, std::array<uint8_t, 256>* reach = nullptr);
     template <typename Fn>
     void forEachFivePointAfter(const Pos& p, Piece piece, Fn&& fn);

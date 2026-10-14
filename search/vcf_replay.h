@@ -62,8 +62,7 @@ inline bool replayVCFWins(Board& board, const MoveList& line, VCFReplayTrace* tr
             wins = true;
             break;
         }
-        // a defender five threat outranks the next four, unless that four takes its one five
-        // point
+        // a defender five threat ends the line unless the next four takes its only five point
         if (board.hasCompositePattern(defender, WINNING)) {
             const MoveBucket& defenderFives = board.getPatternBucket(defender, WINNING);
             if (defenderFives.size() != 1 || !(defenderFives.front() == line[i])) {
@@ -122,11 +121,9 @@ inline bool replayVCFWins(Board& board, const MoveList& line, VCFReplayTrace* tr
     return wins;
 }
 
-// Cells a defender stone must take to change the replay: the line's cells, the final five
-// points (attacker fives depend on attacker stones only) and defender four points. When a
-// forbidden verdict is in play (a black 3-3 candidate, a forbidden-block win), the cells that
-// verdict reads are added and `confirm` is set: those candidates need a replay each. False
-// if the line does not win.
+// Cells where a defender stone could change the replay: line cells, final five points and
+// defender four points, plus the cells a forbidden verdict reads (then `confirm` is set and
+// each candidate needs a replay). False if the line does not win.
 inline bool markVCFRefutationCandidates(Board& board, const MoveList& line,
     std::array<uint8_t, 256>& candidate, bool& confirm) {
     if (!board.pass()) {
@@ -149,9 +146,8 @@ inline bool markVCFRefutationCandidates(Board& board, const MoveList& line,
     return true;
 }
 
-// A complete defense set against `line`: every move left out loses to it. With the filter
-// the candidates are taken as is, or replayed one by one when a forbidden verdict is in play;
-// `filter` = false replays every move (test reference).
+// A complete defense set against `line`: every move left out loses to it. `filter` = false
+// replays every move (test reference).
 inline void collectVCFRefutations(Board& board, const MoveList& line, CandidateList& result,
     bool filter = true) {
     result.clear();

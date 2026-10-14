@@ -382,7 +382,7 @@ Value Search::abp(int depth, bool isMax, Value alpha, Value beta, MoveList* pv) 
     ThreatKind threat = NO_THREAT;
     CandidateList moves = getCandidates(evaluator, isMax, depth, threat);
     if (moves.empty()) {
-        // an unsettled probe proves nothing: a plain leaf, probed again by a deeper iteration
+        // unsettled: a plain leaf, so a deeper iteration probes again
         return threatBrokenLeaf && threat != UNSETTLED_THREAT
             ? evaluateThreatBrokenLeaf(isMax, depth)
             : evaluateLeafNode(isMax, depth);
@@ -424,10 +424,11 @@ Value Search::abp(int depth, bool isMax, Value alpha, Value beta, MoveList* pv) 
         }
 
         const Pos move = moves[i];
+        // prefetch before moving: the load overlaps the board update
+        tt.prefetch(getChildTTKey(move));
         if (!board.move(move)) {
             continue;
         }
-        tt.prefetch(getTTKey(board));
 
         searchedAny = true;
         searchedMoveCodes[searchedMoveCount++] =
@@ -611,7 +612,7 @@ Search::ThreatKind Search::getThreatDefense(CandidateList& moves, bool patternTh
             collectVCFRefutations(board, line, moves);
         }
     }
-    // an unsettled probe is asked again on the next visit
+    // unsettled results are not cached
     if (!searchActive() || kind == UNSETTLED_THREAT) {
         return kind;
     }
@@ -717,13 +718,9 @@ void Search::sortChildNodes(CandidateList& moves, bool isMax, bool defending, co
         return 2;
     };
 
-    // One ascending key per move, field by field in priority order (smaller = earlier):
-    //   TT best first; then moves with a child entry; their TT score, high first for Max
-    //   and low first for Min; the bound type, which refines a tied score (Max prefers
-    //   LOWER_BOUND: the value could be higher still, Min UPPER_BOUND); recent four-making
-    //   cutoff moves (killers), which outrank the static cell score as they refute the
-    //   line like they refuted a sibling or fail fast; the cell score; the history score.
-    // The sort is stable, so ties keep the generation order and also break equal results.
+    // One ascending key per move, in priority order: TT best, has a child entry, TT score
+    // (high first for Max), bound type (Max prefers LOWER_BOUND, Min UPPER_BOUND), killer,
+    // cell score, history. The sort is stable, so ties keep the generation order.
     struct KeyedMove {
         uint64_t key;
         uint8_t moveCode;
@@ -742,15 +739,20 @@ void Search::sortChildNodes(CandidateList& moves, bool isMax, bool defending, co
     const Piece opposingPiece   = sideToMoveIsBlack ? WHITE : BLACK;
     const Piece scorePiece = defending ? opposingPiece : sideToMovePiece;
     const bool shouldProbeChildren = (entry != nullptr || hasHistorySignal);
+    // prefetch every child before probing so the loads overlap
+    uint64_t childKeys[BOARD_SIZE * BOARD_SIZE];
+    if (shouldProbeChildren) {
+        for (size_t mi = 0; mi < moves.size(); ++mi) {
+            childKeys[mi] = getChildTTKey(moves[mi]);
+            tt.prefetch(childKeys[mi]);
+        }
+    }
     for (size_t mi = 0; mi < moves.size(); ++mi) {
         const Pos& move = moves[mi];
-        if (shouldProbeChildren && mi + 1 < moves.size()) {
-            tt.prefetch(getChildTTKey(moves[mi + 1]));
-        }
         TTEntry childEntryStorage;
         const TTEntry* childEntry =
             shouldProbeChildren
-                && tt.probeCopy(getChildTTKey(move), &childEntryStorage)
+                && tt.probeCopy(childKeys[mi], &childEntryStorage)
                 ? &childEntryStorage
                 : nullptr;
         const uint8_t moveCode = static_cast<uint8_t>((move.getX() << 4) | move.getY());

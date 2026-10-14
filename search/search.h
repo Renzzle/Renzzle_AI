@@ -93,8 +93,7 @@ PRIVATE
         std::array<std::array<uint8_t, 2>, BOARD_SIZE * BOARD_SIZE + 4> killerMoves = {};
     };
 
-    // UNSETTLED_THREAT: the VCF probe stopped at its node limit or found a line that does not
-    // replay, so it proves neither a threat nor its absence
+    // UNSETTLED_THREAT: the VCF probe ran out of nodes or its line did not replay
     enum ThreatKind : uint8_t { NO_THREAT, PATTERN_THREAT, VCF_THREAT, UNSETTLED_THREAT };
 
     // getThreatDefense result per position, so revisits skip the line and the scan
@@ -138,11 +137,9 @@ PRIVATE
     static constexpr int KILLER_MIN_FOUR_SCORE = 400;
     static constexpr int ASPIRATION_START_DELTA = 32;
     static constexpr size_t THREAT_DEFENSE_CACHE_SIZE = 1u << 16;
-    // VCF-threat probes are many small searches (tens of nodes each): a table this size
-    // stays in cache, and their entries no longer push main-tree entries out of tt
+    // small enough to stay in cache; keeps threat-probe entries out of tt
     static constexpr size_t THREAT_TT_BYTES = 4ull * 1024ull * 1024ull;
-    // a threat probe that runs out of nodes settles nothing, and almost all that pass the
-    // 4096-node leaf limit finish within this
+    // settles nearly every threat probe (the leaf probe limit is 4096)
     static constexpr size_t THREAT_QVCF_NODE_LIMIT = 65536;
     static constexpr uint64_t WIDENED_STAGE_TT_SALT = 0xa54ff53a5f1d36f1ULL;
     // classic VCT runs alone for this many nodes before the widened stage gets iterations;
@@ -216,6 +213,10 @@ PRIVATE
     void moveQVCFTTBestFirst(CandidateList& moves, const Pos& bestMove) const;
     bool probeQVCFTT(Board& targetBoard, const QVCFContext& context, int remainingPly,
         Value& value, Pos& bestMove) const;
+    bool probeQVCFTT(uint64_t key, const QVCFContext& context, int remainingPly,
+        Value& value, Pos& bestMove) const;
+    bool answerQVCFChild(const Pos& move, int childPly, const QVCFContext& context,
+        bool needLine, Value& value);
     void storeQVCFWin(Board& targetBoard, const QVCFContext& context, Value value,
         int remainingPly, const Pos& bestMove);
     void storeQVCFFail(Board& targetBoard, const QVCFContext& context, int remainingPly);

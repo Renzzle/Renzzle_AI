@@ -9,7 +9,7 @@ Search::QVCFContext Search::makeLeafQVCFContext() {
     return context;
 }
 
-// threat probes serve either side, keep their own key space per attacker and their own table
+// threat probes: either side, a key space per attacker, their own table
 Search::QVCFContext Search::makeThreatQVCFContext(Piece attacker) {
     QVCFContext context;
     context.attacker = attacker;
@@ -66,8 +66,12 @@ void Search::moveQVCFTTBestFirst(CandidateList& moves, const Pos& bestMove) cons
 
 bool Search::probeQVCFTT(Board& targetBoard, const QVCFContext& context, int remainingPly,
     Value& value, Pos& bestMove) const {
+    return probeQVCFTT(getQVCFTTKey(targetBoard, context), context, remainingPly, value, bestMove);
+}
+
+bool Search::probeQVCFTT(uint64_t key, const QVCFContext& context, int remainingPly,
+    Value& value, Pos& bestMove) const {
     TTEntry entryStorage;
-    const uint64_t key = getQVCFTTKey(targetBoard, context);
     if (!context.table->probeCopy(key, &entryStorage)) {
         return false;
     }
@@ -146,9 +150,8 @@ bool Search::tryResolveLeafVCF(MoveList* pv, Value& resolvedValue) {
     return true;
 }
 
-// The opponent's VCF if the side to move passed, as a replayable fours-only line: VCF_THREAT
-// with the line, NO_THREAT when there is none, UNSETTLED_THREAT when the probe ran out
-// of nodes or its line does not replay.
+// The opponent's replayable fours-only VCF after a pass (UNSETTLED_THREAT: out of nodes or
+// the line does not replay).
 Search::ThreatKind Search::findVCFThreatLine(MoveList& line) {
     const Piece attacker = board.isBlackTurn() ? WHITE : BLACK;
     if (!board.pass()) {
@@ -165,6 +168,19 @@ Search::ThreatKind Search::findVCFThreatLine(MoveList& line) {
     }
     board.undo();
     return kind;
+}
+
+// The child's result without playing `move`: a fail past the ply limit, or its TT answer.
+// These moves never end the game, so the child would do nothing else first.
+bool Search::answerQVCFChild(const Pos& move, int childPly, const QVCFContext& context,
+    bool needLine, Value& value) {
+    if (childPly <= 0) {
+        value = Value();
+        return true;
+    }
+    Pos bestMove;
+    return probeQVCFTT(getChildTTKey(move) ^ context.keySalt, context, childPly, value, bestMove)
+        && (!needLine || !value.isWin());
 }
 
 Value Search::qvcfSearch(int remainingPly, QVCFContext& context, MoveList* pv) {
@@ -188,8 +204,7 @@ Value Search::qvcfAttack(int remainingPly, QVCFContext& context, MoveList* pv) {
 
     Value cachedValue;
     Pos cachedBestMove;
-    // a win can outlive the entries of its line, so a caller that needs the line searches
-    // the node again, the table's move first
+    // a TT win may have lost its line's entries: re-search when the line is needed
     if (probeQVCFTT(board, context, remainingPly, cachedValue, cachedBestMove)
         && (pv == nullptr || !cachedValue.isWin())) {
         return cachedValue;
@@ -224,15 +239,22 @@ Value Search::qvcfAttack(int remainingPly, QVCFContext& context, MoveList* pv) {
         return Value();
     }
 
-    for (const Pos& move : moves) {
-        if (!board.move(move)) {
-            continue;
+    // children are probed before being played, so prefetch them all
+    if (remainingPly > 1) {
+        for (const Pos& move : moves) {
+            context.table->prefetch(getChildTTKey(move) ^ context.keySalt);
         }
-        context.table->prefetch(getQVCFTTKey(board, context));
-
+    }
+    for (const Pos& move : moves) {
         MoveList childPV;
-        Value childValue = qvcfDefend(remainingPly - 1, context, pv != nullptr ? &childPV : nullptr);
-        board.undo();
+        Value childValue;
+        if (!answerQVCFChild(move, remainingPly - 1, context, pv != nullptr, childValue)) {
+            if (!board.move(move)) {
+                continue;
+            }
+            childValue = qvcfDefend(remainingPly - 1, context, pv != nullptr ? &childPV : nullptr);
+            board.undo();
+        }
 
         if (!searchActive() || context.stopped) {
             return Value();
@@ -271,7 +293,7 @@ Value Search::qvcfDefend(int remainingPly, QVCFContext& context, MoveList* pv) {
 
     Value cachedValue;
     Pos cachedBestMove;
-    // as in qvcfAttack: a caller that needs the line does not take a win from the table
+    // as in qvcfAttack
     if (probeQVCFTT(board, context, remainingPly, cachedValue, cachedBestMove)
         && (pv == nullptr || !cachedValue.isWin())) {
         return cachedValue;
@@ -310,16 +332,17 @@ Value Search::qvcfDefend(int remainingPly, QVCFContext& context, MoveList* pv) {
         return value;
     }
 
-    if (!board.move(defendMove)) {
-        Value value(Value::Result::WIN, 0);
-        storeQVCFWin(board, context, value, remainingPly, Pos());
-        return value;
-    }
-    context.table->prefetch(getQVCFTTKey(board, context));
-
     MoveList childPV;
-    Value childValue = qvcfAttack(remainingPly - 1, context, pv != nullptr ? &childPV : nullptr);
-    board.undo();
+    Value childValue;
+    if (!answerQVCFChild(defendMove, remainingPly - 1, context, pv != nullptr, childValue)) {
+        if (!board.move(defendMove)) {
+            Value value(Value::Result::WIN, 0);
+            storeQVCFWin(board, context, value, remainingPly, Pos());
+            return value;
+        }
+        childValue = qvcfAttack(remainingPly - 1, context, pv != nullptr ? &childPV : nullptr);
+        board.undo();
+    }
 
     if (!searchActive() || context.stopped) {
         return Value();
