@@ -68,19 +68,21 @@ void Search::ids() {
             break;
         }
 
-        // DEFENSIVE elimination: if exactly one root candidate is non-LOSE,
-        // the answer is decided regardless of further deepening. Only valid when
-        // the last root call actually searched every candidate — a partial
-        // lastRootStats (root cutoff/stop) says nothing about unsearched moves.
+        // DEFENSIVE elimination: a lone non-LOSE root move decides the answer, but only
+        // after a complete root search whose depth covers the deepest LOSE (leaf VCF
+        // can prove losses beyond the depth, while the survivor is safe only within it).
         if (options.mode == Mode::DEFENSIVE && state.lastRootSearchComplete) {
             int nonLoseCount = 0;
+            int deepestLose = 0;
             for (auto& stat : state.lastRootStats) {
                 if (!stat.value.isLose()) {
                     ++nonLoseCount;
                     if (nonLoseCount > 1) break;
+                } else {
+                    deepestLose = std::max(deepestLose, stat.value.getResultDepth());
                 }
             }
-            if (nonLoseCount == 1) {
+            if (nonLoseCount == 1 && deepestLose <= stage.depth) {
                 break;
             }
         }
