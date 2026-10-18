@@ -81,8 +81,16 @@ int Search::getShallowMoveLimit(Evaluator& evaluator, int depth, bool attackerTu
     return (depth <= 3) ? 4 : (depth <= 5) ? 6 : std::numeric_limits<int>::max();
 }
 
+Value Search::evaluateStatic() {
+    if (options.mode != Mode::DEFENSIVE) {
+        return evaluateTacticalSummary(board);
+    }
+    const Piece attacker = rootBoard.isBlackTurn() ? WHITE : BLACK;
+    return evaluateTacticalSummary(board, attacker, DEFENSIVE_ATTACKER_WEIGHT);
+}
+
 Value Search::evaluateLeafNode(bool isMax, int depth) {
-    Value val = evaluateTacticalSummary(board);
+    Value val = evaluateStatic();
     if (!isMax) {
         val.invert();
     }
@@ -406,7 +414,7 @@ Value Search::abp(int depth, bool isMax, Value alpha, Value beta, MoveList* pv) 
     const bool standPat = options.mode == Mode::DEFENSIVE && !isRootNode && threat != VCF_THREAT
         && !evaluator.isOppoMateExist() && !evaluator.isOppoFourThreeExist();
     if (standPat) {
-        Value standValue = evaluateTacticalSummary(board);
+        Value standValue = evaluateStatic();
         if (!isMax) {
             standValue.invert();
         }
@@ -562,6 +570,10 @@ CandidateList Search::getCandidates(Evaluator& evaluator, bool isMax, int depth,
                 return moves;
             }
             evaluator.getCandidates(moves);
+            // pure blocks too: holding out can mean cutting the opponent's shapes first
+            CandidateList blocks;
+            evaluator.getShapeBlocks(blocks);
+            appendUniqueMoves(moves, blocks);
             return moves;
         }
 

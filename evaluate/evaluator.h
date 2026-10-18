@@ -25,6 +25,7 @@ PUBLIC
     Value quickWinCheck(Pos* bestMove = nullptr);
     MoveList getCandidates();
     void getCandidates(CandidateList& result);
+    void getShapeBlocks(CandidateList& result);
     Pos getSureMove();
     MoveList getFours();
     void getFours(CandidateList& result);
@@ -46,7 +47,8 @@ PUBLIC
 
 }; 
 
-inline Value evaluateTacticalSummary(Board& board) {
+// `weighted`'s shapes count `weightPercent`% (DEFENSIVE weighs the attacker up)
+inline Value evaluateTacticalSummary(Board& board, Piece weighted = EMPTY, int weightPercent = 100) {
     Piece self = board.isBlackTurn() ? BLACK : WHITE;
     Piece oppo = !board.isBlackTurn() ? BLACK : WHITE;
 
@@ -73,29 +75,32 @@ inline Value evaluateTacticalSummary(Board& board) {
         return Value(Value::Result::WIN, 3);
     }
 
-    int val = 0;
-    val += board.getCompositePatternCount(self, F2_ANY) * 4;
-    val += board.getCompositePatternCount(self, B3_ANY) * 5;
-    val += board.getCompositePatternCount(self, F2_2X) * 9;
-    val += board.getCompositePatternCount(self, B3_PLUS) * 10;
-    val += board.getCompositePatternCount(self, F3_ANY) * 25;
-    val += board.getCompositePatternCount(self, F3_PLUS) * 25;
-    val += board.getCompositePatternCount(self, F3_2X) * 35;
-    val += board.getCompositePatternCount(self, B4_ANY) * 25;
-    val += board.getCompositePatternCount(self, B4_PLUS) * 25;
-    val += board.getCompositePatternCount(self, B4_F3) * 150;
+    int selfVal = 0;
+    selfVal += board.getCompositePatternCount(self, F2_ANY) * 4;
+    selfVal += board.getCompositePatternCount(self, B3_ANY) * 5;
+    selfVal += board.getCompositePatternCount(self, F2_2X) * 9;
+    selfVal += board.getCompositePatternCount(self, B3_PLUS) * 10;
+    selfVal += board.getCompositePatternCount(self, F3_ANY) * 25;
+    selfVal += board.getCompositePatternCount(self, F3_PLUS) * 25;
+    selfVal += board.getCompositePatternCount(self, F3_2X) * 35;
+    selfVal += board.getCompositePatternCount(self, B4_ANY) * 25;
+    selfVal += board.getCompositePatternCount(self, B4_PLUS) * 25;
+    selfVal += board.getCompositePatternCount(self, B4_F3) * 150;
 
-    val -= board.getCompositePatternCount(oppo, F2_ANY) * 2;
-    val -= board.getCompositePatternCount(oppo, B3_ANY) * 3;
-    val -= board.getCompositePatternCount(oppo, F2_2X) * 7;
-    val -= board.getCompositePatternCount(oppo, B3_PLUS) * 8;
-    val -= board.getCompositePatternCount(oppo, F3_ANY) * 20;
-    val -= board.getCompositePatternCount(oppo, F3_PLUS) * 20;
-    val -= board.getCompositePatternCount(oppo, F3_2X) * 20;
-    val -= board.getCompositePatternCount(oppo, B4_ANY) * 20;
-    val -= board.getCompositePatternCount(oppo, B4_PLUS) * 20;
+    int oppoVal = 0;
+    oppoVal += board.getCompositePatternCount(oppo, F2_ANY) * 2;
+    oppoVal += board.getCompositePatternCount(oppo, B3_ANY) * 3;
+    oppoVal += board.getCompositePatternCount(oppo, F2_2X) * 7;
+    oppoVal += board.getCompositePatternCount(oppo, B3_PLUS) * 8;
+    oppoVal += board.getCompositePatternCount(oppo, F3_ANY) * 20;
+    oppoVal += board.getCompositePatternCount(oppo, F3_PLUS) * 20;
+    oppoVal += board.getCompositePatternCount(oppo, F3_2X) * 20;
+    oppoVal += board.getCompositePatternCount(oppo, B4_ANY) * 20;
+    oppoVal += board.getCompositePatternCount(oppo, B4_PLUS) * 20;
 
-    return Value(val);
+    if (weighted == self) selfVal = selfVal * weightPercent / 100;
+    if (weighted == oppo) oppoVal = oppoVal * weightPercent / 100;
+    return Value(selfVal - oppoVal);
 }
 
 Evaluator::Evaluator(Board& board)
@@ -296,6 +301,16 @@ void Evaluator::getCandidates(CandidateList& result) {
     sort(result.begin(), result.end(), [&](const Pos& a, const Pos& b) {
         return board.getCell(a).getScore(self) > board.getCell(b).getScore(self);
     });
+}
+
+// cells where the opponent would build a three, a four or a double two
+void Evaluator::getShapeBlocks(CandidateList& result) {
+    result.clear();
+    for (CompositePattern pattern : {F3_2X, B4_PLUS, B4_ANY, F3_PLUS, F3_ANY, B3_PLUS, F2_2X}) {
+        bucket(oppo, pattern).forEach([&](const Pos& p) {
+            if (!isMoveForbidden(p)) result.push_back(p);
+        });
+    }
 }
 
 Pos Evaluator::getSureMove() {

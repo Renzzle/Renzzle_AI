@@ -136,6 +136,9 @@ PRIVATE
     // stored and to outrank the static cell score during move ordering
     static constexpr int KILLER_MIN_FOUR_SCORE = 400;
     static constexpr int ASPIRATION_START_DELTA = 32;
+    // DEFENSIVE's static value counts the attacker's shapes at this percent: the root side
+    // only has to hold out, so cutting the attacker's shapes beats growing its own
+    static constexpr int DEFENSIVE_ATTACKER_WEIGHT = 150;
     static constexpr size_t THREAT_DEFENSE_CACHE_SIZE = 1u << 16;
     // small enough to stay in cache; keeps threat-probe entries out of tt
     static constexpr size_t THREAT_TT_BYTES = 4ull * 1024ull * 1024ull;
@@ -187,6 +190,7 @@ PRIVATE
         TTEntry& ttEntryStorage, const TTEntry*& ttEntry, Value& resolvedValue);
     int getShallowMoveLimit(Evaluator& evaluator, int depth, bool attackerTurn, ThreatKind threat);
     Value evaluateLeafNode(bool isMax, int depth);
+    Value evaluateStatic();
     Value evaluateThreatBrokenLeaf(bool isMax, int depth);
     bool tryResolveQuickWin(Evaluator& evaluator, bool isMax, int depth, MoveList* pv, Value& resolvedValue);
     bool tryResolveLosingRootMove(int depth, bool isMax, Value& resolvedValue);
