@@ -311,23 +311,24 @@ PUBLIC
     void testFindNextMoveCases() {
         const vector<NextMoveCase> cases = {
             // attacker has a VCT win
-            { "h8h9i8g8i10i9j9k10j7i7",                                               "",    "VCT win exists" },
-            { "h8h9j9g8j10g7i10",                                                     "",    "VCT win exists" },
-            { "h8h9f6g7e9g8f7h6f8f9h7d6",                                             "",    "VCT win exists" },
+            { "h8h9i8g8i10i9j9k10j7i7",                                                                 "",    "VCT win exists" },
+            { "h8h9j9g8j10g7i10",                                                                       "",    "VCT win exists" },
+            { "h8h9f6g7e9g8f7h6f8f9h7d6",                                                               "",    "VCT win exists" },
 
             // quiet position
-            { "h8h9i8i9j8j9g8g9f8",                                                   "",    "quiet midgame" },
+            { "h8h9i8i9j8j9g8g9f8",                                                                     "",    "quiet midgame" },
 
             // must defend the opponent's threat
-            { "h8h9i9g7i10i8g10h10h11i12g12f13j10j9g11g9i11h12f12",                   "",    "one defend" },
-            { "h8h9i8i9j8k8h7j9k9i10h11g8f7h10j7i7",                                  "",    "one defend" },
-            { "h8i7j7i8k9j9i6h7g6k10l11f6h5g4k8l9i4j3k6j5j6h6e7f7f8g9f4k4k3g7k7k5l8", "m9",  "one defend" },
-            { "h8h9i8i9j9i10j10k10j11j12g8e8i13h10k13k7",                             "g11", "44 defend" },
-            { "h8h9i8g8i10i9j9k10k8",                                                 "l7",  "lose but need correct defense" },
+            { "h8h9i9g7i10i8g10h10h11i12g12f13j10j9g11g9i11h12f12",                                     "",    "one defend" },
+            { "h8h9i8i9j8k8h7j9k9i10h11g8f7h10j7i7",                                                    "",    "one defend" },
+            { "h8i7j7i8k9j9i6h7g6k10l11f6h5g4k8l9i4j3k6j5j6h6e7f7f8g9f4k4k3g7k7k5l8",                   "m9",  "one defend" },
+            { "h8h9i8i9j9i10j10k10j11j12g8e8i13h10k13k7",                                               "g11", "44 defend" },
+            { "h8h9i8g8i10i9j9k10k8",                                                                   "l7",  "lose but need correct defense" },
+            { "h8i9i8g8h9j7j8j9h10h11i10i7g10f10j10k10j11k12k11l10i11k9j12g9i13i12i14l9m9j13h14g15f14", "l15", "four forces k14, then quiet g13 holds" },
 
             // every move loses: pick the longest delay
-            { "h8h9i8g8i10i9j9k10k8l7j8l8j6j7i7k5h6g5g6i6h7f5h5h4f7e8f8",             "",    "VCT lose — longest delay defense" },
-            { "h8h9i9i8j7i7h7j8h6i5i6k6j6f6g7g4h5h4g8",                               "j5",  "f9 loses at ply 10, j5 at 12" },
+            { "h8h9i8g8i10i9j9k10k8l7j8l8j6j7i7k5h6g5g6i6h7f5h5h4f7e8f8",                               "",    "VCT lose — longest delay defense" },
+            { "h8h9i9i8j7i7h7j8h6i5i6k6j6f6g7g4h5h4g8",                                                 "j5",  "f9 loses at ply 10, j5 at 12" },
         };
         runNextMoveSuite(cases, "find_next_move_cases");
     }
